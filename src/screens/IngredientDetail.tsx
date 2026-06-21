@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Icon from "../components/Icon.tsx";
-import { supabase } from "../lib/supabase.ts";
+import { supabase, uploadImage } from "../lib/supabase.ts";
 
 interface Props {
   onBack: () => void;
@@ -20,6 +20,8 @@ export default function IngredientDetail({ onBack }: Props) {
   const [unit, setUnit] = useState("kg");
   const [status, setStatus] = useState<"optimal" | "low" | "critical">("optimal");
   const [img, setImg] = useState<string | null>(null);
+  const [imgFile, setImgFile] = useState<File | null>(null);
+  const imgInputRef = useRef<HTMLInputElement>(null);
   const [notes, setNotes] = useState("");
   const [shelfLife, setShelfLife] = useState(180);
   const [lowThreshold, setLowThreshold] = useState(15);
@@ -42,7 +44,12 @@ export default function IngredientDetail({ onBack }: Props) {
   const handleSave = async () => {
     if (!id) return;
     setSaving(true);
-    await supabase.from("ingredients").update({ name, sku }).eq("id", id);
+    let finalImg = img;
+    if (imgFile) {
+      try { finalImg = await uploadImage("ingredient-images", imgFile); setImg(finalImg); setImgFile(null); }
+      catch (e: any) { setSaving(false); return; }
+    }
+    await supabase.from("ingredients").update({ name, sku, img: finalImg }).eq("id", id);
     setSaving(false);
   };
 
@@ -221,6 +228,16 @@ export default function IngredientDetail({ onBack }: Props) {
                   </div>
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
+                <input ref={imgInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) { setImgFile(f); setImg(URL.createObjectURL(f)); }
+                }} />
+                <button
+                  onClick={() => imgInputRef.current?.click()}
+                  className="absolute bottom-4 right-4 bg-surface-container-lowest/90 backdrop-blur-sm text-primary px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 border border-outline-variant/30 hover:bg-surface-container-lowest transition-colors shadow-sm"
+                >
+                  <Icon name="photo_camera" size={14} /> {img ? "Change Photo" : "Upload Photo"}
+                </button>
                 {img && (
                   <div className="absolute bottom-5 left-5 text-white">
                     <span className="text-[10px] uppercase tracking-[0.2em] opacity-80">Inventory Visualization</span>

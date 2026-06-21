@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { supabase } from "../lib/supabase.ts";
+import { supabase, uploadImage } from "../lib/supabase.ts";
 import {
   Wheat, Droplets, FlaskConical, Sparkles, Egg, ChefHat, Coffee, Cookie,
   Leaf, Flame, Apple, UtensilsCrossed, Milk, Nut, Croissant, CakeSlice,
@@ -77,6 +77,11 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState<NewIngForm>(emptyForm);
   const [search, setSearch] = useState("");
+  const [imgFile, setImgFile] = useState<File | null>(null);
+  const [imgPreview, setImgPreview] = useState<string>("");
+  const [adding, setAdding] = useState(false);
+  const [addError, setAddError] = useState("");
+  const imgInputRef = React.useRef<HTMLInputElement>(null);
 
   const attention = ingredients.filter((i) => i.status === "low" || i.status === "critical");
   const filtered = ingredients.filter((i) => {
@@ -87,6 +92,13 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
 
   const handleAdd = async () => {
     if (!form.name.trim()) return;
+    setAdding(true);
+    setAddError("");
+    let finalImg = "";
+    if (imgFile) {
+      try { finalImg = await uploadImage("ingredient-images", imgFile); }
+      catch (e: any) { setAddError("Photo upload failed: " + e.message); setAdding(false); return; }
+    }
     const val = parseFloat(form.stockValue) || 0;
     const newIng: Ingredient = {
       id: `ing-${Date.now()}`,
@@ -97,16 +109,19 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
       unit: form.unit,
       status: form.status,
       icon: form.icon,
-      img: "",
+      img: finalImg,
     };
     const { error } = await supabase.from("ingredients").insert({
       id: newIng.id, name: newIng.name, sku: newIng.sku,
       stock_value: newIng.stockValue, unit: newIng.unit,
       status: newIng.status, icon: newIng.icon, img: newIng.img,
     });
-    if (error) { console.error("Failed to save ingredient:", error.message); return; }
+    if (error) { setAddError(error.message); setAdding(false); return; }
     onAddIngredient(newIng);
     setForm(emptyForm);
+    setImgFile(null);
+    setImgPreview("");
+    setAdding(false);
     setShowModal(false);
   };
 
@@ -227,16 +242,29 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
 
       {/* Add Ingredient Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ backgroundColor: "rgba(29,27,26,0.5)" }}>
-          <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/20 w-full max-w-md shadow-2xl">
-            <div className="flex items-center justify-between px-6 py-5 border-b border-outline-variant/10">
+        <div
+          className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4"
+          style={{ backgroundColor: "rgba(29,27,26,0.5)" }}
+          onClick={() => { setShowModal(false); setForm(emptyForm); }}
+        >
+          <div
+            className="bg-surface-container-lowest rounded-t-2xl sm:rounded-2xl border border-outline-variant/20 w-full sm:max-w-md shadow-2xl flex flex-col"
+            style={{ maxHeight: "92vh" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Drag handle on mobile */}
+            <div className="flex justify-center pt-3 pb-1 sm:hidden">
+              <div className="w-10 h-1 rounded-full bg-outline-variant/40" />
+            </div>
+
+            <div className="flex items-center justify-between px-6 py-4 border-b border-outline-variant/10 shrink-0">
               <h3 className="font-bold text-primary" style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 18 }}>Add New Ingredient</h3>
               <button onClick={() => { setShowModal(false); setForm(emptyForm); }} className="w-8 h-8 rounded-full hover:bg-surface-container flex items-center justify-center text-on-surface-variant transition-colors">
                 <Icon name="close" size={18} />
               </button>
             </div>
 
-            <div className="px-6 py-5 space-y-4">
+            <div className="px-6 py-5 space-y-4 overflow-y-auto flex-1">
               <div>
                 <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">Ingredient Name *</label>
                 <input
@@ -305,6 +333,27 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
               </div>
 
               <div>
+                <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">Photo (optional)</label>
+                <input ref={imgInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) { setImgFile(f); setImgPreview(URL.createObjectURL(f)); }
+                }} />
+                {imgPreview ? (
+                  <div className="relative w-full rounded-xl overflow-hidden border border-outline-variant/20 bg-surface-container" style={{ aspectRatio: "16/9" }}>
+                    <img src={imgPreview} alt="Preview" className="w-full h-full object-cover" />
+                    <button onClick={() => { setImgFile(null); setImgPreview(""); }} className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70 transition-colors">
+                      <Icon name="close" size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <button onClick={() => imgInputRef.current?.click()} className="w-full py-6 rounded-xl border-2 border-dashed border-outline-variant/30 text-xs font-semibold text-on-surface-variant hover:border-primary hover:text-primary transition-all flex flex-col items-center gap-1.5">
+                    <Icon name="add_photo_alternate" size={22} />
+                    Upload Photo
+                  </button>
+                )}
+              </div>
+
+              <div>
                 <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-2">Icon</label>
                 <div className="grid grid-cols-6 gap-1.5">
                   {ICON_OPTIONS.map(({ id, Comp, label }) => {
@@ -329,20 +378,23 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
               </div>
             </div>
 
-            <div className="px-6 py-4 border-t border-outline-variant/10 flex justify-end gap-3">
-              <button
-                onClick={() => { setShowModal(false); setForm(emptyForm); }}
-                className="px-5 h-9 rounded-lg border border-outline text-primary text-sm font-semibold hover:bg-surface-container transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleAdd}
-                disabled={!form.name.trim()}
-                className="px-5 h-9 rounded-lg bg-primary text-on-primary text-sm font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                Add to Inventory
-              </button>
+            <div className="px-6 py-4 border-t border-outline-variant/10 flex flex-col gap-2 shrink-0">
+              {addError && <p className="text-xs text-error">{addError}</p>}
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => { setShowModal(false); setForm(emptyForm); setImgFile(null); setImgPreview(""); setAddError(""); }}
+                  className="px-5 h-10 rounded-lg border border-outline text-primary text-sm font-semibold hover:bg-surface-container transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAdd}
+                  disabled={!form.name.trim() || adding}
+                  className="flex-1 sm:flex-none px-5 h-10 rounded-lg bg-primary text-on-primary text-sm font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {adding ? "Saving…" : "Add to Inventory"}
+                </button>
+              </div>
             </div>
           </div>
         </div>
