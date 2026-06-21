@@ -49,10 +49,10 @@ export default function BakeConfirmation({ onBack, onLogBake, recipe }: Props) {
       <header className="sticky top-0 z-50 flex justify-between items-center px-6 h-14 w-full bg-surface-bright border-b border-outline-variant/20">
         <nav className="flex items-center gap-1 text-sm text-on-surface-variant">
           <button onClick={onBack} className="hover:text-primary transition-colors px-2 py-1 flex items-center gap-1">
-            <Icon name="arrow_back" size={14} /> Builder
+            <Icon name="arrow_back" size={14} /> New Production
           </button>
           <Icon name="chevron_right" size={14} className="text-outline-variant" />
-          <span className="text-primary font-semibold px-2 py-1" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>Confirm Bake</span>
+          <span className="text-primary font-semibold px-2 py-1" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>Confirm & Start Bake</span>
         </nav>
         <div className="flex items-center gap-3">
           <button className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-surface-container text-on-surface-variant transition-colors">

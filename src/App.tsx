@@ -143,9 +143,9 @@ function AdminShell() {
   })();
 
   const pickRecipe = (r: Recipe) => {
-    setSelectedRecipe(r);
+    setConfirmRecipe(r);
     setShowPicker(false);
-    navigate("/admin/recipes/builder");
+    navigate("/admin/recipes/confirm");
   };
 
   const handleLogBake = (entry: BakeEntry) => {
@@ -190,12 +190,12 @@ function AdminShell() {
           } />
           <Route path="recipes/builder" element={
             selectedRecipe
-              ? <RecipeBuilder recipe={selectedRecipe} inventory={inventory} onBack={() => navigate("/admin/recipes")} onInitiateBake={(r) => { setConfirmRecipe(r); navigate("/admin/recipes/confirm"); }} />
+              ? <RecipeBuilder recipe={selectedRecipe} inventory={inventory} onBack={() => navigate("/admin/recipes")} />
               : <Navigate to="/admin/recipes" replace />
           } />
           <Route path="recipes/confirm" element={
             confirmRecipe
-              ? <BakeConfirmation recipe={confirmRecipe} onBack={() => navigate("/admin/recipes/builder")} onLogBake={handleLogBake} />
+              ? <BakeConfirmation recipe={confirmRecipe} onBack={() => { setShowPicker(true); navigate("/admin/recipes"); }} onLogBake={handleLogBake} />
               : <Navigate to="/admin/recipes" replace />
           } />
 

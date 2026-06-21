@@ -6,7 +6,6 @@ import { supabase, uploadImage, validateImageFile } from "../lib/supabase.ts";
 
 interface Props {
   onBack: () => void;
-  onInitiateBake: (recipe: Recipe) => void;
   inventory: Ingredient[];
   recipe: Recipe;
 }
@@ -23,7 +22,7 @@ const initialSteps = [
   { num: "03", title: "Bulk Fermentation — Stretch & Fold", description: "Transfer to a clear container. Over the next 4 hours, perform 4 sets of stretch and folds at 30-minute intervals. Ferment until dough has grown by 75–80% and passes the windowpane test." },
 ];
 
-export default function RecipeBuilder({ onBack, onInitiateBake, inventory, recipe }: Props) {
+export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
   const [rows, setRows] = useState<RecipeRow[]>(() => {
     if (recipe.ingredients.length > 0) {
       return recipe.ingredients.map((ri) => ({
@@ -111,15 +110,9 @@ export default function RecipeBuilder({ onBack, onInitiateBake, inventory, recip
           <span className="text-primary font-semibold px-2 py-1 truncate max-w-[200px]" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>Edit: {recipeName}</span>
         </nav>
         <div className="flex items-center gap-3">
-          <button onClick={handleSave} disabled={saving} className="px-4 h-9 rounded-lg border border-outline text-primary text-xs font-semibold hover:bg-surface-container transition-colors disabled:opacity-50">
+          {saveError && <p className="text-xs text-error">{saveError}</p>}
+          <button onClick={handleSave} disabled={saving} className="px-5 h-9 rounded-lg bg-primary text-on-primary text-xs font-bold hover:opacity-90 transition-all active:scale-95 disabled:opacity-50">
             {saving ? "Saving…" : saved ? "✓ Saved" : "Save Changes"}
-          </button>
-          <button
-            onClick={() => onInitiateBake({ ...recipe, name: recipeName, img: photo })}
-            className="px-5 h-9 rounded-lg bg-primary text-on-primary text-xs font-bold hover:opacity-90 transition-all active:scale-95 flex items-center gap-2"
-          >
-            <Icon name="oven_gen" size={14} />
-            Initiate Bake
           </button>
         </div>
       </header>
@@ -274,18 +267,9 @@ export default function RecipeBuilder({ onBack, onInitiateBake, inventory, recip
           <button onClick={onBack} className="flex items-center gap-2 text-sm text-on-surface-variant hover:text-primary transition-colors">
             <Icon name="arrow_back" size={16} /> Back to Recipes
           </button>
-          <div className="flex items-center gap-3">
-            {saveError && <p className="text-xs text-error">{saveError}</p>}
-            <button onClick={handleSave} disabled={saving} className="px-5 h-10 rounded-lg border border-outline text-primary text-sm font-semibold hover:bg-surface-container transition-colors disabled:opacity-50">
-              {saving ? "Saving…" : saved ? "✓ Saved" : "Save Changes"}
-            </button>
-            <button
-              onClick={() => onInitiateBake({ ...recipe, name: recipeName, img: photo })}
-              className="px-8 h-12 rounded-lg bg-primary text-on-primary text-sm font-bold hover:opacity-90 active:scale-95 transition-all shadow-sm flex items-center gap-2"
-            >
-              <Icon name="oven_gen" size={16} /> Initiate Bake
-            </button>
-          </div>
+          <button onClick={handleSave} disabled={saving} className="px-8 h-12 rounded-lg bg-primary text-on-primary text-sm font-bold hover:opacity-90 active:scale-95 transition-all shadow-sm">
+            {saving ? "Saving…" : saved ? "✓ Saved" : "Save Changes"}
+          </button>
         </div>
       </div>
     </div>

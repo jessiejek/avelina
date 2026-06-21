@@ -402,19 +402,11 @@ export default function RecipesList({ recipes, inventory, onAddRecipe, onViewRec
                       <span className="font-mono">{recipe.time}</span>
                     </div>
                   </div>
-                  {/* Edit button */}
-                  <button
-                    onClick={() => onViewRecipe(recipe)}
-                    className="flex items-center gap-1 px-3 h-7 rounded-lg border border-outline text-primary text-[11px] font-semibold hover:bg-surface-container active:scale-95 transition-all"
-                  >
-                    <Icon name="edit" size={12} /> Edit
-                  </button>
-                  {/* Bake button */}
                   <button
                     onClick={() => onViewRecipe(recipe)}
                     className="flex items-center gap-1 px-3 h-7 rounded-lg bg-primary text-on-primary text-[11px] font-bold hover:opacity-90 active:scale-95 transition-all"
                   >
-                    <Icon name="oven_gen" size={12} strokeWidth={2} /> Bake
+                    <Icon name="edit" size={12} /> Edit Recipe
                   </button>
                 </div>
               </div>
