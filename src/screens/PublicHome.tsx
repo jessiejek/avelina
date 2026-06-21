@@ -160,9 +160,6 @@ export default function PublicHome({ onPreOrder, currentUser, cartCount }: Props
               </button>
             )}
 
-            <a href="/admin" className="hidden sm:flex items-center gap-1.5 px-3 h-9 rounded-full border border-[#26170c]/10 text-xs font-semibold text-[#26170c]/50 hover:text-[#26170c] transition-all">
-              <Icon name="lock" size={12} /> Admin
-            </a>
           </div>
         </div>
       </header>
