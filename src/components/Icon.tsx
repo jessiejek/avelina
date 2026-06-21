@@ -9,6 +9,7 @@ import {
   Cookie, Apple, UtensilsCrossed, Recycle, BarChart2, SlidersHorizontal,
   UserCircle2, Check, ArrowUpDown, ShoppingCart, Droplet, Building2, Star,
   CalendarDays, ClipboardList, Activity, Hash, Weight,
+  ShoppingBag, Lock, Facebook, Mail, Globe, BookMarked,
 } from "lucide-react";
 
 const map: Record<string, React.ComponentType<{ size?: number; className?: string; strokeWidth?: number }>> = {
@@ -74,6 +75,12 @@ const map: Record<string, React.ComponentType<{ size?: number; className?: strin
   assignment: ClipboardList,
   show_chart: Activity,
   tag: Hash,
+  shopping_bag: ShoppingBag,
+  lock: Lock,
+  facebook: Facebook,
+  mail: Mail,
+  g_translate: Globe,
+  menu_book_outlined: BookMarked,
 };
 
 interface Props {

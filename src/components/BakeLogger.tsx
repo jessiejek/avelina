@@ -120,7 +120,7 @@ export default function BakeLogger({ activeBakes, setActiveBakes, onBakeComplete
       totalPureFlour: newFlour + newStarter * 0.5, totalPureWater: newWater + newStarter * 0.5,
       hydrationPct: Number(initHydration.toFixed(1)), currentStepIdx: 0,
       image: imgUrl, steps, temperatureDough: newTemp, humidity: newHum,
-      notes: "Initialized in Artisanal Bakelog.", isPaused: true,
+      notes: "Initialized in Avelina's.", isPaused: true,
     };
     setActiveBakes((prev) => [newBake, ...prev]);
     setSelectedBakeId(newBake.id);

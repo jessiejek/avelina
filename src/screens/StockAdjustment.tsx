@@ -1,19 +1,94 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import Icon from "../components/Icon.tsx";
+import { supabase } from "../lib/supabase.ts";
 
 interface Props {
   onBack: () => void;
 }
 
+interface IngredientState {
+  id: string;
+  name: string;
+  sku: string;
+  stockValue: number;
+  unit: string;
+  status: string;
+}
+
+const REASONS = [
+  "New Shipment Received",
+  "Spoilage / Waste",
+  "Inventory Correction",
+  "Inter-Kitchen Transfer",
+];
+
 export default function StockAdjustment({ onBack }: Props) {
+  const location = useLocation();
+  const ingredient = (location.state as { ingredient?: IngredientState })?.ingredient ?? null;
+
   const [mode, setMode] = useState<"add" | "sub">("add");
   const [amount, setAmount] = useState(0);
-  const [unit, setUnit] = useState("kg");
-  const base = 142.50;
+  const [unit, setUnit] = useState(ingredient?.unit ?? "kg");
+  const [reason, setReason] = useState(REASONS[0]);
+  const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
+  const [currentStock, setCurrentStock] = useState(ingredient?.stockValue ?? 0);
+  const [recentHistory, setRecentHistory] = useState<{ created_at: string; delta: number; reason: string }[]>([]);
 
+  const base = currentStock;
   const factor = unit === "g" ? 0.001 : unit === "bags" ? 25 : 1;
   const adjKg = amount * factor;
   const projected = mode === "add" ? base + adjKg : base - adjKg;
+
+  useEffect(() => {
+    if (!ingredient?.id) return;
+    supabase
+      .from("inventory_adjustments")
+      .select("created_at, delta, reason")
+      .eq("ingredient_id", ingredient.id)
+      .order("created_at", { ascending: false })
+      .limit(5)
+      .then(({ data }) => {
+        if (data) setRecentHistory(data);
+      });
+  }, [ingredient?.id]);
+
+  const handleConfirm = async () => {
+    if (!ingredient?.id || amount <= 0) return;
+    setSaving(true);
+    setError("");
+
+    const delta = mode === "add" ? adjKg : -adjKg;
+    const newStock = base + delta;
+
+    const { error: adjErr } = await supabase.from("inventory_adjustments").insert({
+      ingredient_id: ingredient.id,
+      delta,
+      unit: ingredient.unit,
+      reason,
+      notes: notes.trim() || null,
+      adjusted_by: "Avelina",
+    });
+
+    if (adjErr) { setError(adjErr.message); setSaving(false); return; }
+
+    const { error: updErr } = await supabase
+      .from("ingredients")
+      .update({ stock_value: newStock, status: newStock <= 0 ? "critical" : newStock < 5 ? "low" : "optimal" })
+      .eq("id", ingredient.id);
+
+    if (updErr) { setError(updErr.message); setSaving(false); return; }
+
+    setCurrentStock(newStock);
+    setRecentHistory((prev) => [{ created_at: new Date().toISOString(), delta, reason }, ...prev.slice(0, 4)]);
+    setAmount(0);
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 3000);
+  };
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-y-auto bg-surface">
@@ -34,21 +109,32 @@ export default function StockAdjustment({ onBack }: Props) {
       </header>
 
       <div className="max-w-[900px] mx-auto p-6 lg:p-10 w-full">
+        {!ingredient && (
+          <div className="mb-6 p-4 bg-error-container text-on-error-container rounded-xl text-sm flex items-center gap-3">
+            <Icon name="warning" size={18} />
+            No ingredient selected. Navigate here from an ingredient's detail page.
+          </div>
+        )}
+
         {/* Current State Card */}
         <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/20 p-6 mb-6 flex items-center justify-between gap-4" style={{ boxShadow: "0 4px 12px -2px rgba(61,43,31,0.07)" }}>
           <div className="flex items-center gap-5">
-            <div className="w-16 h-16 rounded-xl overflow-hidden border border-outline-variant/20 shrink-0">
-              <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuCpSnC71P8IBi6VGgsyrsm0jMtSjUwWW6bdfRJ5yE7C-v6Qf-CM7jNvJYs3JNr-O3K0Dgg2Nd1eRjAJ9WVwaxRKvKqYjBlVLa_icCC7iKLMDm4gU1sYsgys3wFc6NJAc9aTwMM9LnvBj-hg-YFR33Tu0IJx4glef1ST0pQB6GQqcn_6oxNUfLiscc_l3_IX1lwfW7Z0xlZyWBSA8H4VO7CE2o03FzpDIpzk_cUu3S2PAj9sIiUsIVChaduWlKCN0HhwS7L_iWYrIExc" alt="Flour" className="w-full h-full object-cover" />
+            <div className="w-14 h-14 rounded-xl bg-surface-container flex items-center justify-center border border-outline-variant/20 shrink-0">
+              <Icon name="inventory_2" size={28} className="text-primary" />
             </div>
             <div>
               <span className="text-[10px] font-bold text-on-tertiary-container bg-tertiary-fixed px-2 py-0.5 rounded uppercase tracking-wide mb-1 inline-block">Ingredient</span>
-              <h3 className="text-primary font-bold" style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 22 }}>Organic Bread Flour (T65)</h3>
-              <p className="text-sm text-outline font-mono">SKU: FLR-O-T65-25KG · Last Audit: 4h ago</p>
+              <h3 className="text-primary font-bold" style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 22 }}>
+                {ingredient?.name ?? "No ingredient selected"}
+              </h3>
+              <p className="text-sm text-outline font-mono">{ingredient?.sku ? `SKU: ${ingredient.sku}` : "—"}</p>
             </div>
           </div>
           <div className="text-right shrink-0">
             <p className="text-[10px] font-semibold text-outline uppercase tracking-wider mb-1">Current Level</p>
-            <p className="text-primary font-bold font-mono" style={{ fontSize: 32 }}>142.50 <span className="text-base opacity-60">kg</span></p>
+            <p className="text-primary font-bold font-mono" style={{ fontSize: 32 }}>
+              {currentStock.toFixed(2)} <span className="text-base opacity-60">{ingredient?.unit ?? "kg"}</span>
+            </p>
           </div>
         </div>
 
@@ -64,7 +150,7 @@ export default function StockAdjustment({ onBack }: Props) {
                 <div className="flex h-11">
                   <input
                     className="flex-1 h-full px-4 rounded-l-lg border border-outline-variant/40 focus:border-primary focus:outline-none text-base font-mono"
-                    type="number" step={0.01}
+                    type="number" step={0.01} min={0}
                     value={amount}
                     onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
                   />
@@ -80,11 +166,12 @@ export default function StockAdjustment({ onBack }: Props) {
               <div className="md:col-span-4 flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-outline uppercase tracking-wider">Reason for Change</label>
                 <div className="relative h-11">
-                  <select className="w-full h-full rounded-lg border border-outline-variant/40 focus:border-primary focus:outline-none appearance-none px-4 text-sm bg-surface-bright">
-                    <option>New Shipment Received</option>
-                    <option>Spoilage / Waste</option>
-                    <option>Inventory Correction</option>
-                    <option>Inter-Kitchen Transfer</option>
+                  <select
+                    className="w-full h-full rounded-lg border border-outline-variant/40 focus:border-primary focus:outline-none appearance-none px-4 text-sm bg-surface-bright"
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                  >
+                    {REASONS.map((r) => <option key={r}>{r}</option>)}
                   </select>
                   <Icon name="keyboard_arrow_down" size={16} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-outline" />
                 </div>
@@ -104,29 +191,42 @@ export default function StockAdjustment({ onBack }: Props) {
             <div className="mt-6 p-5 bg-surface-bright rounded-xl border-2 border-dashed border-outline-variant/30 grid grid-cols-3 items-center">
               <div className="text-center">
                 <p className="text-[10px] font-semibold text-outline mb-2 uppercase tracking-wider">Before</p>
-                <p className="text-primary/40 font-bold font-mono" style={{ fontSize: 28 }}>142.50 <span className="text-sm">kg</span></p>
+                <p className="text-primary/40 font-bold font-mono" style={{ fontSize: 28 }}>{base.toFixed(2)} <span className="text-sm">{ingredient?.unit ?? "kg"}</span></p>
               </div>
               <div className="flex flex-col items-center">
                 <Icon name="trending_flat" size={28} className="text-primary" />
                 <span className={`text-xs font-bold px-3 py-1 rounded-full mt-2 font-mono ${mode === "add" ? "bg-secondary text-white" : "bg-error text-white"}`}>
-                  {mode === "add" ? "+" : "-"}{adjKg.toFixed(2)} kg
+                  {mode === "add" ? "+" : "-"}{adjKg.toFixed(2)} {ingredient?.unit ?? "kg"}
                 </span>
               </div>
               <div className="text-center">
                 <p className="text-[10px] font-bold text-outline mb-2 uppercase tracking-wider">Projected After</p>
-                <p className="text-primary font-bold font-mono" style={{ fontSize: 36 }}>{projected.toFixed(2)} <span className="text-lg">kg</span></p>
+                <p className="text-primary font-bold font-mono" style={{ fontSize: 36 }}>{projected.toFixed(2)} <span className="text-lg">{ingredient?.unit ?? "kg"}</span></p>
               </div>
             </div>
 
             <div className="mt-5 flex flex-col gap-1.5">
               <label className="text-xs font-semibold text-outline uppercase tracking-wider">Internal Notes</label>
-              <textarea className="w-full rounded-xl border border-outline-variant/40 p-4 text-sm focus:border-primary focus:outline-none min-h-[90px]" placeholder="Optional: batch number, supplier name, or spoilage notes..." />
+              <textarea
+                className="w-full rounded-xl border border-outline-variant/40 p-4 text-sm focus:border-primary focus:outline-none min-h-[90px]"
+                placeholder="Optional: batch number, supplier name, or spoilage notes..."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
             </div>
           </div>
 
-          <div className="px-8 py-5 bg-surface-container border-t border-outline-variant/10 flex justify-end gap-3">
+          <div className="px-8 py-5 bg-surface-container border-t border-outline-variant/10 flex justify-end gap-3 items-center">
+            {error && <p className="text-xs text-error flex-1">{error}</p>}
+            {saved && <p className="text-xs text-secondary font-semibold flex-1 flex items-center gap-1"><Icon name="check_circle" size={14} /> Adjustment saved!</p>}
             <button onClick={onBack} className="px-6 h-10 rounded-lg border border-outline text-primary font-semibold hover:bg-surface-variant transition-colors text-sm">Cancel</button>
-            <button className="px-8 h-10 rounded-lg bg-primary text-white font-bold shadow-md hover:opacity-90 active:scale-95 transition-all text-sm">Confirm Adjustment</button>
+            <button
+              onClick={handleConfirm}
+              disabled={saving || !ingredient || amount <= 0}
+              className="px-8 h-10 rounded-lg bg-primary text-white font-bold shadow-md hover:opacity-90 active:scale-95 transition-all text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {saving ? "Saving…" : "Confirm Adjustment"}
+            </button>
           </div>
         </div>
 
@@ -135,23 +235,25 @@ export default function StockAdjustment({ onBack }: Props) {
             <Icon name="info" size={18} className="text-secondary shrink-0 mt-0.5" />
             <div>
               <h5 className="font-semibold text-on-secondary-container text-sm">Standardization Warning</h5>
-              <p className="text-xs text-on-secondary-container/80 mt-1">Adjustments must be in absolute units. System converts partial bag weights based on 25kg standard.</p>
+              <p className="text-xs text-on-secondary-container/80 mt-1">Adjustments must be in absolute units. System converts partial bag weights based on 25 kg standard.</p>
             </div>
           </div>
           <div className="flex gap-3 p-4 rounded-xl bg-tertiary-fixed/20 border border-tertiary-fixed/40">
             <Icon name="history" size={18} className="text-on-tertiary-fixed-variant shrink-0 mt-0.5" />
             <div>
               <h5 className="font-semibold text-on-tertiary-fixed-variant text-sm">Recent History</h5>
-              <ul className="mt-2 text-xs text-on-tertiary-fixed-variant/80 space-y-1.5">
-                <li className="flex justify-between border-b border-on-tertiary-fixed-variant/10 pb-1">
-                  <span>2 days ago · Delivery</span>
-                  <span className="font-mono">+500.00 kg</span>
-                </li>
-                <li className="flex justify-between">
-                  <span>Today · Baking Loss</span>
-                  <span className="font-mono">-12.40 kg</span>
-                </li>
-              </ul>
+              {recentHistory.length === 0 ? (
+                <p className="mt-2 text-xs text-on-tertiary-fixed-variant/60">No adjustments yet.</p>
+              ) : (
+                <ul className="mt-2 text-xs text-on-tertiary-fixed-variant/80 space-y-1.5">
+                  {recentHistory.map((h, i) => (
+                    <li key={i} className="flex justify-between border-b border-on-tertiary-fixed-variant/10 pb-1 last:border-0">
+                      <span>{new Date(h.created_at).toLocaleDateString()} · {h.reason}</span>
+                      <span className="font-mono">{h.delta >= 0 ? "+" : ""}{h.delta.toFixed(2)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </div>
         </div>

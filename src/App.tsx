@@ -1,5 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
+import type { Session } from "@supabase/supabase-js";
+import { supabase } from "./lib/supabase.ts";
 import Sidebar from "./components/Sidebar.tsx";
 import InventoryDashboard from "./screens/InventoryDashboard.tsx";
 import IngredientDetail from "./screens/IngredientDetail.tsx";
@@ -9,9 +11,59 @@ import RecipeBuilder from "./screens/RecipeBuilder.tsx";
 import BakeConfirmation from "./screens/BakeConfirmation.tsx";
 import BakeLog, { BakeEntry } from "./screens/BakeLog.tsx";
 import Stats from "./screens/Stats.tsx";
+import PublicHome from "./screens/PublicHome.tsx";
+import LoginPage from "./screens/LoginPage.tsx";
+import ProfileSetup, { UserProfile } from "./screens/ProfileSetup.tsx";
+import CartPage, { CartItem } from "./screens/CartPage.tsx";
+import CheckoutPage, { Order } from "./screens/CheckoutPage.tsx";
+import OrderConfirmed from "./screens/OrderConfirmed.tsx";
+import OrdersPage from "./screens/OrdersPage.tsx";
 import Icon from "./components/Icon.tsx";
-import { Ingredient, DEFAULT_INGREDIENTS } from "./data/inventory.ts";
-import { Recipe, ALL_RECIPES } from "./data/recipes.ts";
+import { Ingredient } from "./data/inventory.ts";
+import { Recipe } from "./data/recipes.ts";
+
+// ── DB → app type mappers ─────────────────────────────────────
+
+function mapIngredient(d: any): Ingredient {
+  return {
+    id: d.id, name: d.name, sku: d.sku,
+    stock: `${d.stock_value} ${d.unit}`,
+    stockValue: d.stock_value,
+    unit: d.unit, status: d.status, icon: d.icon, img: d.img,
+  };
+}
+
+function mapRecipe(r: any): Recipe {
+  return {
+    id: r.id, name: r.name, category: r.category,
+    yield: r.yield, time: r.time, img: r.img,
+    ingredients: (r.recipe_ingredients || []).map((ri: any) => ({
+      ingredientId: ri.ingredients?.id || "",
+      name: ri.ingredients?.name || "",
+      qty: ri.qty,
+      unit: ri.unit,
+    })),
+    steps: [...(r.recipe_steps || [])]
+      .sort((a: any, b: any) => a.sort_order - b.sort_order)
+      .map((s: any) => ({ num: s.num, title: s.title, description: s.description })),
+  };
+}
+
+function mapBakeEntry(d: any): BakeEntry {
+  return {
+    id: d.id,
+    recipe_id: d.recipe_id,
+    product: d.recipes?.name || "",
+    img: d.img || d.recipes?.img || "",
+    batchId: d.batch_id,
+    baker: d.baker,
+    time: new Date(d.started_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }),
+    qty: d.qty,
+    status: d.status,
+  };
+}
+
+// ── Recipe picker modal (admin) ───────────────────────────────
 
 function RecipePickerModal({ recipes, onSelect, onClose }: { recipes: Recipe[]; onSelect: (r: Recipe) => void; onClose: () => void }) {
   return (
@@ -49,105 +101,109 @@ function RecipePickerModal({ recipes, onSelect, onClose }: { recipes: Recipe[]; 
   );
 }
 
-function AppShell() {
+// ── Admin shell ───────────────────────────────────────────────
+
+function AdminShell() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [inventory, setInventory] = useState<Ingredient[]>(DEFAULT_INGREDIENTS);
-  const [recipes, setRecipes] = useState<Recipe[]>(ALL_RECIPES);
+  const [inventory, setInventory] = useState<Ingredient[]>([]);
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [bakeLogs, setBakeLogs] = useState<BakeEntry[]>([]);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [confirmRecipe, setConfirmRecipe] = useState<Recipe | null>(null);
   const [showPicker, setShowPicker] = useState(false);
 
+  useEffect(() => {
+    supabase.from("ingredients").select("*").then(({ data }) => {
+      if (data) setInventory(data.map(mapIngredient));
+    });
+
+    supabase
+      .from("recipes")
+      .select("*, recipe_ingredients(qty, unit, ingredients(id, name)), recipe_steps(num, title, description, sort_order)")
+      .then(({ data }) => {
+        if (data) setRecipes(data.map(mapRecipe));
+      });
+
+    supabase
+      .from("bake_entries")
+      .select("*, recipes(name, img)")
+      .order("created_at", { ascending: false })
+      .then(({ data }) => {
+        if (data) setBakeLogs(data.map(mapBakeEntry));
+      });
+  }, []);
+
   const currentTab = (() => {
     const p = location.pathname;
-    if (p.startsWith("/recipes")) return "recipes";
-    if (p.startsWith("/bakelog")) return "bakelog";
-    if (p.startsWith("/stats")) return "stats";
+    if (p.startsWith("/admin/recipes")) return "recipes";
+    if (p.startsWith("/admin/bakelog")) return "bakelog";
+    if (p.startsWith("/admin/stats")) return "stats";
     return "inventory";
   })();
 
   const pickRecipe = (r: Recipe) => {
     setSelectedRecipe(r);
     setShowPicker(false);
-    navigate("/recipes/builder");
+    navigate("/admin/recipes/builder");
   };
 
   const handleLogBake = (entry: BakeEntry) => {
     setBakeLogs((prev) => [entry, ...prev]);
-    navigate("/bakelog");
+    navigate("/admin/bakelog");
   };
 
   const mobileNavItems = [
-    { id: "inventory", path: "/inventory", icon: "inventory_2", label: "Inventory" },
-    { id: "recipes", path: "/recipes", icon: "menu_book", label: "Recipes" },
-    { id: "bakelog", path: "/bakelog", icon: "history_edu", label: "Log" },
-    { id: "stats", path: "/stats", icon: "query_stats", label: "Stats" },
+    { id: "inventory", path: "/admin/inventory", icon: "inventory_2", label: "Inventory" },
+    { id: "recipes", path: "/admin/recipes", icon: "menu_book", label: "Recipes" },
+    { id: "bakelog", path: "/admin/bakelog", icon: "history_edu", label: "Log" },
+    { id: "stats", path: "/admin/stats", icon: "query_stats", label: "Stats" },
   ];
 
   return (
     <div className="flex min-h-screen bg-surface text-on-surface" style={{ fontFamily: "'Work Sans', sans-serif" }}>
-      <Sidebar currentTab={currentTab} setCurrentTab={(tab) => navigate(`/${tab}`)} onNewProduction={() => setShowPicker(true)} />
+      <Sidebar currentTab={currentTab} setCurrentTab={(tab) => navigate(`/admin/${tab}`)} onNewProduction={() => setShowPicker(true)} />
 
       <main className="flex-1 flex flex-col min-w-0 pb-16 lg:pb-0">
         <Routes>
-          <Route path="/" element={<Navigate to="/inventory" replace />} />
+          <Route index element={<Navigate to="inventory" replace />} />
 
-          {/* Inventory — /adjust MUST come before /:id so it isn't matched as an id param */}
-          <Route path="/inventory" element={
+          <Route path="inventory" element={
             <InventoryDashboard
               ingredients={inventory}
               onAddIngredient={(ing) => setInventory((prev) => [ing, ...prev])}
-              onViewIngredient={(id) => navigate(`/inventory/${id}`)}
+              onViewIngredient={(id) => navigate(`/admin/inventory/${id}`)}
             />
           } />
-          <Route path="/inventory/adjust" element={
-            <StockAdjustment onBack={() => navigate(-1)} />
-          } />
-          <Route path="/inventory/:id" element={
-            <IngredientDetail onBack={() => navigate("/inventory")} onAdjustStock={() => navigate("/inventory/adjust")} />
+          <Route path="inventory/adjust" element={<StockAdjustment onBack={() => navigate(-1)} />} />
+          <Route path="inventory/:id" element={
+            <IngredientDetail onBack={() => navigate("/admin/inventory")} />
           } />
 
-          {/* Recipes */}
-          <Route path="/recipes" element={
+          <Route path="recipes" element={
             <RecipesList
               recipes={recipes}
               inventory={inventory}
               onAddRecipe={(r) => setRecipes((prev) => [r, ...prev])}
-              onViewRecipe={(r) => { setSelectedRecipe(r); navigate("/recipes/builder"); }}
+              onViewRecipe={(r) => { setSelectedRecipe(r); navigate("/admin/recipes/builder"); }}
             />
           } />
-          <Route path="/recipes/builder" element={
+          <Route path="recipes/builder" element={
             selectedRecipe
-              ? <RecipeBuilder
-                  recipe={selectedRecipe}
-                  inventory={inventory}
-                  onBack={() => navigate("/recipes")}
-                  onInitiateBake={(r) => { setConfirmRecipe(r); navigate("/recipes/confirm"); }}
-                />
-              : <Navigate to="/recipes" replace />
+              ? <RecipeBuilder recipe={selectedRecipe} inventory={inventory} onBack={() => navigate("/admin/recipes")} onInitiateBake={(r) => { setConfirmRecipe(r); navigate("/admin/recipes/confirm"); }} />
+              : <Navigate to="/admin/recipes" replace />
           } />
-          <Route path="/recipes/confirm" element={
+          <Route path="recipes/confirm" element={
             confirmRecipe
-              ? <BakeConfirmation
-                  recipe={confirmRecipe}
-                  onBack={() => navigate("/recipes/builder")}
-                  onLogBake={handleLogBake}
-                />
-              : <Navigate to="/recipes" replace />
+              ? <BakeConfirmation recipe={confirmRecipe} onBack={() => navigate("/admin/recipes/builder")} onLogBake={handleLogBake} />
+              : <Navigate to="/admin/recipes" replace />
           } />
 
-          {/* Bake Log */}
-          <Route path="/bakelog" element={<BakeLog entries={bakeLogs} />} />
-
-          {/* Stats */}
-          <Route path="/stats" element={<Stats />} />
-
-          <Route path="*" element={<Navigate to="/inventory" replace />} />
+          <Route path="bakelog" element={<BakeLog entries={bakeLogs} />} />
+          <Route path="stats" element={<Stats />} />
         </Routes>
       </main>
 
-      {/* Mobile Bottom Nav */}
       <nav className="lg:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 py-2 bg-surface-bright border-t border-outline-variant/10 shadow-sm">
         {mobileNavItems.map((item) => {
           const isActive = currentTab === item.id;
@@ -158,6 +214,13 @@ function AppShell() {
             </button>
           );
         })}
+        <button
+          onClick={async () => { await supabase.auth.signOut(); navigate("/"); }}
+          className="flex flex-col items-center justify-center gap-0.5 px-3 py-1 rounded-xl transition-all text-error"
+        >
+          <Icon name="logout" size={22} />
+          <span className="text-[10px] font-semibold uppercase tracking-wide">Out</span>
+        </button>
       </nav>
 
       {showPicker && <RecipePickerModal recipes={recipes} onSelect={pickRecipe} onClose={() => setShowPicker(false)} />}
@@ -165,10 +228,156 @@ function AppShell() {
   );
 }
 
+// ── Public shell ──────────────────────────────────────────────
+
+function PublicShell() {
+  const navigate = useNavigate();
+  const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [pendingRecipe, setPendingRecipe] = useState<Recipe | null>(null);
+  const [lastOrder, setLastOrder] = useState<Order | null>(null);
+
+  const currentUser = session
+    ? {
+        name: session.user.user_metadata?.name || session.user.email?.split("@")[0] || "User",
+        email: session.user.email || "",
+      }
+    : null;
+
+  // Auth listener
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setSession(session);
+      // After OAuth redirect: check if user has a profile, send to setup if not
+      if (event === "SIGNED_IN" && session) {
+        supabase.from("users").select("id").eq("id", session.user.id).single().then(({ data }) => {
+          if (!data) navigate("/profile/setup");
+        });
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Load profile whenever session changes
+  useEffect(() => {
+    if (!session) { setProfile(null); return; }
+    supabase
+      .from("users")
+      .select("*")
+      .eq("id", session.user.id)
+      .single()
+      .then(({ data }) => {
+        if (data) setProfile({ name: data.name, email: session.user.email || "", phone: data.phone, address: data.address });
+      });
+  }, [session]);
+
+  const handleLogin = async (_user: { name: string; email: string }) => {
+    const { data: { session: s } } = await supabase.auth.getSession();
+    if (!s) return;
+
+    const { data: profileData } = await supabase
+      .from("users").select("id").eq("id", s.user.id).single();
+
+    if (!profileData) {
+      navigate("/profile/setup");
+    } else if (pendingRecipe) {
+      addToCart(pendingRecipe);
+      setPendingRecipe(null);
+      navigate("/cart");
+    } else {
+      navigate("/");
+    }
+  };
+
+  const handleProfileSave = (p: UserProfile) => {
+    setProfile(p);
+    if (pendingRecipe) {
+      addToCart(pendingRecipe);
+      setPendingRecipe(null);
+      navigate("/cart");
+    } else {
+      navigate("/");
+    }
+  };
+
+  const addToCart = (recipe: Recipe) => {
+    setCart((prev) => {
+      const existing = prev.findIndex((item) => item.recipe.id === recipe.id);
+      if (existing >= 0) {
+        return prev.map((item, i) => i === existing ? { ...item, qty: item.qty + 1 } : item);
+      }
+      return [...prev, { recipe, qty: 1, date: "" }];
+    });
+  };
+
+  const handlePreOrder = (recipe: Recipe) => {
+    if (!currentUser) {
+      setPendingRecipe(recipe);
+      navigate("/login");
+    } else if (!profile) {
+      setPendingRecipe(recipe);
+      navigate("/profile/setup");
+    } else {
+      addToCart(recipe);
+    }
+  };
+
+  const handlePlaceOrder = (order: Order) => {
+    setLastOrder(order);
+    setCart([]);
+    navigate("/order-confirmed");
+  };
+
+  return (
+    <Routes>
+      <Route path="/" element={<PublicHome onPreOrder={handlePreOrder} currentUser={currentUser} cartCount={cart.length} />} />
+      <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
+      <Route path="/profile/setup" element={
+        currentUser
+          ? <ProfileSetup user={currentUser} onSave={handleProfileSave} />
+          : <Navigate to="/login" replace />
+      } />
+      <Route path="/cart" element={
+        profile
+          ? <CartPage
+              cart={cart}
+              profile={profile}
+              onUpdateQty={(i, qty) => setCart((prev) => prev.map((item, idx) => idx === i ? { ...item, qty } : item))}
+              onUpdateDate={(i, date) => setCart((prev) => prev.map((item, idx) => idx === i ? { ...item, date } : item))}
+              onRemove={(i) => setCart((prev) => prev.filter((_, idx) => idx !== i))}
+              onCheckout={() => navigate("/checkout")}
+            />
+          : <Navigate to="/login" replace />
+      } />
+      <Route path="/checkout" element={
+        profile && cart.length > 0
+          ? <CheckoutPage
+              cart={cart}
+              profile={profile}
+              userId={session?.user.id ?? ""}
+              onUpdateQty={(i, qty) => setCart((prev) => prev.map((item, idx) => idx === i ? { ...item, qty } : item))}
+              onUpdateDate={(i, date) => setCart((prev) => prev.map((item, idx) => idx === i ? { ...item, date } : item))}
+              onPlaceOrder={handlePlaceOrder}
+            />
+          : <Navigate to="/cart" replace />
+      } />
+      <Route path="/order-confirmed" element={<OrderConfirmed order={lastOrder} />} />
+      <Route path="/orders" element={<OrdersPage profile={profile} />} />
+    </Routes>
+  );
+}
+
 export default function App() {
   return (
     <BrowserRouter>
-      <AppShell />
+      <Routes>
+        <Route path="/admin/*" element={<AdminShell />} />
+        <Route path="/*" element={<PublicShell />} />
+      </Routes>
     </BrowserRouter>
   );
 }

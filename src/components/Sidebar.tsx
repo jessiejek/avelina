@@ -1,5 +1,7 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import Icon from "./Icon.tsx";
+import { supabase } from "../lib/supabase.ts";
 
 interface SidebarProps {
   currentTab: string;
@@ -15,14 +17,21 @@ const navItems = [
 ];
 
 export default function Sidebar({ currentTab, setCurrentTab, onNewProduction }: SidebarProps) {
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/");
+  };
+
   return (
     <aside className="hidden lg:flex flex-col h-screen sticky top-0 w-[280px] border-r shrink-0 bg-surface-container-low border-outline-variant/20">
       {/* Brand */}
       <div className="px-6 py-5 border-b border-outline-variant/20">
         <h1 className="text-primary font-bold" style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 20 }}>
-          Artisanal Bakelog
+          Avelina's
         </h1>
-        <p className="text-[11px] text-on-surface-variant mt-0.5 uppercase tracking-widest">Professional Kitchen</p>
+        <p className="text-[11px] text-on-surface-variant mt-0.5 uppercase tracking-widest">Artisan Bakery</p>
       </div>
 
       {/* Navigation */}
@@ -58,19 +67,26 @@ export default function Sidebar({ currentTab, setCurrentTab, onNewProduction }: 
         </button>
       </div>
 
-      {/* Settings + User */}
+      {/* Settings + User + Logout */}
       <div className="px-3 pb-4 space-y-1">
         <button className="w-full flex items-center gap-3 px-4 h-11 rounded-xl text-on-surface-variant hover:bg-surface-container-high transition-colors text-sm">
           <Icon name="settings" size={18} />
           <span style={{ fontFamily: "'Work Sans', sans-serif" }}>Settings</span>
         </button>
-        <div className="flex items-center gap-3 px-4 py-3">
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center gap-3 px-4 h-11 rounded-xl text-error hover:bg-error-container/30 transition-colors text-sm"
+        >
+          <Icon name="logout" size={18} />
+          <span style={{ fontFamily: "'Work Sans', sans-serif" }}>Sign Out</span>
+        </button>
+        <div className="flex items-center gap-3 px-4 py-3 border-t border-outline-variant/20 mt-1">
           <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 bg-primary-fixed text-on-primary-fixed" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>
-            BK
+            AV
           </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-[10px] font-semibold text-primary uppercase tracking-wider">Head Baker</span>
-            <span className="text-sm font-medium text-on-surface truncate">Kitchen Pro</span>
+            <span className="text-[10px] font-semibold text-primary uppercase tracking-wider">Admin</span>
+            <span className="text-sm font-medium text-on-surface truncate">Avelina's Bakery</span>
           </div>
         </div>
       </div>

@@ -1,17 +1,8 @@
 import React from "react";
 import Icon from "../components/Icon.tsx";
 import { Recipe } from "../data/recipes.ts";
-
-interface BakeEntry {
-  id: string;
-  product: string;
-  img: string;
-  batchId: string;
-  baker: string;
-  time: string;
-  qty: string;
-  status: "completed" | "in_progress" | "failed";
-}
+import { BakeEntry } from "./BakeLog.tsx";
+import { supabase } from "../lib/supabase.ts";
 
 interface Props {
   onBack: () => void;
@@ -30,18 +21,27 @@ export default function BakeConfirmation({ onBack, onLogBake, recipe }: Props) {
   const hasShortage = reconciliation.some((r) => r.status !== "ready");
   const batchId = `#SKU-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`;
 
-  const handleInitiateBake = () => {
+  const handleInitiateBake = async () => {
     const now = new Date();
-    onLogBake({
+    const entry: BakeEntry = {
       id: `bake-${Date.now()}`,
+      recipe_id: recipe.id,
       product: recipe.name,
       img: recipe.img,
       batchId,
-      baker: "Baker M.",
+      baker: "Avelina",
       time: now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }),
       qty: recipe.yield,
       status: "in_progress",
+    };
+    const { error } = await supabase.from("bake_entries").insert({
+      id: entry.id, recipe_id: entry.recipe_id,
+      batch_id: entry.batchId, baker: entry.baker,
+      started_at: now.toISOString(), qty: entry.qty,
+      status: entry.status, img: entry.img,
     });
+    if (error) console.error("Failed to save bake entry:", error.message);
+    onLogBake(entry);
   };
 
   return (
@@ -59,7 +59,7 @@ export default function BakeConfirmation({ onBack, onLogBake, recipe }: Props) {
             <Icon name="notifications" size={18} />
           </button>
           <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-            <span className="text-[11px] font-bold text-on-primary">BM</span>
+            <span className="text-[11px] font-bold text-on-primary">AV</span>
           </div>
         </div>
       </header>

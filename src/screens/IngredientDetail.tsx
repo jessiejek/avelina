@@ -1,13 +1,72 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import Icon from "../components/Icon.tsx";
+import { supabase } from "../lib/supabase.ts";
 
 interface Props {
   onBack: () => void;
-  onAdjustStock: () => void;
 }
 
-export default function IngredientDetail({ onBack, onAdjustStock }: Props) {
+export default function IngredientDetail({ onBack }: Props) {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [measureTab, setMeasureTab] = useState<"mass" | "volume" | "count">("mass");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const [name, setName] = useState("");
+  const [sku, setSku] = useState("");
+  const [stockValue, setStockValue] = useState(0);
+  const [unit, setUnit] = useState("kg");
+  const [status, setStatus] = useState<"optimal" | "low" | "critical">("optimal");
+  const [img, setImg] = useState<string | null>(null);
+  const [notes, setNotes] = useState("");
+  const [shelfLife, setShelfLife] = useState(180);
+  const [lowThreshold, setLowThreshold] = useState(15);
+
+  useEffect(() => {
+    if (!id) return;
+    supabase.from("ingredients").select("*").eq("id", id).single().then(({ data }) => {
+      if (data) {
+        setName(data.name ?? "");
+        setSku(data.sku ?? "");
+        setStockValue(data.stock_value ?? 0);
+        setUnit(data.unit ?? "kg");
+        setStatus(data.status ?? "optimal");
+        setImg(data.img ?? null);
+      }
+      setLoading(false);
+    });
+  }, [id]);
+
+  const handleSave = async () => {
+    if (!id) return;
+    setSaving(true);
+    await supabase.from("ingredients").update({ name, sku }).eq("id", id);
+    setSaving(false);
+  };
+
+  const handleAdjustStock = () => {
+    navigate("/admin/inventory/adjust", {
+      state: { ingredient: { id, name, sku, stockValue, unit, status, img } },
+    });
+  };
+
+  const statusColor = status === "optimal"
+    ? "bg-secondary text-white"
+    : status === "low"
+    ? "bg-tertiary-fixed text-on-tertiary-fixed-variant"
+    : "bg-error text-white";
+
+  const statusLabel = status === "optimal" ? "Optimal" : status === "low" ? "Low Stock" : "Critical";
+
+  if (loading) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-surface text-on-surface-variant text-sm">
+        Loading ingredient…
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-y-auto bg-surface">
@@ -42,16 +101,16 @@ export default function IngredientDetail({ onBack, onAdjustStock }: Props) {
                 Back to Inventory
               </button>
               <h1 className="text-primary font-bold" style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 32 }}>
-                Organic Bread Flour
+                {name || "—"}
               </h1>
             </div>
             <div className="flex gap-3">
-              <button onClick={onAdjustStock} className="h-10 px-5 rounded-lg border border-outline text-on-surface font-semibold hover:bg-surface-container transition-colors flex items-center gap-2 text-sm">
+              <button onClick={handleAdjustStock} className="h-10 px-5 rounded-lg border border-outline text-on-surface font-semibold hover:bg-surface-container transition-colors flex items-center gap-2 text-sm">
                 <Icon name="scale" size={16} />
                 Adjust Stock
               </button>
-              <button className="h-10 px-6 rounded-lg bg-primary text-on-primary font-bold hover:opacity-90 transition-opacity text-sm">
-                Save Changes
+              <button onClick={handleSave} disabled={saving} className="h-10 px-6 rounded-lg bg-primary text-on-primary font-bold hover:opacity-90 transition-opacity text-sm disabled:opacity-50">
+                {saving ? "Saving…" : "Save Changes"}
               </button>
             </div>
           </div>
@@ -65,16 +124,24 @@ export default function IngredientDetail({ onBack, onAdjustStock }: Props) {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="col-span-2">
                       <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">Ingredient Name</label>
-                      <input className="w-full bg-surface-bright border border-outline-variant/40 px-4 py-2.5 rounded-lg text-sm font-semibold text-primary focus:outline-none focus:border-primary/50" defaultValue="Organic Bread Flour" />
+                      <input
+                        className="w-full bg-surface-bright border border-outline-variant/40 px-4 py-2.5 rounded-lg text-sm font-semibold text-primary focus:outline-none focus:border-primary/50"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                      />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">SKU / Reference</label>
-                      <input className="w-full bg-surface-bright border border-outline-variant/40 px-4 py-2.5 rounded-lg text-sm text-on-surface-variant focus:outline-none font-mono" defaultValue="FLR-ORG-HRD-001" />
+                      <input
+                        className="w-full bg-surface-bright border border-outline-variant/40 px-4 py-2.5 rounded-lg text-sm text-on-surface-variant focus:outline-none font-mono"
+                        value={sku}
+                        onChange={(e) => setSku(e.target.value)}
+                      />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">Shelf Life</label>
                       <div className="relative">
-                        <input className="w-full bg-surface-bright border border-outline-variant/40 px-4 py-2.5 rounded-lg text-sm focus:outline-none" type="number" defaultValue={180} />
+                        <input className="w-full bg-surface-bright border border-outline-variant/40 px-4 py-2.5 rounded-lg text-sm focus:outline-none" type="number" value={shelfLife} onChange={(e) => setShelfLife(Number(e.target.value))} />
                         <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-outline font-mono">days</span>
                       </div>
                     </div>
@@ -103,19 +170,27 @@ export default function IngredientDetail({ onBack, onAdjustStock }: Props) {
                     <div>
                       <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">Current Stock</label>
                       <div className="flex">
-                        <input className="flex-1 bg-surface-bright border border-outline-variant/40 px-4 py-2.5 rounded-l-lg text-base font-bold text-primary focus:outline-none font-mono" type="number" defaultValue={45.5} />
-                        <select className="w-20 bg-surface-container-high border border-l-0 border-outline-variant/40 px-2 rounded-r-lg text-xs font-bold text-on-surface-variant focus:outline-none font-mono">
-                          <option>kg</option><option>g</option>
-                        </select>
+                        <input
+                          className="flex-1 bg-surface-bright border border-outline-variant/40 px-4 py-2.5 rounded-l-lg text-base font-bold text-primary focus:outline-none font-mono"
+                          type="number" value={stockValue}
+                          onChange={(e) => setStockValue(Number(e.target.value))}
+                        />
+                        <div className="w-20 bg-surface-container-high border border-l-0 border-outline-variant/40 px-3 rounded-r-lg flex items-center text-xs font-bold text-on-surface-variant font-mono">
+                          {unit}
+                        </div>
                       </div>
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">Low Stock Warning</label>
                       <div className="flex">
-                        <input className="flex-1 bg-surface-bright border border-outline-variant/40 px-4 py-2.5 rounded-l-lg text-base font-bold text-on-tertiary-container focus:outline-none font-mono" type="number" defaultValue={15.0} />
-                        <select className="w-20 bg-surface-container-high border border-l-0 border-outline-variant/40 px-2 rounded-r-lg text-xs font-bold text-on-surface-variant focus:outline-none font-mono">
-                          <option>kg</option><option>g</option>
-                        </select>
+                        <input
+                          className="flex-1 bg-surface-bright border border-outline-variant/40 px-4 py-2.5 rounded-l-lg text-base font-bold text-on-tertiary-container focus:outline-none font-mono"
+                          type="number" value={lowThreshold}
+                          onChange={(e) => setLowThreshold(Number(e.target.value))}
+                        />
+                        <div className="w-20 bg-surface-container-high border border-l-0 border-outline-variant/40 px-3 rounded-r-lg flex items-center text-xs font-bold text-on-surface-variant font-mono">
+                          {unit}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -124,49 +199,69 @@ export default function IngredientDetail({ onBack, onAdjustStock }: Props) {
 
               <div className="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant/20">
                 <label className="block font-semibold text-primary mb-4 pb-2 border-b border-outline-variant/10 text-base">Internal Kitchen Notes</label>
-                <textarea className="w-full bg-surface-bright border border-outline-variant/40 px-4 py-3 rounded-lg text-sm italic text-on-surface-variant focus:outline-none" placeholder="Sourced from Miller's Mill. High protein content (12.5%)." rows={3} />
+                <textarea
+                  className="w-full bg-surface-bright border border-outline-variant/40 px-4 py-3 rounded-lg text-sm italic text-on-surface-variant focus:outline-none"
+                  placeholder="Add notes about sourcing, protein content, special handling…"
+                  rows={3}
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                />
               </div>
             </div>
 
             {/* Right Column */}
             <div className="lg:col-span-5 space-y-5">
-              <div className="relative aspect-square w-full rounded-xl overflow-hidden border border-outline-variant/20 group shadow-lg">
-                <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuCpSnC71P8IBi6VGgsyrsm0jMtSjUwWW6bdfRJ5yE7C-v6Qf-CM7jNvJYs3JNr-O3K0Dgg2Nd1eRjAJ9WVwaxRKvKqYjBlVLa_icCC7iKLMDm4gU1sYsgys3wFc6NJAc9aTwMM9LnvBj-hg-YFR33Tu0IJx4glef1ST0pQB6GQqcn_6oxNUfLiscc_l3_IX1lwfW7Z0xlZyWBSA8H4VO7CE2o03FzpDIpzk_cUu3S2PAj9sIiUsIVChaduWlKCN0HhwS7L_iWYrIExc" alt="Flour" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-                <div className="absolute bottom-5 left-5 text-white">
-                  <span className="text-[10px] uppercase tracking-[0.2em] opacity-80">Inventory Visualization</span>
-                  <h3 className="font-bold text-sm mt-0.5">Grade A – Hard Wheat</h3>
-                </div>
+              <div className="relative aspect-square w-full rounded-xl overflow-hidden border border-outline-variant/20 group shadow-lg bg-surface-container flex items-center justify-center">
+                {img ? (
+                  <img src={img} alt={name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                ) : (
+                  <div className="flex flex-col items-center gap-2 text-on-surface-variant/40">
+                    <Icon name="image" size={40} />
+                    <span className="text-xs">No image</span>
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
+                {img && (
+                  <div className="absolute bottom-5 left-5 text-white">
+                    <span className="text-[10px] uppercase tracking-[0.2em] opacity-80">Inventory Visualization</span>
+                    <h3 className="font-bold text-sm mt-0.5">{name}</h3>
+                  </div>
+                )}
               </div>
 
-              <div className="bg-secondary-container p-5 rounded-xl border border-secondary/20">
+              <div className={`p-5 rounded-xl border ${status === "optimal" ? "bg-secondary-container border-secondary/20" : status === "low" ? "bg-tertiary-fixed/30 border-tertiary-fixed/40" : "bg-error-container border-error/20"}`}>
                 <div className="flex justify-between items-center mb-3">
-                  <span className="text-on-secondary-container font-bold text-sm">Stock Health</span>
-                  <span className="bg-secondary text-white px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider">Optimal</span>
+                  <span className={`font-bold text-sm ${status === "optimal" ? "text-on-secondary-container" : status === "low" ? "text-on-tertiary-fixed-variant" : "text-on-error-container"}`}>Stock Health</span>
+                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${statusColor}`}>{statusLabel}</span>
                 </div>
                 <div className="w-full bg-white/30 h-2.5 rounded-full mb-2 overflow-hidden">
-                  <div className="bg-secondary h-full rounded-full" style={{ width: "78%" }} />
+                  <div
+                    className={`h-full rounded-full ${status === "optimal" ? "bg-secondary" : status === "low" ? "bg-on-tertiary-fixed-variant" : "bg-error"}`}
+                    style={{ width: status === "optimal" ? "78%" : status === "low" ? "35%" : "12%" }}
+                  />
                 </div>
-                <p className="text-on-secondary-container text-xs opacity-80">Covers approx. 12 production cycles based on average usage.</p>
+                <p className={`text-xs opacity-80 ${status === "optimal" ? "text-on-secondary-container" : status === "low" ? "text-on-tertiary-fixed-variant" : "text-on-error-container"}`}>
+                  Current: <span className="font-bold font-mono">{stockValue} {unit}</span>
+                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-surface-container p-4 rounded-xl border border-outline-variant/20">
-                  <Icon name="trending_up" size={18} className="text-primary mb-2" />
-                  <span className="block text-[10px] font-semibold text-outline uppercase tracking-wider">Monthly Usage</span>
-                  <span className="font-bold text-primary text-base font-mono">142.8 kg</span>
+                  <Icon name="inventory_2" size={18} className="text-primary mb-2" />
+                  <span className="block text-[10px] font-semibold text-outline uppercase tracking-wider">Unit</span>
+                  <span className="font-bold text-primary text-base font-mono">{unit}</span>
                 </div>
                 <div className="bg-surface-container p-4 rounded-xl border border-outline-variant/20">
-                  <Icon name="history" size={18} className="text-primary mb-2" />
-                  <span className="block text-[10px] font-semibold text-outline uppercase tracking-wider">Last Restock</span>
-                  <span className="font-bold text-primary text-base font-mono">04 Oct</span>
+                  <Icon name="qr_code" size={18} className="text-primary mb-2" />
+                  <span className="block text-[10px] font-semibold text-outline uppercase tracking-wider">SKU</span>
+                  <span className="font-bold text-primary text-base font-mono truncate block">{sku || "—"}</span>
                 </div>
                 <div className="col-span-2 bg-surface-container-high p-4 rounded-xl border border-outline-variant/30 flex items-center justify-between">
                   <div>
-                    <span className="block text-[10px] font-semibold text-outline uppercase tracking-wider">Vendor Primary</span>
-                    <span className="font-bold text-primary text-sm">Miller's Grain Co.</span>
+                    <span className="block text-[10px] font-semibold text-outline uppercase tracking-wider">Ingredient ID</span>
+                    <span className="font-bold text-primary text-sm font-mono truncate block max-w-[200px]">{id}</span>
                   </div>
-                  <Icon name="local_shipping" size={20} className="text-primary" />
+                  <Icon name="tag" size={20} className="text-primary shrink-0" />
                 </div>
               </div>
             </div>

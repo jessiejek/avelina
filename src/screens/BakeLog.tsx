@@ -1,8 +1,10 @@
 import React, { useState } from "react";
 import Icon from "../components/Icon.tsx";
+import { supabase } from "../lib/supabase.ts";
 
 export interface BakeEntry {
   id: string;
+  recipe_id: string;
   product: string;
   img: string;
   batchId: string;
@@ -34,8 +36,9 @@ export default function BakeLog({ entries, onUpdateEntry }: Props) {
   // Sync when parent pushes new entries
   React.useEffect(() => { setLocalEntries(entries); }, [entries]);
 
-  const updateStatus = (id: string, status: BakeEntry["status"]) => {
+  const updateStatus = async (id: string, status: BakeEntry["status"]) => {
     setLocalEntries((prev) => prev.map((e) => e.id === id ? { ...e, status } : e));
+    await supabase.from("bake_entries").update({ status }).eq("id", id);
     onUpdateEntry?.(id, status);
   };
 
@@ -59,7 +62,7 @@ export default function BakeLog({ entries, onUpdateEntry }: Props) {
             <Icon name="notifications" size={18} />
           </button>
           <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-            <span className="text-[11px] font-bold text-on-primary">BM</span>
+            <span className="text-[11px] font-bold text-on-primary">AV</span>
           </div>
         </div>
       </header>

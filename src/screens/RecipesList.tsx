@@ -2,6 +2,7 @@ import React, { useRef, useState } from "react";
 import Icon from "../components/Icon.tsx";
 import { Recipe, RecipeIngredient, RecipeStep } from "../data/recipes.ts";
 import { Ingredient } from "../data/inventory.ts";
+import { supabase } from "../lib/supabase.ts";
 
 export type { Recipe };
 
@@ -17,22 +18,43 @@ interface Props {
 
 function NewRecipeModal({ inventory, onSave, onClose }: { inventory: Ingredient[]; onSave: (r: Recipe) => void; onClose: () => void }) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const [name, setName] = useState("");
   const [category, setCategory] = useState("Sourdough");
   const [yieldAmt, setYieldAmt] = useState("");
   const [time, setTime] = useState("");
   const [img, setImg] = useState(PLACEHOLDER_IMG);
-  const [ingredients, setIngredients] = useState<RecipeIngredient[]>([
-    { ingredientId: inventory[0]?.id ?? "", name: inventory[0]?.name ?? "", qty: "", unit: inventory[0]?.unit ?? "g" },
+  type IngRow = RecipeIngredient & { rowType: "inventory" | "custom" };
+  const [ingredients, setIngredients] = useState<IngRow[]>([
+    { ingredientId: inventory[0]?.id ?? "", name: inventory[0]?.name ?? "", qty: "", unit: inventory[0]?.unit ?? "g", rowType: "inventory" },
   ]);
   const [steps, setSteps] = useState<RecipeStep[]>([
     { num: "01", title: "", description: "" },
   ]);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const addIngredientRow = () => {
+  const addIngredientRow = (rowType: "inventory" | "custom" = "inventory") => {
     const first = inventory[0];
-    setIngredients((prev) => [...prev, { ingredientId: first?.id ?? "", name: first?.name ?? "", qty: "", unit: first?.unit ?? "g" }]);
+    setIngredients((prev) => [...prev, {
+      ingredientId: rowType === "inventory" ? (first?.id ?? "") : "",
+      name: rowType === "inventory" ? (first?.name ?? "") : "",
+      qty: "", unit: rowType === "inventory" ? (first?.unit ?? "g") : "g",
+      rowType,
+    }]);
+  };
+
+  const toggleRowType = (i: number) => {
+    setIngredients((prev) => prev.map((row, idx) => {
+      if (idx !== i) return row;
+      const next = row.rowType === "inventory" ? "custom" : "inventory";
+      return {
+        ...row, rowType: next,
+        ingredientId: next === "inventory" ? (inventory[0]?.id ?? "") : "",
+        name: next === "inventory" ? (inventory[0]?.name ?? "") : "",
+        unit: next === "inventory" ? (inventory[0]?.unit ?? "g") : row.unit,
+      };
+    }));
   };
 
   const updateIngredient = (i: number, field: keyof RecipeIngredient, value: string) => {
@@ -51,17 +73,44 @@ function NewRecipeModal({ inventory, onSave, onClose }: { inventory: Ingredient[
     setSteps((prev) => prev.map((s, idx) => idx === i ? { ...s, [field]: value } : s));
   };
 
-  const handleSave = () => {
-    onSave({
-      id: `rec-${Date.now()}`,
-      name: name.trim(),
-      category,
+  const handleSave = async () => {
+    setSaving(true);
+    setSaveError("");
+    const id = `rec-${Date.now()}`;
+    const allIngredients = ingredients.filter((r) => r.ingredientId || r.name.trim());
+    const recipe: Recipe = {
+      id, name: name.trim(), category,
       yield: yieldAmt.trim() || "—",
       time: time.trim() || "—",
       img,
-      ingredients: ingredients.filter((r) => r.ingredientId),
+      ingredients: allIngredients,
       steps: steps.filter((s) => s.title.trim()),
+    };
+
+    const { error: recErr } = await supabase.from("recipes").insert({
+      id: recipe.id, name: recipe.name, category: recipe.category,
+      yield: recipe.yield, time: recipe.time, img: recipe.img,
     });
+    if (recErr) { setSaveError(recErr.message); setSaving(false); return; }
+
+    for (const ing of allIngredients) {
+      if (!ing.ingredientId) continue; // custom (free-text) rows have no inventory link
+      await supabase.from("recipe_ingredients").insert({
+        recipe_id: recipe.id, ingredient_id: ing.ingredientId,
+        qty: ing.qty, unit: ing.unit,
+      });
+    }
+
+    for (let i = 0; i < recipe.steps.length; i++) {
+      const s = recipe.steps[i];
+      await supabase.from("recipe_steps").insert({
+        recipe_id: recipe.id, num: s.num,
+        title: s.title, description: s.description, sort_order: i,
+      });
+    }
+
+    setSaving(false);
+    onSave(recipe);
   };
 
   const stepTitles = ["Basics", "Ingredients", "Steps"];
@@ -129,15 +178,25 @@ function NewRecipeModal({ inventory, onSave, onClose }: { inventory: Ingredient[
           {/* Step 2 — Ingredients */}
           {step === 2 && (
             <>
-              <p className="text-xs text-on-surface-variant">Add the ingredients needed for this recipe. Pull from your inventory.</p>
-              {inventory.length === 0 ? (
-                <div className="py-8 text-center text-sm text-on-surface-variant border-2 border-dashed border-outline-variant/30 rounded-xl">
-                  No inventory yet. <br />Add ingredients to inventory first.
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {ingredients.map((row, i) => (
-                    <div key={i} className="flex items-center gap-2">
+              <p className="text-xs text-on-surface-variant">Add ingredients from your inventory or type a custom one.</p>
+              <div className="space-y-2">
+                {ingredients.map((row, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    {/* Toggle: inventory vs custom */}
+                    <button
+                      title={row.rowType === "inventory" ? "Switch to free text" : "Switch to inventory"}
+                      onClick={() => toggleRowType(i)}
+                      className={`w-8 h-8 shrink-0 flex items-center justify-center rounded-lg border transition-all text-xs ${
+                        row.rowType === "inventory"
+                          ? "border-primary/30 bg-primary/8 text-primary"
+                          : "border-outline-variant bg-surface-bright text-on-surface-variant"
+                      }`}
+                    >
+                      <Icon name={row.rowType === "inventory" ? "inventory_2" : "edit"} size={13} />
+                    </button>
+
+                    {/* Name: dropdown or text input */}
+                    {row.rowType === "inventory" && inventory.length > 0 ? (
                       <select
                         className="flex-1 bg-surface-bright border border-outline-variant px-3 py-2 rounded-lg text-sm text-primary focus:outline-none min-w-0"
                         value={row.ingredientId}
@@ -145,29 +204,49 @@ function NewRecipeModal({ inventory, onSave, onClose }: { inventory: Ingredient[
                       >
                         {inventory.map((inv) => <option key={inv.id} value={inv.id}>{inv.name}</option>)}
                       </select>
+                    ) : (
                       <input
-                        className="w-20 bg-surface-bright border border-outline-variant px-3 py-2 rounded-lg text-sm text-primary focus:outline-none font-mono text-center"
-                        placeholder="Qty"
-                        value={row.qty}
-                        onChange={(e) => updateIngredient(i, "qty", e.target.value)}
+                        className="flex-1 bg-surface-bright border border-outline-variant px-3 py-2 rounded-lg text-sm text-primary focus:outline-none min-w-0"
+                        placeholder={row.rowType === "inventory" ? "No inventory yet — type name" : "e.g. Vanilla extract, Lemon zest…"}
+                        value={row.name}
+                        onChange={(e) => updateIngredient(i, "name", e.target.value)}
                       />
-                      <select
-                        className="w-20 bg-surface-bright border border-outline-variant px-2 py-2 rounded-lg text-xs font-bold text-primary focus:outline-none font-mono"
-                        value={row.unit}
-                        onChange={(e) => updateIngredient(i, "unit", e.target.value)}
-                      >
-                        <option>g</option><option>kg</option><option>ml</option><option>L</option><option>units</option>
-                      </select>
-                      <button onClick={() => setIngredients((prev) => prev.filter((_, idx) => idx !== i))} className="w-8 h-8 flex items-center justify-center rounded-lg text-on-surface-variant hover:text-error hover:bg-error-container/30 transition-all shrink-0">
-                        <Icon name="close" size={14} />
-                      </button>
-                    </div>
-                  ))}
-                  <button onClick={addIngredientRow} className="w-full py-2.5 rounded-xl border-2 border-dashed border-outline-variant/30 text-xs font-semibold text-on-surface-variant hover:border-primary hover:text-primary transition-all flex items-center justify-center gap-1.5">
-                    <Icon name="add" size={14} strokeWidth={2.5} /> Add Ingredient
+                    )}
+
+                    <input
+                      className="w-20 bg-surface-bright border border-outline-variant px-3 py-2 rounded-lg text-sm text-primary focus:outline-none font-mono text-center"
+                      placeholder="Qty"
+                      value={row.qty}
+                      onChange={(e) => updateIngredient(i, "qty", e.target.value)}
+                    />
+                    <select
+                      className="w-20 bg-surface-bright border border-outline-variant px-2 py-2 rounded-lg text-xs font-bold text-primary focus:outline-none font-mono"
+                      value={row.unit}
+                      onChange={(e) => updateIngredient(i, "unit", e.target.value)}
+                    >
+                      <option>g</option><option>kg</option><option>ml</option><option>L</option><option>units</option><option>tbsp</option><option>tsp</option><option>pcs</option>
+                    </select>
+                    <button onClick={() => setIngredients((prev) => prev.filter((_, idx) => idx !== i))} className="w-8 h-8 flex items-center justify-center rounded-lg text-on-surface-variant hover:text-error hover:bg-error-container/30 transition-all shrink-0">
+                      <Icon name="close" size={14} />
+                    </button>
+                  </div>
+                ))}
+
+                <div className="flex gap-2 pt-1">
+                  <button
+                    onClick={() => addIngredientRow("inventory")}
+                    className="flex-1 py-2.5 rounded-xl border-2 border-dashed border-outline-variant/30 text-xs font-semibold text-on-surface-variant hover:border-primary hover:text-primary transition-all flex items-center justify-center gap-1.5"
+                  >
+                    <Icon name="inventory_2" size={13} /> From Inventory
+                  </button>
+                  <button
+                    onClick={() => addIngredientRow("custom")}
+                    className="flex-1 py-2.5 rounded-xl border-2 border-dashed border-outline-variant/30 text-xs font-semibold text-on-surface-variant hover:border-secondary hover:text-secondary transition-all flex items-center justify-center gap-1.5"
+                  >
+                    <Icon name="edit" size={13} /> Custom
                   </button>
                 </div>
-              )}
+              </div>
             </>
           )}
 
@@ -226,12 +305,16 @@ function NewRecipeModal({ inventory, onSave, onClose }: { inventory: Ingredient[
               Next →
             </button>
           ) : (
-            <button
-              onClick={handleSave}
-              className="px-5 h-9 rounded-lg bg-primary text-on-primary text-sm font-bold hover:opacity-90 active:scale-95 transition-all"
-            >
-              Save Recipe
-            </button>
+            <>
+              {saveError && <p className="text-xs text-error">{saveError}</p>}
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="px-5 h-9 rounded-lg bg-primary text-on-primary text-sm font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50"
+              >
+                {saving ? "Saving…" : "Save Recipe"}
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -262,7 +345,7 @@ export default function RecipesList({ recipes, inventory, onAddRecipe, onViewRec
             <Icon name="notifications" size={18} />
           </button>
           <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-            <span className="text-[11px] font-bold text-on-primary">BM</span>
+            <span className="text-[11px] font-bold text-on-primary">AV</span>
           </div>
         </div>
       </header>

@@ -1,4 +1,11 @@
 import React, { useState } from "react";
+import { supabase } from "../lib/supabase.ts";
+import {
+  Wheat, Droplets, FlaskConical, Sparkles, Egg, ChefHat, Coffee, Cookie,
+  Leaf, Flame, Apple, UtensilsCrossed, Milk, Nut, Croissant, CakeSlice,
+  Carrot, Grape, Cherry, Wine, Candy, Donut, Thermometer, Scale,
+  CookingPot, Banana, IceCreamCone, LucideIcon,
+} from "lucide-react";
 import { Ingredient } from "../data/inventory.ts";
 import Icon from "../components/Icon.tsx";
 
@@ -14,7 +21,45 @@ const statusConfig: Record<string, { label: string; bg: string; text: string; do
   critical: { label: "Out of Stock", bg: "bg-error-container", text: "text-on-error-container", dot: "bg-error" },
 };
 
-const iconOptions = ["grain", "water_drop", "science", "auto_awesome", "egg", "cake", "local_cafe", "cookie", "nutrition", "set_meal"];
+const ICON_OPTIONS: { id: string; Comp: LucideIcon; label: string }[] = [
+  // Grains & Base
+  { id: "wheat",       Comp: Wheat,          label: "Flour"     },
+  { id: "croissant",   Comp: Croissant,      label: "Pastry"    },
+  { id: "cake",        Comp: CakeSlice,      label: "Cake"      },
+  { id: "donut",       Comp: Donut,          label: "Donut"     },
+  { id: "cookie",      Comp: Cookie,         label: "Cookie"    },
+  // Dairy & Eggs
+  { id: "milk",        Comp: Milk,           label: "Dairy"     },
+  { id: "egg",         Comp: Egg,            label: "Eggs"      },
+  { id: "ice-cream",   Comp: IceCreamCone,   label: "Cream"     },
+  // Liquids
+  { id: "droplets",    Comp: Droplets,       label: "Water"     },
+  { id: "coffee",      Comp: Coffee,         label: "Coffee"    },
+  { id: "wine",        Comp: Wine,           label: "Extract"   },
+  // Fruits & Veg
+  { id: "apple",       Comp: Apple,          label: "Apple"     },
+  { id: "banana",      Comp: Banana,         label: "Banana"    },
+  { id: "cherry",      Comp: Cherry,         label: "Cherry"    },
+  { id: "grape",       Comp: Grape,          label: "Grape"     },
+  { id: "carrot",      Comp: Carrot,         label: "Carrot"    },
+  // Fats, Nuts & Sweet
+  { id: "nut",         Comp: Nut,            label: "Nuts"      },
+  { id: "candy",       Comp: Candy,          label: "Sugar"     },
+  { id: "leaf",        Comp: Leaf,           label: "Herbs"     },
+  { id: "flame",       Comp: Flame,          label: "Spice"     },
+  // Science & Tools
+  { id: "flask",       Comp: FlaskConical,   label: "Chemical"  },
+  { id: "sparkles",    Comp: Sparkles,       label: "Starter"   },
+  { id: "thermo",      Comp: Thermometer,    label: "Temp"      },
+  { id: "scale",       Comp: Scale,          label: "Weight"    },
+  { id: "pot",         Comp: CookingPot,     label: "Cooking"   },
+  { id: "chef",        Comp: ChefHat,        label: "Chef"      },
+  { id: "pantry",      Comp: UtensilsCrossed,label: "Pantry"    },
+];
+
+const ICON_MAP: Record<string, LucideIcon> = Object.fromEntries(
+  ICON_OPTIONS.map(({ id, Comp }) => [id, Comp])
+);
 
 interface NewIngForm {
   name: string;
@@ -25,7 +70,7 @@ interface NewIngForm {
   icon: string;
 }
 
-const emptyForm: NewIngForm = { name: "", sku: "", stockValue: "", unit: "kg", status: "optimal", icon: "grain" };
+const emptyForm: NewIngForm = { name: "", sku: "", stockValue: "", unit: "kg", status: "optimal", icon: "wheat" };
 
 export default function InventoryDashboard({ ingredients, onAddIngredient, onViewIngredient }: Props) {
   const [filter, setFilter] = useState("all");
@@ -40,7 +85,7 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
     return matchCat && matchSearch;
   });
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!form.name.trim()) return;
     const val = parseFloat(form.stockValue) || 0;
     const newIng: Ingredient = {
@@ -52,8 +97,14 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
       unit: form.unit,
       status: form.status,
       icon: form.icon,
-      img: "https://lh3.googleusercontent.com/aida-public/AB6AXuCpSnC71P8IBi6VGgsyrsm0jMtSjUwWW6bdfRJ5yE7C-v6Qf-CM7jNvJYs3JNr-O3K0Dgg2Nd1eRjAJ9WVwaxRKvKqYjBlVLa_icCC7iKLMDm4gU1sYsgys3wFc6NJAc9aTwMM9LnvBj-hg-YFR33Tu0IJx4glef1ST0pQB6GQqcn_6oxNUfLiscc_l3_IX1lwfW7Z0xlZyWBSA8H4VO7CE2o03FzpDIpzk_cUu3S2PAj9sIiUsIVChaduWlKCN0HhwS7L_iWYrIExc",
+      img: "",
     };
+    const { error } = await supabase.from("ingredients").insert({
+      id: newIng.id, name: newIng.name, sku: newIng.sku,
+      stock_value: newIng.stockValue, unit: newIng.unit,
+      status: newIng.status, icon: newIng.icon, img: newIng.img,
+    });
+    if (error) { console.error("Failed to save ingredient:", error.message); return; }
     onAddIngredient(newIng);
     setForm(emptyForm);
     setShowModal(false);
@@ -78,7 +129,7 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
             <Icon name="notifications" size={18} />
           </button>
           <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-            <span className="text-[11px] font-bold text-on-primary">BM</span>
+            <span className="text-[11px] font-bold text-on-primary">AV</span>
           </div>
         </div>
       </header>
@@ -92,7 +143,7 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
               {attention.map((item) => (
                 <div key={item.id} className={`flex items-center gap-3 p-4 rounded-xl border ${item.status === "critical" ? "bg-error-container/30 border-error/20" : "bg-tertiary-fixed/30 border-on-tertiary-container/20"}`}>
                   <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${item.status === "critical" ? "bg-error-container text-error" : "bg-tertiary-fixed text-on-tertiary-fixed-variant"}`}>
-                    <Icon name={item.icon} size={16} />
+                    {(() => { const IC = ICON_MAP[item.icon] ?? Wheat; return <IC size={16} />; })()}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-primary text-sm truncate">{item.name}</p>
@@ -255,17 +306,25 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
 
               <div>
                 <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-2">Icon</label>
-                <div className="flex flex-wrap gap-2">
-                  {iconOptions.map((ic) => (
-                    <button
-                      key={ic}
-                      onClick={() => setForm((f) => ({ ...f, icon: ic }))}
-                      title={ic}
-                      className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all border ${form.icon === ic ? "bg-primary text-on-primary border-primary" : "bg-surface-container text-on-surface-variant border-outline-variant/20 hover:bg-surface-container-high"}`}
-                    >
-                      <Icon name={ic} size={16} />
-                    </button>
-                  ))}
+                <div className="grid grid-cols-6 gap-1.5">
+                  {ICON_OPTIONS.map(({ id, Comp, label }) => {
+                    const selected = form.icon === id;
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => setForm((f) => ({ ...f, icon: id }))}
+                        className={`flex flex-col items-center gap-1 py-2.5 px-1 rounded-xl transition-all border ${
+                          selected
+                            ? "bg-primary/10 border-primary text-primary ring-1 ring-primary"
+                            : "bg-surface-container border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-high hover:border-outline-variant/40"
+                        }`}
+                      >
+                        <Comp size={18} strokeWidth={selected ? 2.2 : 1.6} />
+                        <span className="text-[8px] font-bold uppercase tracking-wide leading-none">{label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
