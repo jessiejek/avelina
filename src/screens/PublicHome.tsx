@@ -34,6 +34,21 @@ export default function PublicHome({ onPreOrder, currentUser, cartCount }: Props
       if (data) setRecipes(data.map((r) => ({ ...r, ingredients: [], steps: [] })));
       setLoading(false);
     });
+
+    const channel = supabase
+      .channel("rt-public-recipes")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "recipes" }, ({ new: row }) => {
+        setRecipes((prev) => prev.find((r) => r.id === row.id) ? prev : [...prev, { ...row, ingredients: [], steps: [] }]);
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "recipes" }, ({ new: row }) => {
+        setRecipes((prev) => prev.map((r) => r.id === row.id ? { ...r, name: row.name, img: row.img, category: row.category, yield: row.yield, time: row.time } : r));
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "recipes" }, ({ old: row }) => {
+        setRecipes((prev) => prev.filter((r) => r.id !== row.id));
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const filtered = recipes.filter((r) => {

@@ -28,27 +28,41 @@ export default function OrdersPage({ profile }: Props) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    supabase
+  const fetchOrders = async () => {
+    const { data } = await supabase
       .from("orders")
       .select("*, order_items(qty, pickup_date, recipes(*))")
-      .order("placed_at", { ascending: false })
-      .then(({ data }) => {
-        if (data) {
-          setOrders(data.map((o) => ({
-            id: o.id,
-            placedAt: o.placed_at,
-            status: o.status,
-            profile: profile || { name: "", email: "", phone: "", address: "" },
-            items: (o.order_items || []).map((item: any) => ({
-              recipe: item.recipes,
-              qty: item.qty,
-              date: item.pickup_date,
-            })),
-          })));
-        }
-        setLoading(false);
-      });
+      .order("placed_at", { ascending: false });
+    if (data) {
+      setOrders(data.map((o) => ({
+        id: o.id,
+        placedAt: o.placed_at,
+        status: o.status,
+        profile: profile || { name: "", email: "", phone: "", address: "" },
+        items: (o.order_items || []).map((item: any) => ({
+          recipe: item.recipes,
+          qty: item.qty,
+          date: item.pickup_date,
+        })),
+      })));
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchOrders();
+
+    const channel = supabase
+      .channel("rt-orders")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "orders" }, () => {
+        fetchOrders();
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "orders" }, ({ new: row }) => {
+        setOrders((prev) => prev.map((o) => o.id === row.id ? { ...o, status: row.status } : o));
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   return (
