@@ -247,15 +247,25 @@ function PublicShell() {
 
   // Auth listener
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
+    const redirectByRole = async (session: Session | null) => {
+      if (!session) return;
+      const { data } = await supabase.from("users").select("id, role").eq("id", session.user.id).single();
+      if (!data) {
+        navigate("/profile/setup");
+      } else if (data.role === "admin") {
+        navigate("/admin");
+      }
+    };
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      redirectByRole(session);
+    });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
-      // After OAuth redirect: check if user has a profile, send to setup if not
-      if (event === "SIGNED_IN" && session) {
-        supabase.from("users").select("id").eq("id", session.user.id).single().then(({ data }) => {
-          if (!data) navigate("/profile/setup");
-        });
+      if (event === "SIGNED_IN") {
+        redirectByRole(session);
       }
     });
 
@@ -280,10 +290,12 @@ function PublicShell() {
     if (!s) return;
 
     const { data: profileData } = await supabase
-      .from("users").select("id").eq("id", s.user.id).single();
+      .from("users").select("id, role").eq("id", s.user.id).single();
 
     if (!profileData) {
       navigate("/profile/setup");
+    } else if (profileData.role === "admin") {
+      navigate("/admin");
     } else if (pendingRecipe) {
       addToCart(pendingRecipe);
       setPendingRecipe(null);

@@ -30,7 +30,11 @@ export default function ProfileSetup({ user, onSave }: Props) {
     setError("");
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) { setError("Not authenticated."); setLoading(false); return; }
-    const { error: dbErr } = await supabase.from("users").upsert({ id: session.user.id, name, phone, address });
+    // Check if row exists first so we never overwrite the role column
+    const { data: existing } = await supabase.from("users").select("id").eq("id", session.user.id).single();
+    const { error: dbErr } = existing
+      ? await supabase.from("users").update({ name, phone, address }).eq("id", session.user.id)
+      : await supabase.from("users").insert({ id: session.user.id, name, phone, address });
     if (dbErr) { setError(dbErr.message); setLoading(false); return; }
     setLoading(false);
     onSave({ name, email: user.email, phone, address });
