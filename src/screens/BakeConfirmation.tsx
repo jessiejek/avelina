@@ -1,0 +1,187 @@
+import React from "react";
+import Icon from "../components/Icon.tsx";
+import { Recipe } from "../data/recipes.ts";
+
+interface BakeEntry {
+  id: string;
+  product: string;
+  img: string;
+  batchId: string;
+  baker: string;
+  time: string;
+  qty: string;
+  status: "completed" | "in_progress" | "failed";
+}
+
+interface Props {
+  onBack: () => void;
+  onLogBake: (entry: BakeEntry) => void;
+  recipe: Recipe;
+}
+
+const reconciliation = [
+  { name: "Bread Flour (T65)", supplier: "Millers Choice - Organic", icon: "grain", required: "12.00 kg", available: "45.50 kg", pct: 26, status: "ready" },
+  { name: "Filtered Water", supplier: "Station 2 Supply", icon: "water_drop", required: "8.40 kg", available: "6.20 kg", pct: 100, status: "short", shortfall: "-2.2 kg" },
+  { name: "Sea Salt (Fine)", supplier: "Maldon Professional", icon: "science", required: "0.24 kg", available: "5.00 kg", pct: 5, status: "ready" },
+  { name: "Active Levain", supplier: "Mother Starter #1", icon: "auto_awesome", required: "1.50 kg", available: "0.80 kg", pct: 100, status: "low" },
+];
+
+export default function BakeConfirmation({ onBack, onLogBake, recipe }: Props) {
+  const hasShortage = reconciliation.some((r) => r.status !== "ready");
+  const batchId = `#SKU-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`;
+
+  const handleInitiateBake = () => {
+    const now = new Date();
+    onLogBake({
+      id: `bake-${Date.now()}`,
+      product: recipe.name,
+      img: recipe.img,
+      batchId,
+      baker: "Baker M.",
+      time: now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }),
+      qty: recipe.yield,
+      status: "in_progress",
+    });
+  };
+
+  return (
+    <div className="flex-1 flex flex-col min-h-0 overflow-y-auto bg-surface">
+      <header className="sticky top-0 z-50 flex justify-between items-center px-6 h-14 w-full bg-surface-bright border-b border-outline-variant/20">
+        <nav className="flex items-center gap-1 text-sm text-on-surface-variant">
+          <button onClick={onBack} className="hover:text-primary transition-colors px-2 py-1 flex items-center gap-1">
+            <Icon name="arrow_back" size={14} /> Builder
+          </button>
+          <Icon name="chevron_right" size={14} className="text-outline-variant" />
+          <span className="text-primary font-semibold px-2 py-1" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>Confirm Bake</span>
+        </nav>
+        <div className="flex items-center gap-3">
+          <button className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-surface-container text-on-surface-variant transition-colors">
+            <Icon name="notifications" size={18} />
+          </button>
+          <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+            <span className="text-[11px] font-bold text-on-primary">BM</span>
+          </div>
+        </div>
+      </header>
+
+      <div className="p-8 lg:p-12 max-w-7xl mx-auto w-full space-y-8">
+        {hasShortage && (
+          <div className="bg-error-container text-on-error-container p-4 rounded-xl flex items-center gap-4 border border-error/20">
+            <Icon name="warning" size={24} className="shrink-0" />
+            <div>
+              <h4 className="font-semibold text-base" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>Inventory Shortage Detected</h4>
+              <p className="text-sm mt-0.5 opacity-80">Some ingredients are below required amounts. You can still proceed — shortfalls are flagged below.</p>
+            </div>
+          </div>
+        )}
+
+        {/* Recipe Summary */}
+        <section className="flex flex-col md:flex-row gap-8 items-start bg-surface-container-lowest p-6 rounded-xl border border-outline-variant/10">
+          <div className="w-full md:w-64 rounded-xl overflow-hidden shadow-sm shrink-0" style={{ aspectRatio: "4/3" }}>
+            <img src={recipe.img} alt={recipe.name} className="w-full h-full object-cover" />
+          </div>
+          <div className="flex-1 space-y-4">
+            <div>
+              <span className="px-3 py-1 bg-secondary-container text-on-secondary-container rounded-full text-[10px] font-bold uppercase tracking-wider">{recipe.category}</span>
+              <h2 className="text-primary mt-3 font-bold" style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 36, lineHeight: "44px", letterSpacing: "-0.02em" }}>{recipe.name}</h2>
+              <p className="text-sm text-on-surface-variant font-mono mt-1">Batch ID: {batchId}</p>
+            </div>
+            <div className="grid grid-cols-3 gap-4 py-4 border-y border-outline-variant/10">
+              {[
+                { label: "Total Time", value: recipe.time },
+                { label: "Oven Temp", value: "245°C" },
+                { label: "Planned Yield", value: recipe.yield },
+              ].map((m) => (
+                <div key={m.label}>
+                  <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider mb-1">{m.label}</p>
+                  <p className="font-bold text-primary text-sm font-mono">{m.value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Inventory Reconciliation */}
+        <section className="space-y-4">
+          <h3 className="text-primary font-semibold" style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 22 }}>Inventory Check</h3>
+          <div className="overflow-hidden rounded-xl border border-outline-variant/10 bg-surface-container-lowest">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-surface-container-low border-b border-outline-variant/20">
+                  <th className="px-6 py-3 text-xs font-semibold text-on-surface-variant uppercase tracking-widest">Ingredient</th>
+                  <th className="px-6 py-3 text-xs font-semibold text-on-surface-variant uppercase tracking-widest">Required / Available</th>
+                  <th className="px-6 py-3 text-xs font-semibold text-on-surface-variant uppercase tracking-widest text-right">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-outline-variant/10">
+                {reconciliation.map((row) => {
+                  const isOk = row.status === "ready";
+                  const isLow = row.status === "low";
+                  return (
+                    <tr key={row.name}>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${isOk ? "bg-surface-container text-primary" : "bg-error-container/30 text-error"}`}>
+                            <Icon name={row.icon} size={16} />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-primary text-sm">{row.name}</p>
+                            <p className="text-xs text-on-surface-variant/60">{row.supplier}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className={`flex items-baseline gap-2 font-mono text-sm ${!isOk ? "text-error" : "text-primary"}`}>
+                          <span className="font-bold">{row.required}</span>
+                          <span className="text-on-surface-variant/40">/</span>
+                          <span>{row.available}</span>
+                        </div>
+                        <div className={`w-full h-1.5 rounded-full mt-2 overflow-hidden ${isOk ? "bg-surface-container-high" : "bg-error-container"}`}>
+                          <div className={`h-full rounded-full ${isOk ? "bg-secondary" : "bg-error"}`} style={{ width: `${row.pct}%` }} />
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        {isOk ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-secondary-container text-on-secondary-container rounded-full text-[10px] font-bold uppercase tracking-wide">
+                            <Icon name="check_circle" size={11} /> Ready
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-error-container text-on-error-container rounded-full text-[10px] font-bold uppercase tracking-wide">
+                            <Icon name="error" size={11} /> {isLow ? "Low Stock" : `Short ${row.shortfall}`}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {/* Footer — single clear CTA */}
+        <footer className="flex items-center justify-between bg-surface-container-low p-6 rounded-xl border border-outline-variant/10">
+          <div className="flex items-center gap-4">
+            <div className="flex -space-x-2">
+              <div className="w-9 h-9 rounded-full border-2 border-surface-bright bg-primary-container flex items-center justify-center text-on-primary-fixed font-bold text-xs">JS</div>
+              <div className="w-9 h-9 rounded-full border-2 border-surface-bright bg-secondary-container flex items-center justify-center text-on-secondary-container font-bold text-xs">AK</div>
+            </div>
+            <p className="text-sm text-on-surface-variant">2 bakers assigned</p>
+          </div>
+          <div className="flex gap-3">
+            <button onClick={onBack} className="h-12 px-6 border border-outline text-primary rounded-lg font-semibold text-sm hover:bg-surface-container transition-colors">
+              Back
+            </button>
+            <button
+              onClick={handleInitiateBake}
+              className="h-12 px-8 bg-primary text-on-primary rounded-lg font-bold text-sm shadow-lg hover:opacity-90 active:scale-95 transition-all flex items-center gap-2"
+            >
+              <Icon name="oven_gen" size={16} />
+              Initiate Bake
+            </button>
+          </div>
+        </footer>
+      </div>
+    </div>
+  );
+}

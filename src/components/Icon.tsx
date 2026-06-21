@@ -1,0 +1,89 @@
+import React from "react";
+import {
+  Package, BookOpen, ScrollText, BarChart3, PlusCircle, Settings, Plus, Search,
+  Bell, Wheat, Droplets, FlaskConical, Sparkles, Egg, Scale, ArrowLeft, X,
+  ChevronRight, ChevronLeft, ListFilter, Download, Camera, AlertTriangle,
+  CheckCircle2, XCircle, Info, History, TrendingUp, ArrowRight, Truck,
+  Utensils, Clock, Printer, Wrench, ChevronsUpDown, ChevronDown, Minus,
+  RefreshCcw, Flame, Coffee, Leaf, Thermometer, Menu, AlertCircle,
+  Cookie, Apple, UtensilsCrossed, Recycle, BarChart2, SlidersHorizontal,
+  UserCircle2, Check, ArrowUpDown, ShoppingCart, Droplet, Building2, Star,
+  CalendarDays, ClipboardList, Activity, Hash, Weight,
+} from "lucide-react";
+
+const map: Record<string, React.ComponentType<{ size?: number; className?: string; strokeWidth?: number }>> = {
+  inventory_2: Package,
+  menu_book: BookOpen,
+  history_edu: ScrollText,
+  query_stats: BarChart3,
+  add_circle: PlusCircle,
+  settings: Settings,
+  add: Plus,
+  search: Search,
+  notifications: Bell,
+  grain: Wheat,
+  water_drop: Droplets,
+  science: FlaskConical,
+  auto_awesome: Sparkles,
+  egg: Egg,
+  scale: Scale,
+  arrow_back: ArrowLeft,
+  close: X,
+  chevron_right: ChevronRight,
+  chevron_left: ChevronLeft,
+  filter_list: ListFilter,
+  download: Download,
+  photo_camera: Camera,
+  warning: AlertTriangle,
+  check_circle: CheckCircle2,
+  error: AlertCircle,
+  info: Info,
+  history: History,
+  trending_up: TrendingUp,
+  trending_flat: ArrowRight,
+  local_shipping: Truck,
+  restaurant: Utensils,
+  timer: Clock,
+  print: Printer,
+  build: Wrench,
+  unfold_more: ChevronsUpDown,
+  keyboard_arrow_down: ChevronDown,
+  remove: Minus,
+  sync_alt: RefreshCcw,
+  oven_gen: Flame,
+  breakfast_dining: Coffee,
+  compost: Leaf,
+  thermostat: Thermometer,
+  menu: Menu,
+  local_cafe: Coffee,
+  cookie: Cookie,
+  nutrition: Apple,
+  set_meal: Utensils,
+  cake: UtensilsCrossed,
+  recycle: Recycle,
+  bar_chart: BarChart2,
+  tune: SlidersHorizontal,
+  account_circle: UserCircle2,
+  check: Check,
+  swap_vert: ArrowUpDown,
+  shopping_cart: ShoppingCart,
+  water: Droplet,
+  business: Building2,
+  star: Star,
+  calendar_today: CalendarDays,
+  assignment: ClipboardList,
+  show_chart: Activity,
+  tag: Hash,
+};
+
+interface Props {
+  name: string;
+  size?: number;
+  className?: string;
+  strokeWidth?: number;
+}
+
+export default function Icon({ name, size = 20, className = "", strokeWidth = 1.75 }: Props) {
+  const Component = map[name] ?? Package;
+  return <Component size={size} className={className} strokeWidth={strokeWidth} />;
+}

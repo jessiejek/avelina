@@ -1,0 +1,6 @@
+{
+  "name": "Artisanal Bakelog",
+  "description": "A high-precision sourdough and pastry journal with active fermentation timers, water absorption formulation logs, and Gemini-powered bake diagnostics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
