@@ -114,6 +114,7 @@ function AdminShell() {
   const [showPicker, setShowPicker] = useState(false);
 
   useEffect(() => {
+    // Initial loads
     supabase.from("ingredients").select("*").then(({ data }) => {
       if (data) setInventory(data.map(mapIngredient));
     });
@@ -132,6 +133,53 @@ function AdminShell() {
       .then(({ data }) => {
         if (data) setBakeLogs(data.map(mapBakeEntry));
       });
+
+    // Real-time: ingredients
+    const ingChannel = supabase
+      .channel("rt-ingredients")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "ingredients" }, ({ new: row }) => {
+        setInventory((prev) => prev.find((i) => i.id === row.id) ? prev : [mapIngredient(row), ...prev]);
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "ingredients" }, ({ new: row }) => {
+        setInventory((prev) => prev.map((i) => i.id === row.id ? mapIngredient(row) : i));
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "ingredients" }, ({ old: row }) => {
+        setInventory((prev) => prev.filter((i) => i.id !== row.id));
+      })
+      .subscribe();
+
+    // Real-time: recipes (only name + img — full re-fetch for ingredient/step changes)
+    const recipeChannel = supabase
+      .channel("rt-recipes")
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "recipes" }, ({ new: row }) => {
+        setRecipes((prev) => prev.map((r) => r.id === row.id ? { ...r, name: row.name, img: row.img, category: row.category, yield: row.yield, time: row.time } : r));
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "recipes" }, () => {
+        // Re-fetch to get full recipe with ingredients + steps
+        supabase
+          .from("recipes")
+          .select("*, recipe_ingredients(qty, unit, ingredients(id, name)), recipe_steps(num, title, description, sort_order)")
+          .then(({ data }) => { if (data) setRecipes(data.map(mapRecipe)); });
+      })
+      .subscribe();
+
+    // Real-time: bake_entries
+    const bakeChannel = supabase
+      .channel("rt-bake-entries")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "bake_entries" }, () => {
+        supabase.from("bake_entries").select("*, recipes(name, img)").order("created_at", { ascending: false })
+          .then(({ data }) => { if (data) setBakeLogs(data.map(mapBakeEntry)); });
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "bake_entries" }, ({ new: row }) => {
+        setBakeLogs((prev) => prev.map((e) => e.id === row.id ? { ...e, status: row.status } : e));
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(ingChannel);
+      supabase.removeChannel(recipeChannel);
+      supabase.removeChannel(bakeChannel);
+    };
   }, []);
 
   const currentTab = (() => {
