@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#26170c"/>
+  <!-- Croissant / bread loaf shape -->
+  <ellipse cx="256" cy="290" rx="150" ry="90" fill="#fff8f5"/>
+  <ellipse cx="256" cy="270" rx="130" ry="85" fill="#e8c99a"/>
+  <ellipse cx="256" cy="255" rx="110" ry="70" fill="#d4a96a"/>
+  <!-- Steam lines -->
+  <path d="M200 180 Q195 160 200 140 Q205 120 200 100" stroke="#fff8f5" stroke-width="8" fill="none" stroke-linecap="round" opacity="0.6"/>
+  <path d="M256 170 Q251 150 256 130 Q261 110 256 90" stroke="#fff8f5" stroke-width="8" fill="none" stroke-linecap="round" opacity="0.6"/>
+  <path d="M312 180 Q307 160 312 140 Q317 120 312 100" stroke="#fff8f5" stroke-width="8" fill="none" stroke-linecap="round" opacity="0.6"/>
+  <!-- Scoring lines on bread -->
+  <path d="M160 270 Q256 240 352 270" stroke="#b8823a" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <path d="M180 295 Q256 265 332 295" stroke="#b8823a" stroke-width="4" fill="none" stroke-linecap="round"/>
+</svg>
