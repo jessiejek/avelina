@@ -2,7 +2,7 @@ import React, { useRef, useState } from "react";
 import Icon from "../components/Icon.tsx";
 import { Recipe, RecipeIngredient, RecipeStep } from "../data/recipes.ts";
 import { Ingredient } from "../data/inventory.ts";
-import { supabase } from "../lib/supabase.ts";
+import { supabase, uploadImage } from "../lib/supabase.ts";
 
 export type { Recipe };
 
@@ -25,6 +25,7 @@ function NewRecipeModal({ inventory, onSave, onClose }: { inventory: Ingredient[
   const [yieldAmt, setYieldAmt] = useState("");
   const [time, setTime] = useState("");
   const [img, setImg] = useState(PLACEHOLDER_IMG);
+  const [imgFile, setImgFile] = useState<File | null>(null);
   type IngRow = RecipeIngredient & { rowType: "inventory" | "custom" };
   const [ingredients, setIngredients] = useState<IngRow[]>([
     { ingredientId: inventory[0]?.id ?? "", name: inventory[0]?.name ?? "", qty: "", unit: inventory[0]?.unit ?? "g", rowType: "inventory" },
@@ -77,12 +78,19 @@ function NewRecipeModal({ inventory, onSave, onClose }: { inventory: Ingredient[
     setSaving(true);
     setSaveError("");
     const id = `rec-${Date.now()}`;
+
+    let finalImg = img;
+    if (imgFile) {
+      try { finalImg = await uploadImage("recipe-images", imgFile); }
+      catch (e: any) { setSaveError("Photo upload failed: " + e.message); setSaving(false); return; }
+    }
+
     const allIngredients = ingredients.filter((r) => r.ingredientId || r.name.trim());
     const recipe: Recipe = {
       id, name: name.trim(), category,
       yield: yieldAmt.trim() || "—",
       time: time.trim() || "—",
-      img,
+      img: finalImg,
       ingredients: allIngredients,
       steps: steps.filter((s) => s.title.trim()),
     };
@@ -146,7 +154,7 @@ function NewRecipeModal({ inventory, onSave, onClose }: { inventory: Ingredient[
                 <img src={img} alt="Recipe" className="w-full h-full object-cover" />
                 <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
                   const f = e.target.files?.[0];
-                  if (f) setImg(URL.createObjectURL(f));
+                  if (f) { setImgFile(f); setImg(URL.createObjectURL(f)); }
                 }} />
                 <button onClick={() => fileRef.current?.click()} className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container-lowest/90 backdrop-blur-sm text-primary text-xs font-semibold border border-outline-variant/30 hover:bg-surface-container-lowest transition-colors">
                   <Icon name="photo_camera" size={13} /> Upload Photo

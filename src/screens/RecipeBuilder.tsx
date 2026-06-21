@@ -2,7 +2,7 @@ import React, { useRef, useState } from "react";
 import { Ingredient } from "../data/inventory.ts";
 import { Recipe } from "../data/recipes.ts";
 import Icon from "../components/Icon.tsx";
-import { supabase } from "../lib/supabase.ts";
+import { supabase, uploadImage } from "../lib/supabase.ts";
 
 interface Props {
   onBack: () => void;
@@ -38,6 +38,7 @@ export default function RecipeBuilder({ onBack, onInitiateBake, inventory, recip
     recipe.steps.length > 0 ? recipe.steps : initialSteps
   );
   const [photo, setPhoto] = useState<string>(recipe.img);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [recipeName, setRecipeName] = useState(recipe.name);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -48,8 +49,15 @@ export default function RecipeBuilder({ onBack, onInitiateBake, inventory, recip
     setSaving(true);
     setSaved(false);
     setSaveError("");
+
+    let finalImg = photo;
+    if (photoFile) {
+      try { finalImg = await uploadImage("recipe-images", photoFile); setPhoto(finalImg); setPhotoFile(null); }
+      catch (e: any) { setSaveError("Photo upload failed: " + e.message); setSaving(false); return; }
+    }
+
     // Update recipe basics
-    const { error: recErr } = await supabase.from("recipes").update({ name: recipeName, img: photo }).eq("id", recipe.id);
+    const { error: recErr } = await supabase.from("recipes").update({ name: recipeName, img: finalImg }).eq("id", recipe.id);
     if (recErr) { setSaveError(recErr.message); setSaving(false); return; }
     // Replace ingredients
     await supabase.from("recipe_ingredients").delete().eq("recipe_id", recipe.id);
@@ -70,7 +78,7 @@ export default function RecipeBuilder({ onBack, onInitiateBake, inventory, recip
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) setPhoto(URL.createObjectURL(file));
+    if (file) { setPhotoFile(file); setPhoto(URL.createObjectURL(file)); }
   };
 
   const addRow = () => setRows((prev) => [...prev, { ingredientId: inventory[0]?.id ?? "", qty: "0", unit: inventory[0]?.unit ?? "g" }]);
