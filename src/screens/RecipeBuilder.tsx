@@ -108,7 +108,7 @@ export default function RecipeBuilder({ onBack, onInitiateBake, inventory, recip
             <Icon name="arrow_back" size={14} /> Recipes
           </button>
           <Icon name="chevron_right" size={14} className="text-outline-variant" />
-          <span className="text-primary font-semibold px-2 py-1 truncate max-w-[200px]" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>{recipeName}</span>
+          <span className="text-primary font-semibold px-2 py-1 truncate max-w-[200px]" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>Edit: {recipeName}</span>
         </nav>
         <div className="flex items-center gap-3">
           <button onClick={handleSave} disabled={saving} className="px-4 h-9 rounded-lg border border-outline text-primary text-xs font-semibold hover:bg-surface-container transition-colors disabled:opacity-50">

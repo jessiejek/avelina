@@ -375,17 +375,24 @@ export default function RecipesList({ recipes, inventory, onAddRecipe, onViewRec
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((recipe) => (
             <div key={recipe.id} className="bg-surface-container-lowest rounded-xl border border-outline-variant/20 overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all group">
-              <div onClick={() => onViewRecipe(recipe)} className="overflow-hidden bg-surface-container cursor-pointer" style={{ aspectRatio: "16/10" }}>
+              {/* Photo — click to edit */}
+              <div onClick={() => onViewRecipe(recipe)} className="relative overflow-hidden bg-surface-container cursor-pointer" style={{ aspectRatio: "16/10" }}>
                 <img src={recipe.img} alt={recipe.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                  <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 text-[#26170c] text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5">
+                    <Icon name="edit" size={12} /> Edit Recipe
+                  </span>
+                </div>
               </div>
+
               <div className="p-4">
                 <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant uppercase tracking-wide mb-1.5">{recipe.category}</span>
-                <h3 onClick={() => onViewRecipe(recipe)} className="font-semibold text-primary text-sm leading-tight mb-1 cursor-pointer" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>{recipe.name}</h3>
+                <h3 className="font-semibold text-primary text-sm leading-tight mb-1" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>{recipe.name}</h3>
                 <p className="text-xs text-on-surface-variant mb-3">
                   {recipe.ingredients.length > 0 ? `${recipe.ingredients.length} ingredient${recipe.ingredients.length !== 1 ? "s" : ""}` : "No ingredients set"}
                 </p>
-                <div className="flex items-center justify-between pt-3 border-t border-outline-variant/10">
-                  <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 pt-3 border-t border-outline-variant/10">
+                  <div className="flex items-center gap-3 flex-1">
                     <div className="flex items-center gap-1 text-xs text-on-surface-variant">
                       <Icon name="restaurant" size={13} />
                       <span className="font-mono">{recipe.yield}</span>
@@ -395,7 +402,18 @@ export default function RecipesList({ recipes, inventory, onAddRecipe, onViewRec
                       <span className="font-mono">{recipe.time}</span>
                     </div>
                   </div>
-                  <button onClick={() => onViewRecipe(recipe)} className="flex items-center gap-1 px-3 h-7 rounded-lg bg-primary text-on-primary text-[11px] font-bold hover:opacity-90 active:scale-95 transition-all">
+                  {/* Edit button */}
+                  <button
+                    onClick={() => onViewRecipe(recipe)}
+                    className="flex items-center gap-1 px-3 h-7 rounded-lg border border-outline text-primary text-[11px] font-semibold hover:bg-surface-container active:scale-95 transition-all"
+                  >
+                    <Icon name="edit" size={12} /> Edit
+                  </button>
+                  {/* Bake button */}
+                  <button
+                    onClick={() => onViewRecipe(recipe)}
+                    className="flex items-center gap-1 px-3 h-7 rounded-lg bg-primary text-on-primary text-[11px] font-bold hover:opacity-90 active:scale-95 transition-all"
+                  >
                     <Icon name="oven_gen" size={12} strokeWidth={2} /> Bake
                   </button>
                 </div>
