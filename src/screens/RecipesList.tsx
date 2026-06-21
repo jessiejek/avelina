@@ -154,7 +154,7 @@ function NewRecipeModal({ inventory, onSave, onClose }: { inventory: Ingredient[
                 <img src={img} alt="Recipe" className="w-full h-full object-cover" />
                 <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
                   const f = e.target.files?.[0];
-                  if (f) { const err = validateImageFile(f); if (err) { setSaveError(err); return; } setImgFile(f); setImg(URL.createObjectURL(f)); }
+                  if (f) { const err = validateImageFile(f); if (err) { setSaveError(err); return; } setImgFile(f); setImg(URL.createObjectURL(f)); setSaveError(""); }
                 }} />
                 <button onClick={() => fileRef.current?.click()} className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container-lowest/90 backdrop-blur-sm text-primary text-xs font-semibold border border-outline-variant/30 hover:bg-surface-container-lowest transition-colors">
                   <Icon name="photo_camera" size={13} /> Upload Photo

@@ -78,7 +78,7 @@ export default function RecipeBuilder({ onBack, onInitiateBake, inventory, recip
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) { const err = validateImageFile(file); if (err) { setSaveError(err); return; } setPhotoFile(file); setPhoto(URL.createObjectURL(file)); }
+    if (file) { const err = validateImageFile(file); if (err) { setSaveError(err); return; } setPhotoFile(file); setPhoto(URL.createObjectURL(file)); setSaveError(""); }
   };
 
   const addRow = () => setRows((prev) => [...prev, { ingredientId: inventory[0]?.id ?? "", qty: "0", unit: inventory[0]?.unit ?? "g" }]);
