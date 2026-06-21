@@ -2,6 +2,7 @@ import React, { useRef, useState } from "react";
 import { Ingredient } from "../data/inventory.ts";
 import { Recipe } from "../data/recipes.ts";
 import Icon from "../components/Icon.tsx";
+import { supabase } from "../lib/supabase.ts";
 
 interface Props {
   onBack: () => void;
@@ -38,7 +39,34 @@ export default function RecipeBuilder({ onBack, onInitiateBake, inventory, recip
   );
   const [photo, setPhoto] = useState<string>(recipe.img);
   const [recipeName, setRecipeName] = useState(recipe.name);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleSave = async () => {
+    setSaving(true);
+    setSaved(false);
+    setSaveError("");
+    // Update recipe basics
+    const { error: recErr } = await supabase.from("recipes").update({ name: recipeName, img: photo }).eq("id", recipe.id);
+    if (recErr) { setSaveError(recErr.message); setSaving(false); return; }
+    // Replace ingredients
+    await supabase.from("recipe_ingredients").delete().eq("recipe_id", recipe.id);
+    for (const row of rows) {
+      if (!row.ingredientId) continue;
+      await supabase.from("recipe_ingredients").insert({ recipe_id: recipe.id, ingredient_id: row.ingredientId, qty: row.qty, unit: row.unit });
+    }
+    // Replace steps
+    await supabase.from("recipe_steps").delete().eq("recipe_id", recipe.id);
+    for (let i = 0; i < steps.length; i++) {
+      const s = steps[i];
+      await supabase.from("recipe_steps").insert({ recipe_id: recipe.id, num: s.num, title: s.title, description: s.description, sort_order: i });
+    }
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  };
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -75,8 +103,8 @@ export default function RecipeBuilder({ onBack, onInitiateBake, inventory, recip
           <span className="text-primary font-semibold px-2 py-1 truncate max-w-[200px]" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>{recipeName}</span>
         </nav>
         <div className="flex items-center gap-3">
-          <button className="px-4 h-9 rounded-lg border border-outline text-primary text-xs font-semibold hover:bg-surface-container transition-colors">
-            Save Draft
+          <button onClick={handleSave} disabled={saving} className="px-4 h-9 rounded-lg border border-outline text-primary text-xs font-semibold hover:bg-surface-container transition-colors disabled:opacity-50">
+            {saving ? "Saving…" : saved ? "✓ Saved" : "Save Changes"}
           </button>
           <button
             onClick={() => onInitiateBake({ ...recipe, name: recipeName, img: photo })}
@@ -206,12 +234,22 @@ export default function RecipeBuilder({ onBack, onInitiateBake, inventory, recip
         {/* Production Steps */}
         <section className="space-y-4">
           <h3 className="font-semibold text-primary" style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 22 }}>Production Process</h3>
-          {steps.map((step) => (
-            <div key={step.num} className="bg-surface-container-lowest rounded-xl border border-primary/10 p-6 flex gap-6">
+          {steps.map((step, i) => (
+            <div key={i} className="bg-surface-container-lowest rounded-xl border border-primary/10 p-6 flex gap-6">
               <div className="shrink-0 text-primary/10 select-none font-bold" style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 64, lineHeight: 1 }}>{step.num}</div>
               <div className="flex-1 pt-1">
-                <input className="w-full bg-transparent border-none focus:outline-none font-semibold text-primary mb-2" style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 18 }} defaultValue={step.title} />
-                <textarea className="w-full bg-transparent border-none focus:outline-none text-sm text-on-surface-variant resize-none leading-relaxed" rows={3} defaultValue={step.description} />
+                <input
+                  className="w-full bg-transparent border-none focus:outline-none font-semibold text-primary mb-2"
+                  style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 18 }}
+                  value={step.title}
+                  onChange={(e) => setSteps((prev) => prev.map((s, idx) => idx === i ? { ...s, title: e.target.value } : s))}
+                />
+                <textarea
+                  className="w-full bg-transparent border-none focus:outline-none text-sm text-on-surface-variant resize-none leading-relaxed"
+                  rows={3}
+                  value={step.description}
+                  onChange={(e) => setSteps((prev) => prev.map((s, idx) => idx === i ? { ...s, description: e.target.value } : s))}
+                />
               </div>
             </div>
           ))}
@@ -228,12 +266,18 @@ export default function RecipeBuilder({ onBack, onInitiateBake, inventory, recip
           <button onClick={onBack} className="flex items-center gap-2 text-sm text-on-surface-variant hover:text-primary transition-colors">
             <Icon name="arrow_back" size={16} /> Back to Recipes
           </button>
-          <button
-            onClick={() => onInitiateBake({ ...recipe, name: recipeName, img: photo })}
-            className="px-8 h-12 rounded-lg bg-primary text-on-primary text-sm font-bold hover:opacity-90 active:scale-95 transition-all shadow-sm flex items-center gap-2"
-          >
-            <Icon name="oven_gen" size={16} /> Initiate Bake
-          </button>
+          <div className="flex items-center gap-3">
+            {saveError && <p className="text-xs text-error">{saveError}</p>}
+            <button onClick={handleSave} disabled={saving} className="px-5 h-10 rounded-lg border border-outline text-primary text-sm font-semibold hover:bg-surface-container transition-colors disabled:opacity-50">
+              {saving ? "Saving…" : saved ? "✓ Saved" : "Save Changes"}
+            </button>
+            <button
+              onClick={() => onInitiateBake({ ...recipe, name: recipeName, img: photo })}
+              className="px-8 h-12 rounded-lg bg-primary text-on-primary text-sm font-bold hover:opacity-90 active:scale-95 transition-all shadow-sm flex items-center gap-2"
+            >
+              <Icon name="oven_gen" size={16} /> Initiate Bake
+            </button>
+          </div>
         </div>
       </div>
     </div>
