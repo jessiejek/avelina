@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { supabase, uploadImage } from "../lib/supabase.ts";
+import { supabase, uploadImage, validateImageFile } from "../lib/supabase.ts";
 import {
   Wheat, Droplets, FlaskConical, Sparkles, Egg, ChefHat, Coffee, Cookie,
   Leaf, Flame, Apple, UtensilsCrossed, Milk, Nut, Croissant, CakeSlice,
@@ -336,7 +336,7 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
                 <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">Photo (optional)</label>
                 <input ref={imgInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
                   const f = e.target.files?.[0];
-                  if (f) { setImgFile(f); setImgPreview(URL.createObjectURL(f)); }
+                  if (f) { const err = validateImageFile(f); if (err) { setAddError(err); return; } setImgFile(f); setImgPreview(URL.createObjectURL(f)); }
                 }} />
                 {imgPreview ? (
                   <div className="relative w-full rounded-xl overflow-hidden border border-outline-variant/20 bg-surface-container" style={{ aspectRatio: "16/9" }}>

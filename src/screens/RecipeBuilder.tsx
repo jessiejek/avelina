@@ -2,7 +2,7 @@ import React, { useRef, useState } from "react";
 import { Ingredient } from "../data/inventory.ts";
 import { Recipe } from "../data/recipes.ts";
 import Icon from "../components/Icon.tsx";
-import { supabase, uploadImage } from "../lib/supabase.ts";
+import { supabase, uploadImage, validateImageFile } from "../lib/supabase.ts";
 
 interface Props {
   onBack: () => void;
@@ -78,7 +78,7 @@ export default function RecipeBuilder({ onBack, onInitiateBake, inventory, recip
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) { setPhotoFile(file); setPhoto(URL.createObjectURL(file)); }
+    if (file) { const err = validateImageFile(file); if (err) { setSaveError(err); return; } setPhotoFile(file); setPhoto(URL.createObjectURL(file)); }
   };
 
   const addRow = () => setRows((prev) => [...prev, { ingredientId: inventory[0]?.id ?? "", qty: "0", unit: inventory[0]?.unit ?? "g" }]);

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Icon from "../components/Icon.tsx";
-import { supabase, uploadImage } from "../lib/supabase.ts";
+import { supabase, uploadImage, validateImageFile } from "../lib/supabase.ts";
 
 interface Props {
   onBack: () => void;
@@ -230,7 +230,7 @@ export default function IngredientDetail({ onBack }: Props) {
                 <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
                 <input ref={imgInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
                   const f = e.target.files?.[0];
-                  if (f) { setImgFile(f); setImg(URL.createObjectURL(f)); }
+                  if (f) { const err = validateImageFile(f); if (err) { alert(err); return; } setImgFile(f); setImg(URL.createObjectURL(f)); }
                 }} />
                 <button
                   onClick={() => imgInputRef.current?.click()}
