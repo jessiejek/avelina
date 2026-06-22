@@ -100,8 +100,8 @@ export default function BakeLog({ entries, onUpdateEntry }: Props) {
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-xl border border-outline-variant/20 bg-surface-container-lowest">
-          <table className="w-full text-left">
+        <div className="overflow-x-auto rounded-xl border border-outline-variant/20 bg-surface-container-lowest">
+          <table className="w-full text-left min-w-[700px]">
             <thead>
               <tr className="bg-surface-container-low border-b border-outline-variant/20">
                 {["Product", "Batch ID", "Baker", "Time", "Quantity", "Status", "Actions"].map((h) => (
