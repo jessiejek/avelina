@@ -264,10 +264,10 @@ function AdminShell() {
         })}
         <button
           onClick={async () => { await supabase.auth.signOut(); navigate("/"); }}
-          className="flex flex-col items-center justify-center gap-0.5 px-3 py-1 rounded-xl transition-all text-error"
+          className="flex flex-col items-center justify-center gap-0.5 px-3 py-1 rounded-xl transition-all text-on-surface-variant hover:text-error"
         >
           <Icon name="logout" size={22} />
-          <span className="text-[10px] font-semibold uppercase tracking-wide">Out</span>
+          <span className="text-[10px] font-semibold uppercase tracking-wide">Sign Out</span>
         </button>
       </nav>
 

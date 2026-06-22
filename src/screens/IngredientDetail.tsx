@@ -124,7 +124,7 @@ export default function IngredientDetail({ onBack }: Props) {
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Left Column */}
-            <div className="lg:col-span-7 space-y-5">
+            <div className="lg:col-span-7 space-y-5 order-2 lg:order-1">
               <div className="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant/20">
                 <h2 className="font-semibold text-primary mb-4 pb-2 border-b border-outline-variant/10 text-base">Core Specifications</h2>
                 <div className="space-y-4">
@@ -216,8 +216,8 @@ export default function IngredientDetail({ onBack }: Props) {
               </div>
             </div>
 
-            {/* Right Column */}
-            <div className="lg:col-span-5 space-y-5">
+            {/* Right Column — photo first on mobile */}
+            <div className="lg:col-span-5 space-y-5 order-1 lg:order-2">
               <div className="relative aspect-square w-full rounded-xl overflow-hidden border border-outline-variant/20 group shadow-lg bg-surface-container flex items-center justify-center">
                 {img ? (
                   <img src={img} alt={name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />

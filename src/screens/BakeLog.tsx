@@ -42,11 +42,14 @@ export default function BakeLog({ entries, onUpdateEntry }: Props) {
     onUpdateEntry?.(id, status);
   };
 
+  const completed = localEntries.filter(e => e.status === "completed").length;
+  const inProgress = localEntries.filter(e => e.status === "in_progress").length;
+  const failed = localEntries.filter(e => e.status === "failed").length;
   const stats = [
-    { icon: "breakfast_dining", label: "Daily Yield", value: localEntries.filter(e => e.status === "completed").length * 24 || 142, unit: "units", color: "text-primary" },
-    { icon: "oven_gen", label: "In Progress", value: localEntries.filter(e => e.status === "in_progress").length, unit: "baking", color: "text-on-tertiary-fixed-variant" },
-    { icon: "compost", label: "Waste Ratio", value: "2.4", unit: "%", color: "text-on-tertiary-container" },
-    { icon: "thermostat", label: "Avg Temp", value: "235", unit: "°C", color: "text-error" },
+    { icon: "check_circle", label: "Completed", value: completed, unit: "bakes", color: "text-secondary" },
+    { icon: "oven_gen", label: "In Progress", value: inProgress, unit: "baking", color: "text-on-tertiary-fixed-variant" },
+    { icon: "error", label: "Failed", value: failed, unit: "bakes", color: "text-error" },
+    { icon: "history_edu", label: "Total Logged", value: localEntries.length, unit: "bakes", color: "text-primary" },
   ];
 
   return (
@@ -161,27 +164,6 @@ export default function BakeLog({ entries, onUpdateEntry }: Props) {
           </table>
         </div>
 
-        {/* Utility Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/20 p-5 flex gap-4">
-            <div className="w-10 h-10 rounded-lg bg-tertiary-fixed/40 flex items-center justify-center shrink-0">
-              <Icon name="build" size={18} className="text-on-tertiary-fixed-variant" />
-            </div>
-            <div>
-              <h4 className="font-semibold text-primary text-sm mb-0.5">Kiln Maintenance Due</h4>
-              <p className="text-xs text-on-surface-variant">Deck Oven A requires scheduled calibration. Next service: Jun 28.</p>
-            </div>
-          </div>
-          <div className="bg-surface-container-lowest rounded-xl border border-error/10 p-5 flex gap-4">
-            <div className="w-10 h-10 rounded-lg bg-error-container flex items-center justify-center shrink-0">
-              <Icon name="inventory_2" size={18} className="text-error" />
-            </div>
-            <div>
-              <h4 className="font-semibold text-primary text-sm mb-0.5">Inventory Alert</h4>
-              <p className="text-xs text-on-surface-variant">2 ingredients are below reorder threshold. Review inventory dashboard.</p>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
