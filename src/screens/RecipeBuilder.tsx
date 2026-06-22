@@ -236,12 +236,12 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
         <section className="space-y-4">
           <h3 className="font-semibold text-primary" style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 22 }}>Production Process</h3>
           {steps.map((step, i) => (
-            <div key={i} className="bg-surface-container-lowest rounded-xl border border-primary/10 p-6 flex gap-6 group relative">
-              <div className="shrink-0 text-primary/10 select-none font-bold" style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 64, lineHeight: 1 }}>{step.num}</div>
-              <div className="flex-1 pt-1">
+            <div key={i} className="bg-surface-container-lowest rounded-xl border border-primary/10 p-4 flex gap-4 relative">
+              <div className="shrink-0 text-primary/15 select-none font-bold" style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 36, lineHeight: 1 }}>{step.num}</div>
+              <div className="flex-1 min-w-0">
                 <input
-                  className="w-full bg-transparent border-none focus:outline-none font-semibold text-primary mb-2"
-                  style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 18 }}
+                  className="w-full bg-transparent border-none focus:outline-none font-semibold text-primary mb-1 pr-8"
+                  style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 16 }}
                   value={step.title}
                   onChange={(e) => setSteps((prev) => prev.map((s, idx) => idx === i ? { ...s, title: e.target.value } : s))}
                 />
@@ -254,7 +254,7 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
               </div>
               <button
                 onClick={() => setSteps((prev) => prev.filter((_, idx) => idx !== i).map((s, idx) => ({ ...s, num: String(idx + 1).padStart(2, "0") })))}
-                className="absolute top-3 right-3 w-7 h-7 rounded-full flex items-center justify-center text-outline hover:bg-error-container hover:text-error transition-all opacity-0 group-hover:opacity-100"
+                className="absolute top-3 right-3 w-7 h-7 rounded-full flex items-center justify-center text-outline hover:bg-error-container hover:text-error transition-all"
                 title="Remove step"
               >
                 <Icon name="close" size={14} />
