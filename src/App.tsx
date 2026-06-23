@@ -271,14 +271,16 @@ function AdminShell() {
         </button>
       </nav>
 
-      {/* Mobile FAB — New Production */}
-      <button
-        onClick={() => setShowPicker(true)}
-        className="lg:hidden fixed bottom-20 right-4 z-50 flex items-center gap-2 px-4 h-12 rounded-full bg-primary text-on-primary font-bold text-sm shadow-lg active:scale-95 transition-all"
-      >
-        <Icon name="add" size={20} />
-        New Production
-      </button>
+      {/* Mobile FAB — New Production (hidden on confirm page) */}
+      {!location.pathname.includes("/recipes/confirm") && (
+        <button
+          onClick={() => setShowPicker(true)}
+          className="lg:hidden fixed bottom-20 right-4 z-50 flex items-center gap-2 px-4 h-12 rounded-full bg-primary text-on-primary font-bold text-sm shadow-lg active:scale-95 transition-all"
+        >
+          <Icon name="add" size={20} />
+          New Production
+        </button>
+      )}
 
       {showPicker && <RecipePickerModal recipes={recipes} onSelect={pickRecipe} onClose={() => setShowPicker(false)} />}
     </div>

@@ -64,7 +64,7 @@ export default function BakeConfirmation({ onBack, onLogBake, recipe }: Props) {
         </div>
       </header>
 
-      <div className="p-8 lg:p-12 max-w-7xl mx-auto w-full space-y-8">
+      <div className="p-4 lg:p-12 max-w-7xl mx-auto w-full space-y-6">
         {hasShortage && (
           <div className="bg-error-container text-on-error-container p-4 rounded-xl flex items-center gap-4 border border-error/20">
             <Icon name="warning" size={24} className="shrink-0" />
@@ -76,7 +76,7 @@ export default function BakeConfirmation({ onBack, onLogBake, recipe }: Props) {
         )}
 
         {/* Recipe Summary */}
-        <section className="flex flex-col md:flex-row gap-8 items-start bg-surface-container-lowest p-6 rounded-xl border border-outline-variant/10">
+        <section className="flex flex-col md:flex-row gap-4 items-start bg-surface-container-lowest p-4 lg:p-6 rounded-xl border border-outline-variant/10">
           <div className="w-full md:w-64 rounded-xl overflow-hidden shadow-sm shrink-0" style={{ aspectRatio: "4/3" }}>
             <img src={recipe.img} alt={recipe.name} className="w-full h-full object-cover" />
           </div>
@@ -104,8 +104,8 @@ export default function BakeConfirmation({ onBack, onLogBake, recipe }: Props) {
         {/* Inventory Reconciliation */}
         <section className="space-y-4">
           <h3 className="text-primary font-semibold" style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 22 }}>Inventory Check</h3>
-          <div className="overflow-hidden rounded-xl border border-outline-variant/10 bg-surface-container-lowest">
-            <table className="w-full text-left">
+          <div className="overflow-x-auto rounded-xl border border-outline-variant/10 bg-surface-container-lowest">
+            <table className="w-full text-left min-w-[480px]">
               <thead>
                 <tr className="bg-surface-container-low border-b border-outline-variant/20">
                   <th className="px-6 py-3 text-xs font-semibold text-on-surface-variant uppercase tracking-widest">Ingredient</th>
@@ -160,7 +160,7 @@ export default function BakeConfirmation({ onBack, onLogBake, recipe }: Props) {
         </section>
 
         {/* Footer — single clear CTA */}
-        <footer className="flex items-center justify-between bg-surface-container-low p-6 rounded-xl border border-outline-variant/10">
+        <footer className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-surface-container-low p-4 lg:p-6 rounded-xl border border-outline-variant/10">
           <div className="flex items-center gap-4">
             <div className="flex -space-x-2">
               <div className="w-9 h-9 rounded-full border-2 border-surface-bright bg-primary-container flex items-center justify-center text-on-primary-fixed font-bold text-xs">JS</div>
@@ -169,12 +169,12 @@ export default function BakeConfirmation({ onBack, onLogBake, recipe }: Props) {
             <p className="text-sm text-on-surface-variant">2 bakers assigned</p>
           </div>
           <div className="flex gap-3">
-            <button onClick={onBack} className="h-12 px-6 border border-outline text-primary rounded-lg font-semibold text-sm hover:bg-surface-container transition-colors">
+            <button onClick={onBack} className="flex-1 sm:flex-none h-12 px-6 border border-outline text-primary rounded-lg font-semibold text-sm hover:bg-surface-container transition-colors">
               Back
             </button>
             <button
               onClick={handleInitiateBake}
-              className="h-12 px-8 bg-primary text-on-primary rounded-lg font-bold text-sm shadow-lg hover:opacity-90 active:scale-95 transition-all flex items-center gap-2"
+              className="flex-1 sm:flex-none h-12 px-6 bg-primary text-on-primary rounded-lg font-bold text-sm shadow-lg hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2"
             >
               <Icon name="oven_gen" size={16} />
               Initiate Bake
