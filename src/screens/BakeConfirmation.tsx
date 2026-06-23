@@ -104,13 +104,12 @@ export default function BakeConfirmation({ onBack, onLogBake, recipe }: Props) {
         {/* Inventory Reconciliation */}
         <section className="space-y-4">
           <h3 className="text-primary font-semibold" style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 22 }}>Inventory Check</h3>
-          <div className="overflow-x-auto rounded-xl border border-outline-variant/10 bg-surface-container-lowest">
-            <table className="w-full text-left min-w-[480px]">
+          <div className="rounded-xl border border-outline-variant/10 bg-surface-container-lowest overflow-hidden">
+            <table className="w-full text-left">
               <thead>
                 <tr className="bg-surface-container-low border-b border-outline-variant/20">
-                  <th className="px-6 py-3 text-xs font-semibold text-on-surface-variant uppercase tracking-widest">Ingredient</th>
-                  <th className="px-6 py-3 text-xs font-semibold text-on-surface-variant uppercase tracking-widest">Required / Available</th>
-                  <th className="px-6 py-3 text-xs font-semibold text-on-surface-variant uppercase tracking-widest text-right">Status</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-on-surface-variant uppercase tracking-widest">Ingredient</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-on-surface-variant uppercase tracking-widest text-right">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-outline-variant/10">
@@ -119,34 +118,29 @@ export default function BakeConfirmation({ onBack, onLogBake, recipe }: Props) {
                   const isLow = row.status === "low";
                   return (
                     <tr key={row.name}>
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
-                          <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${isOk ? "bg-surface-container text-primary" : "bg-error-container/30 text-error"}`}>
-                            <Icon name={row.icon} size={16} />
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${isOk ? "bg-surface-container text-primary" : "bg-error-container/30 text-error"}`}>
+                            <Icon name={row.icon} size={15} />
                           </div>
-                          <div>
-                            <p className="font-semibold text-primary text-sm">{row.name}</p>
-                            <p className="text-xs text-on-surface-variant/60">{row.supplier}</p>
+                          <div className="min-w-0">
+                            <p className="font-semibold text-primary text-sm truncate">{row.name}</p>
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <span className={`text-xs font-bold font-mono ${!isOk ? "text-error" : "text-primary"}`}>{row.required.replace(" ", "")}</span>
+                              <span className="text-on-surface-variant/40 text-xs">/</span>
+                              <span className="text-xs font-mono text-on-surface-variant">{row.available.replace(" ", "")}</span>
+                            </div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="font-mono text-sm leading-snug">
-                          <div className={`font-bold ${!isOk ? "text-error" : "text-primary"}`}>{row.required.replace(" ", "")}</div>
-                          <div className="text-on-surface-variant">{row.available.replace(" ", "")}</div>
-                        </div>
-                        <div className={`w-full h-1.5 rounded-full mt-2 overflow-hidden ${isOk ? "bg-surface-container-high" : "bg-error-container"}`}>
-                          <div className={`h-full rounded-full ${isOk ? "bg-secondary" : "bg-error"}`} style={{ width: `${row.pct}%` }} />
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-4 py-3 text-right">
                         {isOk ? (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-secondary-container text-on-secondary-container rounded-full text-[10px] font-bold uppercase tracking-wide">
-                            <Icon name="check_circle" size={11} /> Ready
+                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-secondary-container text-on-secondary-container rounded-full text-[10px] font-bold uppercase tracking-wide whitespace-nowrap">
+                            <Icon name="check_circle" size={10} /> Ready
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-error-container text-on-error-container rounded-full text-[10px] font-bold uppercase tracking-wide">
-                            <Icon name="error" size={11} /> {isLow ? "Low Stock" : `Short ${row.shortfall}`}
+                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-error-container text-on-error-container rounded-full text-[10px] font-bold uppercase tracking-wide whitespace-nowrap">
+                            <Icon name="error" size={10} /> {isLow ? "Low" : "Short"}
                           </span>
                         )}
                       </td>
