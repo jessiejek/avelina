@@ -168,10 +168,10 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-outline-variant/10">
               <div>
                 <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-widest mb-1">Total Time</p>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5">
                   <input
-                    type="number" min={0}
-                    className="w-11 bg-surface-container border border-outline-variant/40 rounded-lg px-2 py-1.5 text-sm font-bold text-primary font-mono text-center focus:outline-none focus:border-primary/50"
+                    type="text" inputMode="numeric" maxLength={3}
+                    className="w-12 bg-surface-container border border-outline-variant/40 rounded-lg px-2 py-1.5 text-sm font-bold text-primary font-mono text-center focus:outline-none focus:border-primary/50"
                     value={hours}
                     onChange={(e) => setHours(e.target.value.replace(/\D/g, ""))}
                     onFocus={(e) => e.target.select()}
@@ -179,8 +179,8 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
                   />
                   <span className="text-xs font-semibold text-on-surface-variant">h</span>
                   <input
-                    type="number" min={0} max={59}
-                    className="w-11 bg-surface-container border border-outline-variant/40 rounded-lg px-2 py-1.5 text-sm font-bold text-primary font-mono text-center focus:outline-none focus:border-primary/50"
+                    type="text" inputMode="numeric" maxLength={2}
+                    className="w-12 bg-surface-container border border-outline-variant/40 rounded-lg px-2 py-1.5 text-sm font-bold text-primary font-mono text-center focus:outline-none focus:border-primary/50"
                     value={minutes}
                     onChange={(e) => setMinutes(e.target.value.replace(/\D/g, ""))}
                     onFocus={(e) => e.target.select()}
@@ -215,9 +215,9 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
               </div>
               <div>
                 <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-widest mb-1">Prep Time</p>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5">
                   <input
-                    type="number" min={0}
+                    type="text" inputMode="numeric" maxLength={3}
                     className="w-12 bg-surface-container border border-outline-variant/40 rounded-lg px-2 py-1.5 text-sm font-bold text-primary font-mono text-center focus:outline-none focus:border-primary/50"
                     value={prepMinutes}
                     onChange={(e) => setPrepMinutes(e.target.value.replace(/\D/g, ""))}
