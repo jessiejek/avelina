@@ -131,10 +131,9 @@ export default function BakeConfirmation({ onBack, onLogBake, recipe }: Props) {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className={`font-mono text-sm whitespace-nowrap ${!isOk ? "text-error" : "text-primary"}`}>
-                          <span className="font-bold">{row.required}</span>
-                          <span className="text-on-surface-variant/40 mx-1">/</span>
-                          <span>{row.available}</span>
+                        <div className="font-mono text-sm leading-snug">
+                          <div className={`font-bold ${!isOk ? "text-error" : "text-primary"}`}>{row.required.replace(" ", "")}</div>
+                          <div className="text-on-surface-variant">{row.available.replace(" ", "")}</div>
                         </div>
                         <div className={`w-full h-1.5 rounded-full mt-2 overflow-hidden ${isOk ? "bg-surface-container-high" : "bg-error-container"}`}>
                           <div className={`h-full rounded-full ${isOk ? "bg-secondary" : "bg-error"}`} style={{ width: `${row.pct}%` }} />
