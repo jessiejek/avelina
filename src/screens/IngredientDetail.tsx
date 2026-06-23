@@ -210,43 +210,37 @@ export default function IngredientDetail({ onBack }: Props) {
                       ))}
                     </div>
                   </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">Unit of Measure</label>
-                    <select
-                      className="w-full bg-surface-bright border border-outline-variant/40 px-4 py-2.5 rounded-lg text-sm font-bold text-primary focus:outline-none focus:border-primary/50 font-mono"
-                      value={unit}
-                      onChange={(e) => setUnit(e.target.value)}
-                    >
-                      {(UNIT_GROUPS[measureTab].includes(unit) ? UNIT_GROUPS[measureTab] : [unit, ...UNIT_GROUPS[measureTab]]).map((u) => (
-                        <option key={u} value={u}>{u}</option>
-                      ))}
-                    </select>
-                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">Current Stock</label>
                       <div className="flex">
                         <input
-                          className="flex-1 bg-surface-bright border border-outline-variant/40 px-4 py-2.5 rounded-l-lg text-base font-bold text-primary focus:outline-none font-mono"
+                          className="flex-1 min-w-0 bg-surface-bright border border-outline-variant/40 px-4 py-2.5 rounded-l-lg text-base font-bold text-primary focus:outline-none font-mono"
                           type="number" value={stockValue}
                           onChange={(e) => setStockValue(e.target.value === "" ? "" : Number(e.target.value))}
                           onFocus={(e) => e.target.select()}
                         />
-                        <div className="w-20 bg-surface-container-high border border-l-0 border-outline-variant/40 px-3 rounded-r-lg flex items-center justify-center text-xs font-bold text-on-surface-variant font-mono">
-                          {unit}
-                        </div>
+                        <select
+                          className="w-20 shrink-0 bg-surface-container-high border border-l-0 border-outline-variant/40 px-2 rounded-r-lg text-xs font-bold text-primary focus:outline-none font-mono cursor-pointer"
+                          value={unit}
+                          onChange={(e) => setUnit(e.target.value)}
+                        >
+                          {(UNIT_GROUPS[measureTab].includes(unit) ? UNIT_GROUPS[measureTab] : [unit, ...UNIT_GROUPS[measureTab]]).map((u) => (
+                            <option key={u} value={u}>{u}</option>
+                          ))}
+                        </select>
                       </div>
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">Low Stock Warning</label>
                       <div className="flex">
                         <input
-                          className="flex-1 bg-surface-bright border border-outline-variant/40 px-4 py-2.5 rounded-l-lg text-base font-bold text-on-tertiary-container focus:outline-none font-mono"
+                          className="flex-1 min-w-0 bg-surface-bright border border-outline-variant/40 px-4 py-2.5 rounded-l-lg text-base font-bold text-on-tertiary-container focus:outline-none font-mono"
                           type="number" value={lowThreshold}
                           onChange={(e) => setLowThreshold(e.target.value === "" ? "" : Number(e.target.value))}
                           onFocus={(e) => e.target.select()}
                         />
-                        <div className="w-20 bg-surface-container-high border border-l-0 border-outline-variant/40 px-3 rounded-r-lg flex items-center justify-center text-xs font-bold text-on-surface-variant font-mono">
+                        <div className="w-20 shrink-0 bg-surface-container-high border border-l-0 border-outline-variant/40 px-3 rounded-r-lg flex items-center justify-center text-xs font-bold text-on-surface-variant font-mono">
                           {unit}
                         </div>
                       </div>
