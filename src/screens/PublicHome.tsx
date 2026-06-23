@@ -262,21 +262,11 @@ function RecipeCard(props: {
         <span className="inline-block text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-[#fff8f5] text-[#26170c]/50 uppercase tracking-wide mb-2 border border-[#26170c]/10">
           {recipe.category}
         </span>
-        <div className="flex items-start justify-between gap-2 mb-1">
+        <div className="flex items-start justify-between gap-2 mb-4">
           <h3 className="font-bold text-[#26170c] text-lg leading-tight" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>
             {recipe.name}
           </h3>
           {recipe.price ? <span className="shrink-0 font-bold text-[#26170c] text-base font-mono">{peso(recipe.price)}</span> : null}
-        </div>
-        <div className="flex items-center gap-3 mb-4">
-          <span className="flex items-center gap-1 text-xs text-[#26170c]/50">
-            <Icon name="restaurant" size={12} />
-            <span className="font-mono">{recipe.yield}</span>
-          </span>
-          <span className="flex items-center gap-1 text-xs text-[#26170c]/50">
-            <Icon name="timer" size={12} />
-            <span className="font-mono">{recipe.time}</span>
-          </span>
         </div>
         <button
           ref={btnRef}
