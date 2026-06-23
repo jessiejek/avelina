@@ -375,19 +375,27 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
           {steps.map((step, i) => (
             <div key={i} className="bg-surface-container-lowest rounded-xl border border-primary/10 p-4 flex gap-4 relative">
               <div className="shrink-0 text-primary/15 select-none font-bold" style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 36, lineHeight: 1 }}>{step.num}</div>
-              <div className="flex-1 min-w-0">
-                <input
-                  className="w-full bg-transparent border-none focus:outline-none font-semibold text-primary mb-1 pr-8"
-                  style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 16 }}
-                  value={step.title}
-                  onChange={(e) => setSteps((prev) => prev.map((s, idx) => idx === i ? { ...s, title: e.target.value } : s))}
-                />
-                <textarea
-                  className="w-full bg-transparent border-none focus:outline-none text-sm text-on-surface-variant resize-none leading-relaxed"
-                  rows={3}
-                  value={step.description}
-                  onChange={(e) => setSteps((prev) => prev.map((s, idx) => idx === i ? { ...s, description: e.target.value } : s))}
-                />
+              <div className="flex-1 min-w-0 space-y-2">
+                <div>
+                  <label className="block text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider mb-1">Step Title</label>
+                  <input
+                    className="w-full bg-surface-bright border border-outline-variant/40 rounded-lg px-3 py-2 focus:outline-none focus:border-primary/50 font-semibold text-primary pr-8 placeholder:font-normal placeholder:text-on-surface-variant/40"
+                    style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 15 }}
+                    value={step.title}
+                    onChange={(e) => setSteps((prev) => prev.map((s, idx) => idx === i ? { ...s, title: e.target.value } : s))}
+                    placeholder="e.g. Mix the dough"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider mb-1">Instructions</label>
+                  <textarea
+                    className="w-full bg-surface-bright border border-outline-variant/40 rounded-lg px-3 py-2 focus:outline-none focus:border-primary/50 text-sm text-on-surface resize-none leading-relaxed placeholder:text-on-surface-variant/40"
+                    rows={3}
+                    value={step.description}
+                    onChange={(e) => setSteps((prev) => prev.map((s, idx) => idx === i ? { ...s, description: e.target.value } : s))}
+                    placeholder="Describe what to do in this step…"
+                  />
+                </div>
               </div>
               <button
                 onClick={() => setSteps((prev) => prev.filter((_, idx) => idx !== i).map((s, idx) => ({ ...s, num: String(idx + 1).padStart(2, "0") })))}
@@ -399,7 +407,7 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
             </div>
           ))}
           <button
-            onClick={() => setSteps((prev) => [...prev, { num: String(prev.length + 1).padStart(2, "0"), title: "New Step", description: "" }])}
+            onClick={() => setSteps((prev) => [...prev, { num: String(prev.length + 1).padStart(2, "0"), title: "", description: "" }])}
             className="w-full py-4 rounded-xl border-2 border-dashed border-outline-variant/40 text-xs font-semibold text-on-surface-variant hover:border-primary hover:text-primary transition-all flex items-center justify-center gap-2"
           >
             <Icon name="add" size={16} strokeWidth={2.5} /> Add Step
