@@ -14,6 +14,7 @@ interface Props {
   inventory: Ingredient[];
   onAddRecipe: (r: Recipe) => void;
   onViewRecipe: (recipe: Recipe) => void;
+  onDeleteRecipe: (id: string) => void;
 }
 
 function NewRecipeModal({ inventory, onSave, onClose }: { inventory: Ingredient[]; onSave: (r: Recipe) => void; onClose: () => void }) {
@@ -330,10 +331,35 @@ function NewRecipeModal({ inventory, onSave, onClose }: { inventory: Ingredient[
   );
 }
 
-export default function RecipesList({ recipes, inventory, onAddRecipe, onViewRecipe }: Props) {
+export default function RecipesList({ recipes, inventory, onAddRecipe, onViewRecipe, onDeleteRecipe }: Props) {
   const [activeCategory, setActiveCategory] = useState("All");
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
+
+  const [deleteTarget, setDeleteTarget] = useState<Recipe | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setDeleteError("");
+    // Remove children first to satisfy foreign keys.
+    await supabase.from("recipe_ingredients").delete().eq("recipe_id", deleteTarget.id);
+    await supabase.from("recipe_steps").delete().eq("recipe_id", deleteTarget.id);
+    const { error } = await supabase.from("recipes").delete().eq("id", deleteTarget.id);
+    setDeleting(false);
+    if (error) {
+      setDeleteError(
+        /foreign key|violates/i.test(error.message)
+          ? "This recipe is referenced by an order or bake log, so it can't be deleted yet."
+          : error.message
+      );
+      return;
+    }
+    onDeleteRecipe(deleteTarget.id);
+    setDeleteTarget(null);
+  };
 
   const filtered = recipes.filter((r) => {
     const matchCat = activeCategory === "All" || r.category === activeCategory;
@@ -403,10 +429,17 @@ export default function RecipesList({ recipes, inventory, onAddRecipe, onViewRec
                     </div>
                   </div>
                   <button
+                    onClick={() => setDeleteTarget(recipe)}
+                    className="flex items-center justify-center w-7 h-7 rounded-lg border border-outline text-on-surface-variant hover:text-error hover:border-error/40 hover:bg-error-container/20 active:scale-95 transition-all"
+                    title="Delete recipe"
+                  >
+                    <Icon name="delete" size={13} />
+                  </button>
+                  <button
                     onClick={() => onViewRecipe(recipe)}
                     className="flex items-center gap-1 px-3 h-7 rounded-lg bg-primary text-on-primary text-[11px] font-bold hover:opacity-90 active:scale-95 transition-all"
                   >
-                    <Icon name="edit" size={12} /> Edit Recipe
+                    <Icon name="edit" size={12} /> Edit
                   </button>
                 </div>
               </div>
@@ -421,6 +454,42 @@ export default function RecipesList({ recipes, inventory, onAddRecipe, onViewRec
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation */}
+      {deleteTarget && (
+        <div
+          className="fixed inset-0 z-[110] flex items-center justify-center p-4"
+          style={{ backgroundColor: "rgba(29,27,26,0.5)" }}
+          onClick={() => { if (!deleting) { setDeleteTarget(null); setDeleteError(""); } }}
+        >
+          <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/20 w-full max-w-sm shadow-2xl p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="w-12 h-12 rounded-full bg-error-container flex items-center justify-center mb-4">
+              <Icon name="delete" size={22} className="text-error" />
+            </div>
+            <h3 className="font-bold text-primary text-lg" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>Delete recipe?</h3>
+            <p className="text-sm text-on-surface-variant mt-1.5">
+              <span className="font-semibold text-primary">{deleteTarget.name}</span> and its ingredients and steps will be permanently removed. This can't be undone.
+            </p>
+            {deleteError && <p className="text-xs text-error mt-3 bg-error-container/40 rounded-lg px-3 py-2">{deleteError}</p>}
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={() => { setDeleteTarget(null); setDeleteError(""); }}
+                disabled={deleting}
+                className="px-5 h-10 rounded-lg border border-outline text-primary text-sm font-semibold hover:bg-surface-container transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="px-5 h-10 rounded-lg bg-error text-white text-sm font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50"
+              >
+                {deleting ? "Deleting…" : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showModal && (
         <NewRecipeModal

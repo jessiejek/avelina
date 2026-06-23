@@ -13,6 +13,7 @@ interface Props {
   ingredients: Ingredient[];
   onAddIngredient: (ing: Ingredient) => void;
   onViewIngredient: (id: string) => void;
+  onDeleteIngredient: (id: string) => void;
 }
 
 const statusConfig: Record<string, { label: string; bg: string; text: string; dot: string }> = {
@@ -72,7 +73,7 @@ interface NewIngForm {
 
 const emptyForm: NewIngForm = { name: "", sku: "", stockValue: "", unit: "kg", status: "optimal", icon: "wheat" };
 
-export default function InventoryDashboard({ ingredients, onAddIngredient, onViewIngredient }: Props) {
+export default function InventoryDashboard({ ingredients, onAddIngredient, onViewIngredient, onDeleteIngredient }: Props) {
   const [filter, setFilter] = useState("all");
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState<NewIngForm>(emptyForm);
@@ -82,6 +83,28 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState("");
   const imgInputRef = React.useRef<HTMLInputElement>(null);
+
+  const [deleteTarget, setDeleteTarget] = useState<Ingredient | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setDeleteError("");
+    const { error } = await supabase.from("ingredients").delete().eq("id", deleteTarget.id);
+    setDeleting(false);
+    if (error) {
+      setDeleteError(
+        /foreign key|violates/i.test(error.message)
+          ? "This ingredient is used by a recipe or stock record, so it can't be deleted. Remove those references first."
+          : error.message
+      );
+      return;
+    }
+    onDeleteIngredient(deleteTarget.id);
+    setDeleteTarget(null);
+  };
 
   const attention = ingredients.filter((i) => i.status === "low" || i.status === "critical");
   const filtered = ingredients.filter((i) => {
@@ -236,6 +259,13 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
                     <span className="text-sm font-bold text-primary font-mono">{item.stock}</span>
                     <div className="flex items-center gap-2">
                       <button
+                        onClick={() => setDeleteTarget(item)}
+                        className="flex items-center justify-center w-7 h-7 rounded-lg border border-outline text-on-surface-variant hover:text-error hover:border-error/40 hover:bg-error-container/20 active:scale-95 transition-all"
+                        title="Delete ingredient"
+                      >
+                        <Icon name="delete" size={13} />
+                      </button>
+                      <button
                         onClick={() => onViewIngredient(item.id)}
                         className="flex items-center gap-1 px-3 h-7 rounded-lg border border-outline text-primary text-[11px] font-semibold hover:bg-surface-container active:scale-95 transition-all"
                       >
@@ -258,6 +288,42 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation */}
+      {deleteTarget && (
+        <div
+          className="fixed inset-0 z-[110] flex items-center justify-center p-4"
+          style={{ backgroundColor: "rgba(29,27,26,0.5)" }}
+          onClick={() => { if (!deleting) { setDeleteTarget(null); setDeleteError(""); } }}
+        >
+          <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/20 w-full max-w-sm shadow-2xl p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="w-12 h-12 rounded-full bg-error-container flex items-center justify-center mb-4">
+              <Icon name="delete" size={22} className="text-error" />
+            </div>
+            <h3 className="font-bold text-primary text-lg" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>Delete ingredient?</h3>
+            <p className="text-sm text-on-surface-variant mt-1.5">
+              <span className="font-semibold text-primary">{deleteTarget.name}</span> will be permanently removed from inventory. This can't be undone.
+            </p>
+            {deleteError && <p className="text-xs text-error mt-3 bg-error-container/40 rounded-lg px-3 py-2">{deleteError}</p>}
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={() => { setDeleteTarget(null); setDeleteError(""); }}
+                disabled={deleting}
+                className="px-5 h-10 rounded-lg border border-outline text-primary text-sm font-semibold hover:bg-surface-container transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="px-5 h-10 rounded-lg bg-error text-white text-sm font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50"
+              >
+                {deleting ? "Deleting…" : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add Ingredient Modal */}
       {showModal && (

@@ -10,6 +10,7 @@ import {
   UserCircle2, Check, ArrowUpDown, ShoppingCart, Droplet, Building2, Star,
   CalendarDays, ClipboardList, Activity, Hash, Weight,
   ShoppingBag, Lock, Facebook, Mail, Globe, BookMarked,
+  Trash2, Pencil, Image, ImagePlus, LogOut, Croissant,
 } from "lucide-react";
 
 const map: Record<string, React.ComponentType<{ size?: number; className?: string; strokeWidth?: number }>> = {
@@ -81,6 +82,12 @@ const map: Record<string, React.ComponentType<{ size?: number; className?: strin
   mail: Mail,
   g_translate: Globe,
   menu_book_outlined: BookMarked,
+  delete: Trash2,
+  edit: Pencil,
+  image: Image,
+  add_photo_alternate: ImagePlus,
+  logout: LogOut,
+  bakery_dining: Croissant,
 };
 
 interface Props {

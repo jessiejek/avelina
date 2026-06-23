@@ -165,6 +165,9 @@ function AdminShell() {
           .select("*, recipe_ingredients(qty, unit, ingredients(id, name)), recipe_steps(num, title, description, sort_order)")
           .then(({ data }) => { if (data) setRecipes(data.map(mapRecipe)); });
       })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "recipes" }, ({ old: row }) => {
+        setRecipes((prev) => prev.filter((r) => r.id !== row.id));
+      })
       .subscribe();
 
     // Real-time: bake_entries
@@ -228,6 +231,7 @@ function AdminShell() {
               ingredients={inventory}
               onAddIngredient={(ing) => setInventory((prev) => [ing, ...prev])}
               onViewIngredient={(id) => navigate(`/admin/inventory/${id}`)}
+              onDeleteIngredient={(id) => setInventory((prev) => prev.filter((i) => i.id !== id))}
             />
           } />
           <Route path="inventory/adjust" element={<StockAdjustment onBack={() => navigate(-1)} />} />
@@ -241,6 +245,7 @@ function AdminShell() {
               inventory={inventory}
               onAddRecipe={(r) => setRecipes((prev) => [r, ...prev])}
               onViewRecipe={(r) => { setSelectedRecipe(r); navigate("/admin/recipes/builder"); }}
+              onDeleteRecipe={(id) => setRecipes((prev) => prev.filter((r) => r.id !== id))}
             />
           } />
           <Route path="recipes/builder" element={
