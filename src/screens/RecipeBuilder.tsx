@@ -122,8 +122,8 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-7 bg-surface-container-lowest rounded-xl border border-primary/10 p-6 space-y-4">
             <input
-              className="w-full bg-transparent border-none focus:outline-none text-primary font-bold"
-              style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 40, lineHeight: "48px", letterSpacing: "-0.02em" }}
+              className="w-full bg-transparent border-none focus:outline-none text-primary font-bold text-2xl lg:text-[40px] lg:leading-[48px]"
+              style={{ fontFamily: "'Hanken Grotesk', sans-serif", letterSpacing: "-0.02em" }}
               value={recipeName}
               onChange={(e) => setRecipeName(e.target.value)}
             />
