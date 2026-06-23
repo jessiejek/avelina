@@ -26,7 +26,7 @@ export default function IngredientDetail({ onBack }: Props) {
   const imgInputRef = useRef<HTMLInputElement>(null);
   const [notes, setNotes] = useState("");
   const [shelfLife, setShelfLife] = useState(180);
-  const [lowThreshold, setLowThreshold] = useState(15);
+  const [lowThreshold, setLowThreshold] = useState<number | "">("");
 
   useEffect(() => {
     if (!id) return;
@@ -202,7 +202,8 @@ export default function IngredientDetail({ onBack }: Props) {
                         <input
                           className="flex-1 bg-surface-bright border border-outline-variant/40 px-4 py-2.5 rounded-l-lg text-base font-bold text-on-tertiary-container focus:outline-none font-mono"
                           type="number" value={lowThreshold}
-                          onChange={(e) => setLowThreshold(Number(e.target.value))}
+                          onChange={(e) => setLowThreshold(e.target.value === "" ? "" : Number(e.target.value))}
+                          onFocus={(e) => e.target.select()}
                         />
                         <div className="w-20 bg-surface-container-high border border-l-0 border-outline-variant/40 px-3 rounded-r-lg flex items-center text-xs font-bold text-on-surface-variant font-mono">
                           {unit}
