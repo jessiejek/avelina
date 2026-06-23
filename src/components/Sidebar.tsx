@@ -12,6 +12,7 @@ interface SidebarProps {
 const navItems = [
   { id: "inventory", icon: "inventory_2", label: "Inventory" },
   { id: "recipes", icon: "menu_book", label: "Recipes" },
+  { id: "orders", icon: "assignment", label: "Orders" },
   { id: "bakelog", icon: "history_edu", label: "Bake Log" },
   { id: "stats", icon: "query_stats", label: "Stats" },
 ];
