@@ -1,20 +1,62 @@
 import React from "react";
 import {
-  Package, BookOpen, ScrollText, BarChart3, PlusCircle, Settings, Plus, Search,
-  Bell, Wheat, Droplets, FlaskConical, Sparkles, Egg, Scale, ArrowLeft, X,
-  ChevronRight, ChevronLeft, ListFilter, Download, Camera, AlertTriangle,
-  CheckCircle2, XCircle, Info, History, TrendingUp, ArrowRight, Truck,
-  Utensils, Clock, Printer, Wrench, ChevronsUpDown, ChevronDown, Minus,
-  RefreshCcw, Flame, Coffee, Leaf, Thermometer, Menu, AlertCircle,
-  Cookie, Apple, UtensilsCrossed, Recycle, BarChart2, SlidersHorizontal,
-  UserCircle2, Check, ArrowUpDown, ShoppingCart, Droplet, Building2, Star,
-  CalendarDays, ClipboardList, Activity, Hash, Weight,
-  ShoppingBag, Lock, Facebook, Mail, Globe, BookMarked,
-  Trash2, Pencil, Image, ImagePlus, LogOut, Croissant,
-  Wallet, Coins, ReceiptText, TrendingDown,
+  // Core / nav
+  Package, PackagePlus, PackageCheck, PackageX, Boxes, Box, Archive,
+  BookOpen, Book, BookMarked, ScrollText, FileText, File, Files, Folder, FolderOpen,
+  Menu, MoreHorizontal, MoreVertical, LayoutGrid, LayoutDashboard, List, ListChecks, Table,
+  // Charts / data
+  BarChart3, BarChart2, PieChart, LineChart, TrendingUp, TrendingDown, Activity, Gauge,
+  // Actions
+  PlusCircle, Plus, MinusCircle, Minus, X, XCircle, Check, CheckCircle2, CheckCheck,
+  Settings, Settings2, SlidersHorizontal, Filter, ListFilter, ArrowUpDown,
+  Search, ZoomIn, ZoomOut, Download, Upload, Share2, Link, Link2, ExternalLink,
+  Copy, Clipboard, ClipboardList, ClipboardCheck, Printer, Save,
+  RefreshCcw, RefreshCw, RotateCw, RotateCcw, Repeat, Shuffle, Power, LogIn, LogOut,
+  Edit, Pencil, PencilLine, Trash, Trash2, Eraser, Scissors, Wrench, Hammer,
+  // Comms
+  Bell, BellRing, BellOff, Mail, MailOpen, Send, MessageSquare, MessageCircle,
+  Phone, PhoneCall, Smartphone,
+  // People
+  User, Users, UserPlus, UserCircle2, UserCheck,
+  // Place
+  MapPin, Map, Navigation, Globe, Home, Building, Building2, Store, Warehouse,
+  // Commerce / money
+  ShoppingCart, ShoppingBag, Gift, Tag, Tags, Receipt, ReceiptText, CreditCard,
+  Wallet, Coins, Banknote, DollarSign, Percent, Calculator, HandCoins, PiggyBank,
+  Landmark, BadgeCheck, BadgePercent, CircleDollarSign, QrCode, Barcode, ScanLine,
+  // Time
+  Calendar, CalendarDays, CalendarCheck, Clock, Timer, TimerReset, Hourglass, AlarmClock, History,
+  // Food / bakery
+  Wheat, Egg, EggFried, Milk, Coffee, CupSoda, Cookie, Cake, CakeSlice, Croissant, Pizza,
+  IceCream, IceCreamCone, Apple, Banana, Cherry, Grape, Carrot, Nut, Candy, Donut, Soup,
+  CookingPot, Utensils, UtensilsCrossed, ChefHat, Salad, Beef, Fish, Sandwich, Wine, Beer, Citrus,
+  // Science / measure / nature
+  FlaskConical, TestTube, Beaker, Microscope, Pill, Scale, Ruler, Thermometer,
+  Droplet, Droplets, Flame, Snowflake, Wind, Sun, Moon, Cloud, CloudRain, Zap,
+  Leaf, Sprout, TreePine, Flower, Recycle,
+  // Transport
+  Truck, Bike, Car, Plane, Ship,
+  // Security
+  Lock, Unlock, Key, KeyRound, Shield, ShieldCheck, Eye, EyeOff, Fingerprint,
+  // Status / feedback
+  Star, Heart, Bookmark, ThumbsUp, ThumbsDown, Award, Trophy, Medal, Crown, Sparkles, Flag,
+  AlertTriangle, AlertCircle, AlertOctagon, Info, HelpCircle, Ban,
+  // Media
+  Camera, Image, ImagePlus, Video, Mic, Play, Pause, Square,
+  // Arrows / chevrons
+  ChevronRight, ChevronLeft, ChevronUp, ChevronDown, ChevronsUpDown,
+  ArrowRight, ArrowLeft, ArrowUp, ArrowDown, ArrowUpRight, ArrowDownRight, Move,
+  // Misc
+  Hash, AtSign, Lightbulb, Megaphone, Pin, Paperclip, Inbox, Bug, Code, Terminal,
+  Database, Server, Wifi, Battery,
+  Facebook, Instagram, Twitter, Youtube, Linkedin,
+  Smile, Frown, Meh,
 } from "lucide-react";
 
-const map: Record<string, React.ComponentType<{ size?: number; className?: string; strokeWidth?: number }>> = {
+type Comp = React.ComponentType<{ size?: number; className?: string; strokeWidth?: number }>;
+
+const map: Record<string, Comp> = {
+  // ── existing keys (kept) ──
   inventory_2: Package,
   menu_book: BookOpen,
   history_edu: ScrollText,
@@ -44,6 +86,7 @@ const map: Record<string, React.ComponentType<{ size?: number; className?: strin
   history: History,
   trending_up: TrendingUp,
   trending_flat: ArrowRight,
+  trending_down: TrendingDown,
   local_shipping: Truck,
   restaurant: Utensils,
   timer: Clock,
@@ -92,7 +135,75 @@ const map: Record<string, React.ComponentType<{ size?: number; className?: strin
   wallet: Wallet,
   payments: Coins,
   receipt_long: ReceiptText,
-  trending_down: TrendingDown,
+
+  // ── expanded set ──
+  // packaging / inventory
+  package: Package, package_add: PackagePlus, package_check: PackageCheck, package_x: PackageX,
+  boxes: Boxes, box: Box, archive: Archive, warehouse: Warehouse, inbox: Inbox,
+  // docs / files
+  book: Book, file: File, files: Files, file_text: FileText, folder: Folder, folder_open: FolderOpen,
+  scroll: ScrollText, clipboard: Clipboard, clipboard_check: ClipboardCheck, copy: Copy, save: Save,
+  // layout / nav
+  more_horiz: MoreHorizontal, more_vert: MoreVertical, grid: LayoutGrid, dashboard: LayoutDashboard,
+  list: List, list_checks: ListChecks, table: Table,
+  // charts
+  pie_chart: PieChart, line_chart: LineChart, gauge: Gauge,
+  // actions
+  add_circle_outline: PlusCircle, remove_circle: MinusCircle, cancel: XCircle, done_all: CheckCheck,
+  settings_alt: Settings2, filter: Filter, zoom_in: ZoomIn, zoom_out: ZoomOut,
+  upload: Upload, share: Share2, link: Link, link2: Link2, external_link: ExternalLink,
+  refresh: RefreshCw, rotate_cw: RotateCw, rotate_ccw: RotateCcw, repeat: Repeat, shuffle: Shuffle,
+  power: Power, login: LogIn, edit_alt: Edit, edit_line: PencilLine, eraser: Eraser,
+  scissors: Scissors, hammer: Hammer, trash: Trash, wrench: Wrench,
+  // comms
+  bell_ring: BellRing, bell_off: BellOff, mail_open: MailOpen, send: Send,
+  message: MessageSquare, chat: MessageCircle, phone: Phone, call: PhoneCall, smartphone: Smartphone,
+  // people
+  person: User, people: Users, person_add: UserPlus, person_check: UserCheck,
+  // place
+  location: MapPin, map: Map, navigation: Navigation, globe: Globe, home: Home,
+  building: Building, store: Store,
+  // money / commerce
+  gift: Gift, tags: Tags, receipt: Receipt, credit_card: CreditCard, coins: Coins,
+  banknote: Banknote, dollar: DollarSign, percent: Percent, calculator: Calculator,
+  hand_coins: HandCoins, piggy_bank: PiggyBank, bank: Landmark, badge_check: BadgeCheck,
+  badge_percent: BadgePercent, money: CircleDollarSign, qr_code: QrCode, barcode: Barcode, scan: ScanLine,
+  // time
+  calendar: Calendar, calendar_check: CalendarCheck, clock: Clock, timer_reset: TimerReset,
+  hourglass: Hourglass, alarm: AlarmClock,
+  // food
+  egg_fried: EggFried, milk: Milk, coffee: Coffee, soda: CupSoda, cake_slice: CakeSlice,
+  croissant: Croissant, pizza: Pizza, ice_cream: IceCream, ice_cream_cone: IceCreamCone,
+  apple: Apple, banana: Banana, cherry: Cherry, grape: Grape, carrot: Carrot, nut: Nut,
+  candy: Candy, donut: Donut, soup: Soup, pot: CookingPot, utensils: Utensils,
+  utensils_crossed: UtensilsCrossed, chef: ChefHat, salad: Salad, beef: Beef, fish: Fish,
+  sandwich: Sandwich, wine: Wine, beer: Beer, citrus: Citrus, wheat: Wheat,
+  // science / measure / nature
+  test_tube: TestTube, beaker: Beaker, microscope: Microscope, pill: Pill, ruler: Ruler,
+  droplet: Droplet, droplets: Droplets, flame: Flame, snowflake: Snowflake, wind: Wind,
+  sun: Sun, moon: Moon, cloud: Cloud, rain: CloudRain, bolt: Zap, leaf: Leaf,
+  sprout: Sprout, tree: TreePine, flower: Flower,
+  // transport
+  truck: Truck, bike: Bike, car: Car, plane: Plane, ship: Ship,
+  // security
+  unlock: Unlock, key: Key, key_round: KeyRound, shield: Shield, shield_check: ShieldCheck,
+  eye: Eye, eye_off: EyeOff, fingerprint: Fingerprint,
+  // status / feedback
+  heart: Heart, bookmark: Bookmark, thumb_up: ThumbsUp, thumb_down: ThumbsDown,
+  award: Award, trophy: Trophy, medal: Medal, crown: Crown, sparkles: Sparkles, flag: Flag,
+  alert: AlertOctagon, help: HelpCircle, block: Ban,
+  // media
+  video: Video, mic: Mic, play: Play, pause: Pause, stop: Square,
+  // arrows
+  chevron_up: ChevronUp, chevron_down: ChevronDown, arrow_right: ArrowRight,
+  arrow_up: ArrowUp, arrow_down: ArrowDown, arrow_up_right: ArrowUpRight,
+  arrow_down_right: ArrowDownRight, move: Move,
+  // misc
+  hash: Hash, at: AtSign, lightbulb: Lightbulb, megaphone: Megaphone, pin: Pin,
+  paperclip: Paperclip, bug: Bug, code: Code, terminal: Terminal, database: Database,
+  server: Server, wifi: Wifi, battery: Battery,
+  instagram: Instagram, twitter: Twitter, youtube: Youtube, linkedin: Linkedin,
+  smile: Smile, frown: Frown, meh: Meh,
 };
 
 interface Props {
