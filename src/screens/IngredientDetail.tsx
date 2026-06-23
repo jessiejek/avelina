@@ -38,6 +38,7 @@ export default function IngredientDetail({ onBack }: Props) {
         setStatus(data.status ?? "optimal");
         setImg(data.img ?? null);
         setShelfLife(data.shelf_life ?? "");
+        setLowThreshold(data.low_threshold ?? "");
       }
       setLoading(false);
     });
@@ -53,7 +54,7 @@ export default function IngredientDetail({ onBack }: Props) {
       try { finalImg = await uploadImage("ingredient-images", imgFile); setImg(finalImg); setImgFile(null); }
       catch (e: any) { setSaveError("Photo upload failed: " + e.message); setSaving(false); return; }
     }
-    const { error } = await supabase.from("ingredients").update({ name, sku, img: finalImg, stock_value: stockValue === "" ? 0 : stockValue, unit, status, shelf_life: shelfLife === "" ? null : shelfLife }).eq("id", id);
+    const { error } = await supabase.from("ingredients").update({ name, sku, img: finalImg, stock_value: stockValue === "" ? 0 : stockValue, unit, status, shelf_life: shelfLife === "" ? null : shelfLife, low_threshold: lowThreshold === "" ? null : lowThreshold }).eq("id", id);
     setSaving(false);
     if (error) { setSaveError(error.message); return; }
     setSaved(true);
