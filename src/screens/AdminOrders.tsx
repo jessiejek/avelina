@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import Icon from "../components/Icon.tsx";
 import { supabase } from "../lib/supabase.ts";
+import { peso } from "../lib/money.ts";
 
 type OrderStatus = "pending" | "confirmed" | "baking" | "ready" | "completed";
 
@@ -14,6 +15,7 @@ interface AdminOrderItem {
   img: string;
   qty: number;
   pickupDate: string;
+  unitPrice: number;
 }
 
 interface AdminOrder {
@@ -68,11 +70,12 @@ function mapOrder(o: any): AdminOrder {
       img: it.recipes?.img || "",
       qty: it.qty,
       pickupDate: it.pickup_date,
+      unitPrice: it.unit_price ?? it.recipes?.price ?? 0,
     })),
   };
 }
 
-const SELECT = "*, users(name, phone, address), order_items(qty, pickup_date, recipes(id, name, img))";
+const SELECT = "*, users(name, phone, address), order_items(qty, pickup_date, unit_price, recipes(id, name, img, price))";
 
 export default function AdminOrders({ onStartBake }: Props) {
   const [orders, setOrders] = useState<AdminOrder[]>([]);
@@ -99,7 +102,7 @@ export default function AdminOrders({ onStartBake }: Props) {
     // Fetch orders + items without the users join, then attach customers separately.
     const { data: bare, error: bareErr } = await supabase
       .from("orders")
-      .select("*, order_items(qty, pickup_date, recipes(id, name, img))")
+      .select("*, order_items(qty, pickup_date, unit_price, recipes(id, name, img, price))")
       .order("placed_at", { ascending: false });
 
     if (bareErr || !bare) {
@@ -227,6 +230,7 @@ export default function AdminOrders({ onStartBake }: Props) {
             {visible.map((order) => {
               const action = NEXT_ACTION[order.status];
               const totalItems = order.items.reduce((s, i) => s + i.qty, 0);
+              const orderTotal = order.items.reduce((s, i) => s + i.unitPrice * i.qty, 0);
               return (
                 <div key={order.id} className="bg-surface-container-lowest rounded-xl border border-outline-variant/20 overflow-hidden">
                   {/* Top row */}
@@ -241,6 +245,7 @@ export default function AdminOrders({ onStartBake }: Props) {
                       <p className="text-xs text-on-surface-variant mt-1">
                         {new Date(order.placedAt).toLocaleString("en-PH", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                         {" · "}{totalItems} item{totalItems !== 1 ? "s" : ""}
+                        {" · "}<span className="font-bold text-primary font-mono">{peso(orderTotal)}</span>
                       </p>
                     </div>
                     {action && (
@@ -295,7 +300,10 @@ export default function AdminOrders({ onStartBake }: Props) {
                                 <p className="text-sm font-semibold text-primary truncate">{item.name}</p>
                                 <p className="text-xs text-on-surface-variant">Pickup: {item.pickupDate || "—"}</p>
                               </div>
-                              <span className="text-sm font-bold text-primary font-mono shrink-0">x{item.qty}</span>
+                              <div className="text-right shrink-0">
+                                <span className="block text-sm font-bold text-primary font-mono">x{item.qty}</span>
+                                <span className="block text-xs text-on-surface-variant font-mono">{peso(item.unitPrice * item.qty)}</span>
+                              </div>
                               {canBake && (
                                 <button
                                   onClick={() => onStartBake(item.recipeId, order.id)}

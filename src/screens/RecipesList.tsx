@@ -3,6 +3,7 @@ import Icon from "../components/Icon.tsx";
 import { Recipe, RecipeIngredient, RecipeStep } from "../data/recipes.ts";
 import { Ingredient } from "../data/inventory.ts";
 import { supabase, uploadImage, validateImageFile } from "../lib/supabase.ts";
+import { peso } from "../lib/money.ts";
 
 export type { Recipe };
 
@@ -25,6 +26,8 @@ function NewRecipeModal({ inventory, onSave, onClose }: { inventory: Ingredient[
   const [category, setCategory] = useState("Sourdough");
   const [yieldAmt, setYieldAmt] = useState("");
   const [time, setTime] = useState("");
+  const [price, setPrice] = useState("");
+  const [isAvailable, setIsAvailable] = useState(true);
   const [img, setImg] = useState(PLACEHOLDER_IMG);
   const [imgFile, setImgFile] = useState<File | null>(null);
   type IngRow = RecipeIngredient & { rowType: "inventory" | "custom" };
@@ -92,6 +95,8 @@ function NewRecipeModal({ inventory, onSave, onClose }: { inventory: Ingredient[
       yield: yieldAmt.trim() || "—",
       time: time.trim() || "—",
       img: finalImg,
+      price: price === "" ? 0 : Number(price),
+      is_available: isAvailable,
       ingredients: allIngredients,
       steps: steps.filter((s) => s.title.trim()),
     };
@@ -99,6 +104,7 @@ function NewRecipeModal({ inventory, onSave, onClose }: { inventory: Ingredient[
     const { error: recErr } = await supabase.from("recipes").insert({
       id: recipe.id, name: recipe.name, category: recipe.category,
       yield: recipe.yield, time: recipe.time, img: recipe.img,
+      price: recipe.price, is_available: recipe.is_available,
     });
     if (recErr) { setSaveError(recErr.message); setSaving(false); return; }
 
@@ -179,6 +185,30 @@ function NewRecipeModal({ inventory, onSave, onClose }: { inventory: Ingredient[
                 <div>
                   <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">Total Time</label>
                   <input className="w-full bg-surface-bright border border-outline-variant px-4 py-2.5 rounded-lg text-sm text-primary focus:outline-none font-mono" placeholder="e.g. 1h 30m" value={time} onChange={(e) => setTime(e.target.value)} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">Price (per unit)</label>
+                  <div className="flex items-center gap-1 bg-surface-bright border border-outline-variant rounded-lg px-3">
+                    <span className="text-sm font-bold text-on-surface-variant">₱</span>
+                    <input className="flex-1 min-w-0 bg-transparent py-2.5 text-sm text-primary font-mono focus:outline-none" inputMode="decimal" placeholder="0.00" value={price} onChange={(e) => setPrice(e.target.value.replace(/[^\d.]/g, ""))} />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">Availability</label>
+                  <button
+                    type="button"
+                    onClick={() => setIsAvailable((v) => !v)}
+                    className={`w-full flex items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-xs font-bold border transition-colors ${
+                      isAvailable
+                        ? "bg-secondary-container text-on-secondary-container border-secondary/30"
+                        : "bg-error-container text-on-error-container border-error/30"
+                    }`}
+                  >
+                    <Icon name={isAvailable ? "check_circle" : "lock"} size={14} />
+                    {isAvailable ? "For Sale" : "Sold Out"}
+                  </button>
                 </div>
               </div>
             </>
@@ -412,8 +442,18 @@ export default function RecipesList({ recipes, inventory, onAddRecipe, onViewRec
               </div>
 
               <div className="p-4">
-                <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant uppercase tracking-wide mb-1.5">{recipe.category}</span>
-                <h3 className="font-semibold text-primary text-sm leading-tight mb-1" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>{recipe.name}</h3>
+                <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
+                  <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant uppercase tracking-wide">{recipe.category}</span>
+                  {recipe.is_available === false && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-error-container text-on-error-container uppercase tracking-wide">
+                      <Icon name="lock" size={10} /> Sold Out
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-start justify-between gap-2 mb-1">
+                  <h3 className="font-semibold text-primary text-sm leading-tight" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>{recipe.name}</h3>
+                  <span className="shrink-0 font-bold text-primary text-sm font-mono">{peso(recipe.price)}</span>
+                </div>
                 <p className="text-xs text-on-surface-variant mb-3">
                   {recipe.ingredients.length > 0 ? `${recipe.ingredients.length} ingredient${recipe.ingredients.length !== 1 ? "s" : ""}` : "No ingredients set"}
                 </p>

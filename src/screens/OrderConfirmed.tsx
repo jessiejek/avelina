@@ -2,6 +2,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import Icon from "../components/Icon.tsx";
 import { Order } from "./CheckoutPage.tsx";
+import { peso } from "../lib/money.ts";
 
 interface Props {
   order: Order | null;
@@ -39,8 +40,13 @@ export default function OrderConfirmed({ order }: Props) {
               <p className="text-sm font-semibold text-[#26170c]">{item.recipe.name}</p>
               <p className="text-xs text-[#26170c]/50">x{item.qty} · Pickup {item.date}</p>
             </div>
+            <span className="text-sm font-semibold text-[#26170c] font-mono shrink-0">{peso((item.recipe.price ?? 0) * item.qty)}</span>
           </div>
         ))}
+        <div className="flex justify-between pt-3 border-t border-[#26170c]/8 text-sm font-bold text-[#26170c]">
+          <span>Total</span>
+          <span className="font-mono">{peso(order.items.reduce((s, it) => s + (it.recipe.price ?? 0) * it.qty, 0))}</span>
+        </div>
       </div>
 
       <div className="flex gap-3 w-full max-w-sm">

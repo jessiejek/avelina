@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Recipe } from "../data/recipes.ts";
 import Icon from "../components/Icon.tsx";
 import { supabase } from "../lib/supabase.ts";
+import { peso } from "../lib/money.ts";
 
 const CATEGORIES = ["All", "Sourdough", "Viennoiserie", "Cakes", "Pastry", "Bread", "Other"];
 
@@ -41,7 +42,7 @@ export default function PublicHome({ onPreOrder, currentUser, cartCount }: Props
         setRecipes((prev) => prev.find((r) => r.id === row.id) ? prev : [...prev, { ...row, ingredients: [], steps: [] }]);
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "recipes" }, ({ new: row }) => {
-        setRecipes((prev) => prev.map((r) => r.id === row.id ? { ...r, name: row.name, img: row.img, category: row.category, yield: row.yield, time: row.time } : r));
+        setRecipes((prev) => prev.map((r) => r.id === row.id ? { ...r, name: row.name, img: row.img, category: row.category, yield: row.yield, time: row.time, price: row.price ?? 0, is_available: row.is_available ?? true } : r));
       })
       .on("postgres_changes", { event: "DELETE", schema: "public", table: "recipes" }, ({ old: row }) => {
         setRecipes((prev) => prev.filter((r) => r.id !== row.id));
@@ -232,9 +233,10 @@ function RecipeCard(props: {
   const { recipe, isLoggedIn, onAddToCart } = props;
   const btnRef = useRef<HTMLButtonElement>(null);
   const [added, setAdded] = useState(false);
+  const soldOut = recipe.is_available === false;
 
   const handleClick = () => {
-    if (!btnRef.current) return;
+    if (soldOut || !btnRef.current) return;
     onAddToCart(recipe, btnRef.current);
     if (isLoggedIn) {
       setAdded(true);
@@ -243,21 +245,29 @@ function RecipeCard(props: {
   };
 
   return (
-    <div className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 group border border-[#26170c]/5">
-      <div className="overflow-hidden" style={{ aspectRatio: "4/3" }}>
+    <div className={`bg-white rounded-2xl overflow-hidden shadow-sm transition-all duration-300 group border border-[#26170c]/5 ${soldOut ? "opacity-75" : "hover:shadow-md hover:-translate-y-1"}`}>
+      <div className="overflow-hidden relative" style={{ aspectRatio: "4/3" }}>
         <img
           src={recipe.img}
           alt={recipe.name}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          className={`w-full h-full object-cover transition-transform duration-500 ${soldOut ? "grayscale" : "group-hover:scale-105"}`}
         />
+        {soldOut && (
+          <div className="absolute top-3 left-3 bg-[#26170c] text-white text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full flex items-center gap-1">
+            <Icon name="lock" size={11} /> Sold Out
+          </div>
+        )}
       </div>
       <div className="p-5">
         <span className="inline-block text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-[#fff8f5] text-[#26170c]/50 uppercase tracking-wide mb-2 border border-[#26170c]/10">
           {recipe.category}
         </span>
-        <h3 className="font-bold text-[#26170c] text-lg leading-tight mb-1" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>
-          {recipe.name}
-        </h3>
+        <div className="flex items-start justify-between gap-2 mb-1">
+          <h3 className="font-bold text-[#26170c] text-lg leading-tight" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>
+            {recipe.name}
+          </h3>
+          {recipe.price ? <span className="shrink-0 font-bold text-[#26170c] text-base font-mono">{peso(recipe.price)}</span> : null}
+        </div>
         <div className="flex items-center gap-3 mb-4">
           <span className="flex items-center gap-1 text-xs text-[#26170c]/50">
             <Icon name="restaurant" size={12} />
@@ -271,15 +281,16 @@ function RecipeCard(props: {
         <button
           ref={btnRef}
           onClick={handleClick}
-          className="w-full h-10 rounded-xl text-sm font-semibold active:scale-95 transition-all flex items-center justify-center gap-2 overflow-hidden"
+          disabled={soldOut}
+          className="w-full h-10 rounded-xl text-sm font-semibold active:scale-95 transition-all flex items-center justify-center gap-2 overflow-hidden disabled:cursor-not-allowed"
           style={{
-            backgroundColor: added ? "#3a7c3a" : "#26170c",
-            color: "#fff8f5",
+            backgroundColor: soldOut ? "#cfc7c1" : added ? "#3a7c3a" : "#26170c",
+            color: soldOut ? "#26170c" : "#fff8f5",
             transition: "background-color 0.2s, transform 0.1s",
           }}
         >
-          <Icon name={added ? "check" : "shopping_bag"} size={15} />
-          {added ? "Added!" : isLoggedIn ? "Add to Cart" : "Pre-Order"}
+          <Icon name={soldOut ? "lock" : added ? "check" : "shopping_bag"} size={15} />
+          {soldOut ? "Sold Out" : added ? "Added!" : isLoggedIn ? "Add to Cart" : "Pre-Order"}
         </button>
       </div>
     </div>

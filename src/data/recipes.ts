@@ -21,6 +21,8 @@ export interface Recipe {
   description?: string;
   prep_time?: string;
   difficulty?: string;
+  price?: number;
+  is_available?: boolean;
   ingredients: RecipeIngredient[];
   steps: RecipeStep[];
 }

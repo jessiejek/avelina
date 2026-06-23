@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Icon from "../components/Icon.tsx";
 import { Recipe } from "../data/recipes.ts";
 import { UserProfile } from "./ProfileSetup.tsx";
+import { peso } from "../lib/money.ts";
 
 export interface CartItem {
   recipe: Recipe;
@@ -105,13 +106,13 @@ export default function CartPage({ cart, profile, onUpdateQty, onUpdateDate, onR
               <h3 className="font-bold text-[#26170c] text-sm" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>Order Summary</h3>
               {cart.map((item, i) => (
                 <div key={i} className="flex justify-between text-sm text-[#26170c]/70">
-                  <span>{item.recipe.name}</span>
-                  <span className="font-mono font-semibold">x{item.qty}</span>
+                  <span>{item.recipe.name} <span className="text-[#26170c]/40 font-mono">x{item.qty}</span></span>
+                  <span className="font-mono font-semibold">{peso((item.recipe.price ?? 0) * item.qty)}</span>
                 </div>
               ))}
               <div className="border-t border-[#26170c]/10 pt-3 flex justify-between text-sm font-bold text-[#26170c]">
-                <span>Total items</span>
-                <span className="font-mono">{cart.reduce((sum, i) => sum + i.qty, 0)}</span>
+                <span>Total ({cart.reduce((sum, i) => sum + i.qty, 0)} items)</span>
+                <span className="font-mono">{peso(cart.reduce((sum, i) => sum + (i.recipe.price ?? 0) * i.qty, 0))}</span>
               </div>
             </div>
 

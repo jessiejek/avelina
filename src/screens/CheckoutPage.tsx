@@ -4,6 +4,7 @@ import Icon from "../components/Icon.tsx";
 import { CartItem } from "./CartPage.tsx";
 import { UserProfile } from "./ProfileSetup.tsx";
 import { supabase } from "../lib/supabase.ts";
+import { peso } from "../lib/money.ts";
 
 export interface Order {
   id: string;
@@ -48,6 +49,7 @@ export default function CheckoutPage({ cart, profile, userId, onUpdateQty, onUpd
       await supabase.from("order_items").insert({
         order_id: orderId, recipe_id: item.recipe.id,
         qty: item.qty, pickup_date: item.date,
+        unit_price: item.recipe.price ?? 0,
       });
     }
 
@@ -144,16 +146,16 @@ export default function CheckoutPage({ cart, profile, userId, onUpdateQty, onUpd
           <h3 className="font-bold text-[#26170c] text-sm mb-3" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>Summary</h3>
           {cart.map((item, i) => (
             <div key={i} className="flex justify-between text-sm">
-              <span className="text-[#26170c]/70">{item.recipe.name}</span>
+              <span className="text-[#26170c]/70">{item.recipe.name} <span className="text-[#26170c]/40 font-mono">x{item.qty}</span></span>
               <div className="text-right">
-                <span className="font-mono font-semibold text-[#26170c]">x{item.qty}</span>
+                <span className="font-mono font-semibold text-[#26170c]">{peso((item.recipe.price ?? 0) * item.qty)}</span>
                 {item.date && <span className="block text-xs text-[#26170c]/40">{item.date}</span>}
               </div>
             </div>
           ))}
           <div className="border-t border-[#26170c]/10 pt-2 flex justify-between font-bold text-[#26170c]">
-            <span>Total</span>
-            <span className="font-mono">{cart.reduce((s, i) => s + i.qty, 0)} items</span>
+            <span>Total ({cart.reduce((s, i) => s + i.qty, 0)} items)</span>
+            <span className="font-mono">{peso(cart.reduce((s, i) => s + (i.recipe.price ?? 0) * i.qty, 0))}</span>
           </div>
         </div>
 

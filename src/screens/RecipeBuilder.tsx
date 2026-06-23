@@ -66,6 +66,8 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
   const initYield = parseYield(recipe.yield ?? "");
   const [yieldQty, setYieldQty] = useState(initYield.qty);
   const [yieldUnit, setYieldUnit] = useState(initYield.unit);
+  const [price, setPrice] = useState<string>(recipe.price != null ? String(recipe.price) : "");
+  const [isAvailable, setIsAvailable] = useState(recipe.is_available ?? true);
 
   const totalTime = composeDuration(hours, minutes);
   const yieldAmt = yieldQty ? `${yieldQty} ${yieldUnit}` : "";
@@ -92,7 +94,7 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
     }
 
     // Update recipe basics
-    const { error: recErr } = await supabase.from("recipes").update({ name: recipeName, img: finalImg, description, prep_time: prepTime || null, difficulty: difficulty || null, time: totalTime || null, yield: yieldAmt || null }).eq("id", recipe.id);
+    const { error: recErr } = await supabase.from("recipes").update({ name: recipeName, img: finalImg, description, prep_time: prepTime || null, difficulty: difficulty || null, time: totalTime || null, yield: yieldAmt || null, price: price === "" ? 0 : Number(price), is_available: isAvailable }).eq("id", recipe.id);
     if (recErr) { setSaveError(recErr.message); setSaving(false); return; }
     // Replace ingredients
     await supabase.from("recipe_ingredients").delete().eq("recipe_id", recipe.id);
@@ -262,6 +264,43 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
                   <option value="intermediate">Intermediate</option>
                   <option value="advanced">Advanced</option>
                 </select>
+              </div>
+            </div>
+
+            {/* Price + availability — what the public sees */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4 border-t border-outline-variant/10">
+              <div>
+                <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-widest mb-1">Selling Price (per unit)</p>
+                <div className="flex items-center gap-1">
+                  <span className="text-sm font-bold text-on-surface-variant">₱</span>
+                  <input
+                    type="text" inputMode="decimal" disabled={!editing}
+                    className={`flex-1 min-w-0 bg-surface-container border border-outline-variant/40 rounded-lg px-3 py-1.5 text-sm font-bold text-primary font-mono focus:outline-none focus:border-primary/50 ${ro}`}
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value.replace(/[^\d.]/g, ""))}
+                    onFocus={(e) => e.target.select()}
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-widest mb-1">Availability</p>
+                <button
+                  type="button"
+                  disabled={!editing}
+                  onClick={() => setIsAvailable((v) => !v)}
+                  className={`w-full flex items-center justify-between gap-2 rounded-lg px-3 py-1.5 text-sm font-bold border transition-colors disabled:cursor-default ${
+                    isAvailable
+                      ? "bg-secondary-container text-on-secondary-container border-secondary/30"
+                      : "bg-error-container text-on-error-container border-error/30"
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <Icon name={isAvailable ? "check_circle" : "lock"} size={14} />
+                    {isAvailable ? "For Sale" : "Sold Out / Hidden"}
+                  </span>
+                  {editing && <Icon name="sync_alt" size={14} className="opacity-60" />}
+                </button>
               </div>
             </div>
           </div>

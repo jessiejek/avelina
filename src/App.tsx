@@ -39,6 +39,7 @@ function mapRecipe(r: any): Recipe {
     id: r.id, name: r.name, category: r.category,
     yield: r.yield, time: r.time, img: r.img,
     description: r.description ?? "", prep_time: r.prep_time ?? "", difficulty: r.difficulty ?? "",
+    price: r.price ?? 0, is_available: r.is_available ?? true,
     ingredients: (r.recipe_ingredients || []).map((ri: any) => ({
       ingredientId: ri.ingredients?.id || "",
       name: ri.ingredients?.name || "",
@@ -156,7 +157,7 @@ function AdminShell() {
     const recipeChannel = supabase
       .channel("rt-recipes")
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "recipes" }, ({ new: row }) => {
-        setRecipes((prev) => prev.map((r) => r.id === row.id ? { ...r, name: row.name, img: row.img, category: row.category, yield: row.yield, time: row.time, description: row.description ?? "", prep_time: row.prep_time ?? "", difficulty: row.difficulty ?? "" } : r));
+        setRecipes((prev) => prev.map((r) => r.id === row.id ? { ...r, name: row.name, img: row.img, category: row.category, yield: row.yield, time: row.time, description: row.description ?? "", prep_time: row.prep_time ?? "", difficulty: row.difficulty ?? "", price: row.price ?? 0, is_available: row.is_available ?? true } : r));
       })
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "recipes" }, () => {
         // Re-fetch to get full recipe with ingredients + steps
