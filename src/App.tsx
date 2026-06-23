@@ -251,7 +251,12 @@ function AdminShell() {
               : <Navigate to="/admin/recipes" replace />
           } />
 
-          <Route path="orders" element={<AdminOrders />} />
+          <Route path="orders" element={
+            <AdminOrders onStartBake={(recipeId) => {
+              const r = recipes.find((x) => x.id === recipeId);
+              if (r) pickRecipe(r);
+            }} />
+          } />
           <Route path="bakelog" element={<BakeLog entries={bakeLogs} />} />
           <Route path="stats" element={<Stats />} />
         </Routes>

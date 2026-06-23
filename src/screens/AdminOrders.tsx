@@ -4,7 +4,12 @@ import { supabase } from "../lib/supabase.ts";
 
 type OrderStatus = "pending" | "confirmed" | "ready" | "completed";
 
+interface Props {
+  onStartBake: (recipeId: string) => void;
+}
+
 interface AdminOrderItem {
+  recipeId: string;
   name: string;
   img: string;
   qty: number;
@@ -55,6 +60,7 @@ function mapOrder(o: any): AdminOrder {
     customerPhone: o.users?.phone || "",
     customerAddress: o.users?.address || "",
     items: (o.order_items || []).map((it: any) => ({
+      recipeId: it.recipes?.id || "",
       name: it.recipes?.name || "—",
       img: it.recipes?.img || "",
       qty: it.qty,
@@ -63,9 +69,9 @@ function mapOrder(o: any): AdminOrder {
   };
 }
 
-const SELECT = "*, users(name, phone, address), order_items(qty, pickup_date, recipes(name, img))";
+const SELECT = "*, users(name, phone, address), order_items(qty, pickup_date, recipes(id, name, img))";
 
-export default function AdminOrders() {
+export default function AdminOrders({ onStartBake }: Props) {
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | OrderStatus>("all");
@@ -90,7 +96,7 @@ export default function AdminOrders() {
     // Fetch orders + items without the users join, then attach customers separately.
     const { data: bare, error: bareErr } = await supabase
       .from("orders")
-      .select("*, order_items(qty, pickup_date, recipes(name, img))")
+      .select("*, order_items(qty, pickup_date, recipes(id, name, img))")
       .order("placed_at", { ascending: false });
 
     if (bareErr || !bare) {
@@ -275,18 +281,30 @@ export default function AdminOrders() {
                     <div className="lg:col-span-8 space-y-2">
                       <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider">Items</p>
                       <div className="space-y-2">
-                        {order.items.map((item, i) => (
-                          <div key={i} className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 bg-surface-container">
-                              {item.img && <img src={item.img} alt={item.name} className="w-full h-full object-cover" />}
+                        {order.items.map((item, i) => {
+                          const canBake = (order.status === "confirmed" || order.status === "ready") && !!item.recipeId;
+                          return (
+                            <div key={i} className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 bg-surface-container">
+                                {item.img && <img src={item.img} alt={item.name} className="w-full h-full object-cover" />}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-primary truncate">{item.name}</p>
+                                <p className="text-xs text-on-surface-variant">Pickup: {item.pickupDate || "—"}</p>
+                              </div>
+                              <span className="text-sm font-bold text-primary font-mono shrink-0">x{item.qty}</span>
+                              {canBake && (
+                                <button
+                                  onClick={() => onStartBake(item.recipeId)}
+                                  className="shrink-0 h-8 px-3 rounded-lg bg-secondary-container text-on-secondary-container text-xs font-bold hover:opacity-80 active:scale-95 transition-all flex items-center gap-1.5"
+                                  title="Start a production bake for this item"
+                                >
+                                  <Icon name="oven_gen" size={13} /> Start Baking
+                                </button>
+                              )}
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold text-primary truncate">{item.name}</p>
-                              <p className="text-xs text-on-surface-variant">Pickup: {item.pickupDate || "—"}</p>
-                            </div>
-                            <span className="text-sm font-bold text-primary font-mono shrink-0">x{item.qty}</span>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   </div>
