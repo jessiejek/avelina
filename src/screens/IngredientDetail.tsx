@@ -24,8 +24,7 @@ export default function IngredientDetail({ onBack }: Props) {
   const [img, setImg] = useState<string | null>(null);
   const [imgFile, setImgFile] = useState<File | null>(null);
   const imgInputRef = useRef<HTMLInputElement>(null);
-  const [notes, setNotes] = useState("");
-  const [shelfLife, setShelfLife] = useState(180);
+  const [shelfLife, setShelfLife] = useState<number | "">("");
   const [lowThreshold, setLowThreshold] = useState<number | "">("");
 
   useEffect(() => {
@@ -38,6 +37,7 @@ export default function IngredientDetail({ onBack }: Props) {
         setUnit(data.unit ?? "kg");
         setStatus(data.status ?? "optimal");
         setImg(data.img ?? null);
+        setShelfLife(data.shelf_life ?? "");
       }
       setLoading(false);
     });
@@ -53,7 +53,7 @@ export default function IngredientDetail({ onBack }: Props) {
       try { finalImg = await uploadImage("ingredient-images", imgFile); setImg(finalImg); setImgFile(null); }
       catch (e: any) { setSaveError("Photo upload failed: " + e.message); setSaving(false); return; }
     }
-    const { error } = await supabase.from("ingredients").update({ name, sku, img: finalImg, stock_value: stockValue === "" ? 0 : stockValue, unit, status }).eq("id", id);
+    const { error } = await supabase.from("ingredients").update({ name, sku, img: finalImg, stock_value: stockValue === "" ? 0 : stockValue, unit, status, shelf_life: shelfLife === "" ? null : shelfLife }).eq("id", id);
     setSaving(false);
     if (error) { setSaveError(error.message); return; }
     setSaved(true);
@@ -145,13 +145,28 @@ export default function IngredientDetail({ onBack }: Props) {
                         onChange={(e) => setName(e.target.value)}
                       />
                     </div>
-                    <div className="col-span-2">
+                    <div>
                       <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">SKU / Reference</label>
                       <input
                         className="w-full bg-surface-bright border border-outline-variant/40 px-4 py-2.5 rounded-lg text-sm text-on-surface-variant focus:outline-none font-mono"
                         value={sku}
                         onChange={(e) => setSku(e.target.value)}
                       />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">Shelf Life</label>
+                      <div className="flex">
+                        <input
+                          className="flex-1 bg-surface-bright border border-outline-variant/40 px-4 py-2.5 rounded-l-lg text-sm font-bold text-primary focus:outline-none font-mono"
+                          type="number" min={0} value={shelfLife}
+                          onChange={(e) => setShelfLife(e.target.value === "" ? "" : Number(e.target.value))}
+                          onFocus={(e) => e.target.select()}
+                          placeholder="—"
+                        />
+                        <div className="w-20 bg-surface-container-high border border-l-0 border-outline-variant/40 px-3 rounded-r-lg flex items-center text-xs font-bold text-on-surface-variant">
+                          days
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
