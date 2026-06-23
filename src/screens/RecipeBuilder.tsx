@@ -73,7 +73,12 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [editing, setEditing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Read-only field styling: when disabled, drop the box so it reads as plain text.
+  const ro = "disabled:border-transparent disabled:bg-transparent disabled:cursor-default";
+  const roSelect = ro + " disabled:appearance-none";
 
   const handleSave = async () => {
     setSaving(true);
@@ -103,6 +108,7 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
     }
     setSaving(false);
     setSaved(true);
+    setEditing(false);
     setTimeout(() => setSaved(false), 2500);
   };
 
@@ -138,13 +144,25 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
             <Icon name="arrow_back" size={14} /> Recipes
           </button>
           <Icon name="chevron_right" size={14} className="text-outline-variant" />
-          <span className="text-primary font-semibold px-2 py-1 truncate max-w-[200px]" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>Edit: {recipeName}</span>
+          <span className="text-primary font-semibold px-2 py-1 truncate max-w-[200px]" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>{editing ? "Edit" : "View"}: {recipeName}</span>
         </nav>
         <div className="flex items-center gap-3">
           {saveError && <p className="text-xs text-error">{saveError}</p>}
-          <button onClick={handleSave} disabled={saving} className="px-5 h-9 rounded-lg bg-primary text-on-primary text-xs font-bold hover:opacity-90 transition-all active:scale-95 disabled:opacity-50">
-            {saving ? "Saving…" : saved ? "✓ Saved" : "Save Changes"}
-          </button>
+          {saved && !editing && <p className="text-xs text-secondary font-semibold flex items-center gap-1"><Icon name="check_circle" size={13} /> Saved</p>}
+          {editing ? (
+            <>
+              <button onClick={onBack} className="px-4 h-9 rounded-lg border border-outline text-primary text-xs font-semibold hover:bg-surface-container transition-colors">
+                Cancel
+              </button>
+              <button onClick={handleSave} disabled={saving} className="px-5 h-9 rounded-lg bg-primary text-on-primary text-xs font-bold hover:opacity-90 transition-all active:scale-95 disabled:opacity-50">
+                {saving ? "Saving…" : "Save Changes"}
+              </button>
+            </>
+          ) : (
+            <button onClick={() => setEditing(true)} className="px-5 h-9 rounded-lg bg-primary text-on-primary text-xs font-bold hover:opacity-90 transition-all active:scale-95 flex items-center gap-1.5">
+              <Icon name="edit" size={13} /> Edit Recipe
+            </button>
+          )}
         </div>
       </header>
 
@@ -153,15 +171,17 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-7 bg-surface-container-lowest rounded-xl border border-primary/10 p-6 space-y-4">
             <input
-              className="w-full bg-transparent border-none focus:outline-none text-primary font-bold text-2xl lg:text-[40px] lg:leading-[48px]"
+              disabled={!editing}
+              className="w-full bg-transparent border-none focus:outline-none text-primary font-bold text-2xl lg:text-[40px] lg:leading-[48px] disabled:cursor-default"
               style={{ fontFamily: "'Hanken Grotesk', sans-serif", letterSpacing: "-0.02em" }}
               value={recipeName}
               onChange={(e) => setRecipeName(e.target.value)}
             />
             <textarea
-              className="w-full bg-transparent border-none focus:outline-none text-on-surface-variant text-sm italic resize-none"
+              disabled={!editing}
+              className="w-full bg-transparent border-none focus:outline-none text-on-surface-variant text-sm italic resize-none disabled:cursor-default"
               rows={2}
-              placeholder="Short description of this recipe…"
+              placeholder={editing ? "Short description of this recipe…" : ""}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
@@ -170,8 +190,8 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
                 <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-widest mb-1">Total Time</p>
                 <div className="flex items-center gap-1.5">
                   <input
-                    type="text" inputMode="numeric" maxLength={3}
-                    className="w-12 bg-surface-container border border-outline-variant/40 rounded-lg px-2 py-1.5 text-sm font-bold text-primary font-mono text-center focus:outline-none focus:border-primary/50"
+                    type="text" inputMode="numeric" maxLength={3} disabled={!editing}
+                    className={`w-12 bg-surface-container border border-outline-variant/40 rounded-lg px-2 py-1.5 text-sm font-bold text-primary font-mono text-center focus:outline-none focus:border-primary/50 ${ro}`}
                     value={hours}
                     onChange={(e) => setHours(e.target.value.replace(/\D/g, ""))}
                     onFocus={(e) => e.target.select()}
@@ -179,8 +199,8 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
                   />
                   <span className="text-xs font-semibold text-on-surface-variant">h</span>
                   <input
-                    type="text" inputMode="numeric" maxLength={2}
-                    className="w-12 bg-surface-container border border-outline-variant/40 rounded-lg px-2 py-1.5 text-sm font-bold text-primary font-mono text-center focus:outline-none focus:border-primary/50"
+                    type="text" inputMode="numeric" maxLength={2} disabled={!editing}
+                    className={`w-12 bg-surface-container border border-outline-variant/40 rounded-lg px-2 py-1.5 text-sm font-bold text-primary font-mono text-center focus:outline-none focus:border-primary/50 ${ro}`}
                     value={minutes}
                     onChange={(e) => setMinutes(e.target.value.replace(/\D/g, ""))}
                     onFocus={(e) => e.target.select()}
@@ -193,7 +213,8 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
                 <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-widest mb-1">Yield</p>
                 <div className="flex items-center gap-1">
                   <select
-                    className="w-14 bg-surface-container border border-outline-variant/40 rounded-lg px-1.5 py-1.5 text-sm font-bold text-primary font-mono focus:outline-none focus:border-primary/50"
+                    disabled={!editing}
+                    className={`w-14 bg-surface-container border border-outline-variant/40 rounded-lg px-1.5 py-1.5 text-sm font-bold text-primary font-mono focus:outline-none focus:border-primary/50 ${roSelect}`}
                     value={yieldQty}
                     onChange={(e) => setYieldQty(e.target.value)}
                   >
@@ -203,7 +224,8 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
                     ))}
                   </select>
                   <select
-                    className="flex-1 min-w-0 bg-surface-container border border-outline-variant/40 rounded-lg px-2 py-1.5 text-xs font-bold text-primary focus:outline-none focus:border-primary/50"
+                    disabled={!editing}
+                    className={`flex-1 min-w-0 bg-surface-container border border-outline-variant/40 rounded-lg px-2 py-1.5 text-xs font-bold text-primary focus:outline-none focus:border-primary/50 ${roSelect}`}
                     value={yieldUnit}
                     onChange={(e) => setYieldUnit(e.target.value)}
                   >
@@ -217,8 +239,8 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
                 <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-widest mb-1">Prep Time</p>
                 <div className="flex items-center gap-1.5">
                   <input
-                    type="text" inputMode="numeric" maxLength={3}
-                    className="w-12 bg-surface-container border border-outline-variant/40 rounded-lg px-2 py-1.5 text-sm font-bold text-primary font-mono text-center focus:outline-none focus:border-primary/50"
+                    type="text" inputMode="numeric" maxLength={3} disabled={!editing}
+                    className={`w-12 bg-surface-container border border-outline-variant/40 rounded-lg px-2 py-1.5 text-sm font-bold text-primary font-mono text-center focus:outline-none focus:border-primary/50 ${ro}`}
                     value={prepMinutes}
                     onChange={(e) => setPrepMinutes(e.target.value.replace(/\D/g, ""))}
                     onFocus={(e) => e.target.select()}
@@ -230,7 +252,8 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
               <div>
                 <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-widest mb-1">Difficulty</p>
                 <select
-                  className="w-full bg-surface-container border border-outline-variant/40 rounded-lg px-2 py-1.5 text-sm font-bold text-primary focus:outline-none focus:border-primary/50"
+                  disabled={!editing}
+                  className={`w-full bg-surface-container border border-outline-variant/40 rounded-lg px-2 py-1.5 text-sm font-bold text-primary focus:outline-none focus:border-primary/50 ${roSelect}`}
                   value={difficulty}
                   onChange={(e) => setDifficulty(e.target.value)}
                 >
@@ -247,12 +270,14 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
             <img src={photo} alt={recipeName} className="w-full h-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent pointer-events-none" />
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="absolute bottom-4 right-4 bg-surface-container-lowest/90 backdrop-blur-sm text-primary px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 border border-outline-variant/30 hover:bg-surface-container-lowest transition-colors shadow-sm"
-            >
-              <Icon name="photo_camera" size={14} /> Change Photo
-            </button>
+            {editing && (
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="absolute bottom-4 right-4 bg-surface-container-lowest/90 backdrop-blur-sm text-primary px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 border border-outline-variant/30 hover:bg-surface-container-lowest transition-colors shadow-sm"
+              >
+                <Icon name="photo_camera" size={14} /> Change Photo
+              </button>
+            )}
           </div>
         </div>
 
@@ -276,24 +301,27 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
                       <div className="flex items-center gap-2">
                         {ing?.img && <div className="w-7 h-7 rounded-md overflow-hidden shrink-0"><img src={ing.img} alt={ing.name} className="w-full h-full object-cover" /></div>}
                         <select
-                          className="flex-1 bg-surface-container border border-outline-variant/30 rounded-lg px-3 py-2 text-sm font-semibold text-primary focus:outline-none min-w-0"
+                          disabled={!editing}
+                          className={`flex-1 bg-surface-container border border-outline-variant/30 rounded-lg px-3 py-2 text-sm font-semibold text-primary focus:outline-none min-w-0 ${roSelect}`}
                           value={row.ingredientId}
                           onChange={(e) => updateRow(i, "ingredientId", e.target.value)}
                         >
                           {inventory.map((inv) => <option key={inv.id} value={inv.id}>{inv.name}</option>)}
                         </select>
-                        <button onClick={() => removeRow(i)} className="w-7 h-7 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error-container/30 transition-all shrink-0">
-                          <Icon name="close" size={14} />
-                        </button>
+                        {editing && (
+                          <button onClick={() => removeRow(i)} className="w-7 h-7 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error-container/30 transition-all shrink-0">
+                            <Icon name="close" size={14} />
+                          </button>
+                        )}
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="flex-1">
                           <label className="text-[10px] font-semibold text-outline uppercase tracking-wider">Qty</label>
-                          <input className="w-full bg-surface-container px-3 py-1.5 rounded-lg text-sm text-center border border-outline-variant/30 focus:outline-none font-mono mt-0.5" value={row.qty} onChange={(e) => updateRow(i, "qty", e.target.value)} />
+                          <input disabled={!editing} className={`w-full bg-surface-container px-3 py-1.5 rounded-lg text-sm text-center border border-outline-variant/30 focus:outline-none font-mono mt-0.5 ${ro}`} value={row.qty} onChange={(e) => updateRow(i, "qty", e.target.value)} />
                         </div>
                         <div className="flex-1">
                           <label className="text-[10px] font-semibold text-outline uppercase tracking-wider">Unit</label>
-                          <select className="w-full bg-surface-container px-3 py-1.5 rounded-lg text-sm font-bold border border-outline-variant/30 focus:outline-none font-mono mt-0.5" value={row.unit} onChange={(e) => updateRow(i, "unit", e.target.value)}>
+                          <select disabled={!editing} className={`w-full bg-surface-container px-3 py-1.5 rounded-lg text-sm font-bold border border-outline-variant/30 focus:outline-none font-mono mt-0.5 ${roSelect}`} value={row.unit} onChange={(e) => updateRow(i, "unit", e.target.value)}>
                             <option>kg</option><option>g</option><option>L</option><option>ml</option><option>units</option>
                           </select>
                         </div>
@@ -330,16 +358,16 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
                               {ing?.img && <div className="w-7 h-7 rounded-md overflow-hidden shrink-0"><img src={ing.img} alt={ing.name} className="w-full h-full object-cover" /></div>}
-                              <select className="flex-1 bg-transparent border-none focus:outline-none text-sm font-semibold text-primary min-w-0" value={row.ingredientId} onChange={(e) => updateRow(i, "ingredientId", e.target.value)}>
+                              <select disabled={!editing} className={`flex-1 bg-transparent border-none focus:outline-none text-sm font-semibold text-primary min-w-0 ${roSelect}`} value={row.ingredientId} onChange={(e) => updateRow(i, "ingredientId", e.target.value)}>
                                 {inventory.map((inv) => <option key={inv.id} value={inv.id}>{inv.name}</option>)}
                               </select>
                             </div>
                           </td>
                           <td className="px-4 py-3">
-                            <input className="w-full bg-surface-container px-2 py-1.5 rounded text-sm text-center border border-outline-variant/30 focus:outline-none font-mono" value={row.qty} onChange={(e) => updateRow(i, "qty", e.target.value)} />
+                            <input disabled={!editing} className={`w-full bg-surface-container px-2 py-1.5 rounded text-sm text-center border border-outline-variant/30 focus:outline-none font-mono ${ro}`} value={row.qty} onChange={(e) => updateRow(i, "qty", e.target.value)} />
                           </td>
                           <td className="px-4 py-3">
-                            <select className="w-full bg-surface-container px-2 py-1.5 rounded text-xs font-bold border border-outline-variant/30 focus:outline-none font-mono" value={row.unit} onChange={(e) => updateRow(i, "unit", e.target.value)}>
+                            <select disabled={!editing} className={`w-full bg-surface-container px-2 py-1.5 rounded text-xs font-bold border border-outline-variant/30 focus:outline-none font-mono ${roSelect}`} value={row.unit} onChange={(e) => updateRow(i, "unit", e.target.value)}>
                               <option>kg</option><option>g</option><option>L</option><option>ml</option><option>units</option>
                             </select>
                           </td>
@@ -351,9 +379,11 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
                             )}
                           </td>
                           <td className="px-3 py-3">
-                            <button onClick={() => removeRow(i)} className="w-7 h-7 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error-container/30 transition-all">
-                              <Icon name="close" size={14} />
-                            </button>
+                            {editing && (
+                              <button onClick={() => removeRow(i)} className="w-7 h-7 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error-container/30 transition-all">
+                                <Icon name="close" size={14} />
+                              </button>
+                            )}
                           </td>
                         </tr>
                       );
@@ -362,9 +392,11 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
                 </table>
               </div>
 
-              <button onClick={addRow} className="w-full py-3 rounded-xl border-2 border-dashed border-outline-variant/40 text-xs font-semibold text-on-surface-variant hover:border-primary hover:text-primary transition-all flex items-center justify-center gap-2">
-                <Icon name="add" size={16} strokeWidth={2.5} /> Add Ingredient Row
-              </button>
+              {editing && (
+                <button onClick={addRow} className="w-full py-3 rounded-xl border-2 border-dashed border-outline-variant/40 text-xs font-semibold text-on-surface-variant hover:border-primary hover:text-primary transition-all flex items-center justify-center gap-2">
+                  <Icon name="add" size={16} strokeWidth={2.5} /> Add Ingredient Row
+                </button>
+              )}
             </>
           )}
         </section>
@@ -379,7 +411,8 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
                 <div>
                   <label className="block text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider mb-1">Step Title</label>
                   <input
-                    className="w-full bg-surface-bright border border-outline-variant/40 rounded-lg px-3 py-2 focus:outline-none focus:border-primary/50 font-semibold text-primary pr-8 placeholder:font-normal placeholder:text-on-surface-variant/40"
+                    disabled={!editing}
+                    className={`w-full bg-surface-bright border border-outline-variant/40 rounded-lg px-3 py-2 focus:outline-none focus:border-primary/50 font-semibold text-primary pr-8 placeholder:font-normal placeholder:text-on-surface-variant/40 ${ro} disabled:px-0`}
                     style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 15 }}
                     value={step.title}
                     onChange={(e) => setSteps((prev) => prev.map((s, idx) => idx === i ? { ...s, title: e.target.value } : s))}
@@ -389,7 +422,8 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
                 <div>
                   <label className="block text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider mb-1">Instructions</label>
                   <textarea
-                    className="w-full bg-surface-bright border border-outline-variant/40 rounded-lg px-3 py-2 focus:outline-none focus:border-primary/50 text-sm text-on-surface resize-none leading-relaxed placeholder:text-on-surface-variant/40"
+                    disabled={!editing}
+                    className={`w-full bg-surface-bright border border-outline-variant/40 rounded-lg px-3 py-2 focus:outline-none focus:border-primary/50 text-sm text-on-surface resize-none leading-relaxed placeholder:text-on-surface-variant/40 ${ro} disabled:px-0`}
                     rows={3}
                     value={step.description}
                     onChange={(e) => setSteps((prev) => prev.map((s, idx) => idx === i ? { ...s, description: e.target.value } : s))}
@@ -397,21 +431,25 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
                   />
                 </div>
               </div>
-              <button
-                onClick={() => setSteps((prev) => prev.filter((_, idx) => idx !== i).map((s, idx) => ({ ...s, num: String(idx + 1).padStart(2, "0") })))}
-                className="absolute top-3 right-3 w-7 h-7 rounded-full flex items-center justify-center text-outline hover:bg-error-container hover:text-error transition-all"
-                title="Remove step"
-              >
-                <Icon name="close" size={14} />
-              </button>
+              {editing && (
+                <button
+                  onClick={() => setSteps((prev) => prev.filter((_, idx) => idx !== i).map((s, idx) => ({ ...s, num: String(idx + 1).padStart(2, "0") })))}
+                  className="absolute top-3 right-3 w-7 h-7 rounded-full flex items-center justify-center text-outline hover:bg-error-container hover:text-error transition-all"
+                  title="Remove step"
+                >
+                  <Icon name="close" size={14} />
+                </button>
+              )}
             </div>
           ))}
-          <button
-            onClick={() => setSteps((prev) => [...prev, { num: String(prev.length + 1).padStart(2, "0"), title: "", description: "" }])}
-            className="w-full py-4 rounded-xl border-2 border-dashed border-outline-variant/40 text-xs font-semibold text-on-surface-variant hover:border-primary hover:text-primary transition-all flex items-center justify-center gap-2"
-          >
-            <Icon name="add" size={16} strokeWidth={2.5} /> Add Step
-          </button>
+          {editing && (
+            <button
+              onClick={() => setSteps((prev) => [...prev, { num: String(prev.length + 1).padStart(2, "0"), title: "", description: "" }])}
+              className="w-full py-4 rounded-xl border-2 border-dashed border-outline-variant/40 text-xs font-semibold text-on-surface-variant hover:border-primary hover:text-primary transition-all flex items-center justify-center gap-2"
+            >
+              <Icon name="add" size={16} strokeWidth={2.5} /> Add Step
+            </button>
+          )}
         </section>
 
         {/* Footer */}
@@ -419,9 +457,15 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
           <button onClick={onBack} className="flex items-center gap-2 text-sm text-on-surface-variant hover:text-primary transition-colors">
             <Icon name="arrow_back" size={16} /> Back to Recipes
           </button>
-          <button onClick={handleSave} disabled={saving} className="h-12 px-8 rounded-lg bg-primary text-on-primary text-sm font-bold hover:opacity-90 active:scale-95 transition-all shadow-sm">
-            {saving ? "Saving…" : saved ? "✓ Saved" : "Save Changes"}
-          </button>
+          {editing ? (
+            <button onClick={handleSave} disabled={saving} className="h-12 px-8 rounded-lg bg-primary text-on-primary text-sm font-bold hover:opacity-90 active:scale-95 transition-all shadow-sm">
+              {saving ? "Saving…" : "Save Changes"}
+            </button>
+          ) : (
+            <button onClick={() => setEditing(true)} className="h-12 px-8 rounded-lg bg-primary text-on-primary text-sm font-bold hover:opacity-90 active:scale-95 transition-all shadow-sm flex items-center justify-center gap-2">
+              <Icon name="edit" size={16} /> Edit Recipe
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -406,7 +406,7 @@ export default function RecipesList({ recipes, inventory, onAddRecipe, onViewRec
                 <img src={recipe.img} alt={recipe.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
                   <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 text-[#26170c] text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5">
-                    <Icon name="edit" size={12} /> Edit Recipe
+                    <Icon name="search" size={12} /> View Recipe
                   </span>
                 </div>
               </div>
@@ -439,7 +439,7 @@ export default function RecipesList({ recipes, inventory, onAddRecipe, onViewRec
                     onClick={() => onViewRecipe(recipe)}
                     className="flex items-center gap-1 px-3 h-7 rounded-lg bg-primary text-on-primary text-[11px] font-bold hover:opacity-90 active:scale-95 transition-all"
                   >
-                    <Icon name="edit" size={12} /> Edit
+                    <Icon name="search" size={12} /> View
                   </button>
                 </div>
               </div>
