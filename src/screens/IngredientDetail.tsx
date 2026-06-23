@@ -13,6 +13,8 @@ export default function IngredientDetail({ onBack }: Props) {
   const [measureTab, setMeasureTab] = useState<"mass" | "volume" | "count">("mass");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   const [name, setName] = useState("");
   const [sku, setSku] = useState("");
@@ -44,13 +46,18 @@ export default function IngredientDetail({ onBack }: Props) {
   const handleSave = async () => {
     if (!id) return;
     setSaving(true);
+    setSaved(false);
+    setSaveError("");
     let finalImg = img;
     if (imgFile) {
       try { finalImg = await uploadImage("ingredient-images", imgFile); setImg(finalImg); setImgFile(null); }
-      catch (e: any) { setSaving(false); return; }
+      catch (e: any) { setSaveError("Photo upload failed: " + e.message); setSaving(false); return; }
     }
-    await supabase.from("ingredients").update({ name, sku, img: finalImg, stock_value: stockValue, unit, status }).eq("id", id);
+    const { error } = await supabase.from("ingredients").update({ name, sku, img: finalImg, stock_value: stockValue, unit, status }).eq("id", id);
     setSaving(false);
+    if (error) { setSaveError(error.message); return; }
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
   };
 
   const handleAdjustStock = () => {
@@ -111,13 +118,14 @@ export default function IngredientDetail({ onBack }: Props) {
                 {name || "—"}
               </h1>
             </div>
-            <div className="flex gap-3">
+            <div className="flex items-center gap-3">
+              {saveError && <p className="text-xs text-error font-semibold">{saveError}</p>}
               <button onClick={handleAdjustStock} className="h-10 px-5 rounded-lg border border-outline text-on-surface font-semibold hover:bg-surface-container transition-colors flex items-center gap-2 text-sm">
                 <Icon name="scale" size={16} />
                 Adjust Stock
               </button>
-              <button onClick={handleSave} disabled={saving} className="h-10 px-6 rounded-lg bg-primary text-on-primary font-bold hover:opacity-90 transition-opacity text-sm disabled:opacity-50">
-                {saving ? "Saving…" : "Save Changes"}
+              <button onClick={handleSave} disabled={saving} className={`h-10 px-6 rounded-lg font-bold transition-all text-sm disabled:opacity-50 flex items-center gap-2 ${saved ? "bg-secondary text-white" : "bg-primary text-on-primary hover:opacity-90"}`}>
+                {saving ? "Saving…" : saved ? <><Icon name="check_circle" size={15} /> Saved!</> : "Save Changes"}
               </button>
             </div>
           </div>
