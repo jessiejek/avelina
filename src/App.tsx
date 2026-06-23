@@ -11,6 +11,7 @@ import RecipeBuilder from "./screens/RecipeBuilder.tsx";
 import BakeConfirmation from "./screens/BakeConfirmation.tsx";
 import BakeLog, { BakeEntry } from "./screens/BakeLog.tsx";
 import Stats from "./screens/Stats.tsx";
+import FinanceDashboard from "./screens/FinanceDashboard.tsx";
 import AdminOrders from "./screens/AdminOrders.tsx";
 import PublicHome from "./screens/PublicHome.tsx";
 import LoginPage from "./screens/LoginPage.tsx";
@@ -196,6 +197,7 @@ function AdminShell() {
     if (p.startsWith("/admin/recipes")) return "recipes";
     if (p.startsWith("/admin/orders")) return "orders";
     if (p.startsWith("/admin/bakelog")) return "bakelog";
+    if (p.startsWith("/admin/finance")) return "finance";
     if (p.startsWith("/admin/stats")) return "stats";
     return "inventory";
   })();
@@ -217,7 +219,7 @@ function AdminShell() {
     { id: "recipes", path: "/admin/recipes", icon: "menu_book", label: "Recipes" },
     { id: "orders", path: "/admin/orders", icon: "assignment", label: "Orders" },
     { id: "bakelog", path: "/admin/bakelog", icon: "history_edu", label: "Log" },
-    { id: "stats", path: "/admin/stats", icon: "query_stats", label: "Stats" },
+    { id: "finance", path: "/admin/finance", icon: "wallet", label: "Finance" },
   ];
 
   return (
@@ -269,6 +271,7 @@ function AdminShell() {
           } />
           <Route path="bakelog" element={<BakeLog entries={bakeLogs} />} />
           <Route path="stats" element={<Stats />} />
+          <Route path="finance" element={<FinanceDashboard />} />
         </Routes>
       </main>
 

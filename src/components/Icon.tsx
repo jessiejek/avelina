@@ -11,6 +11,7 @@ import {
   CalendarDays, ClipboardList, Activity, Hash, Weight,
   ShoppingBag, Lock, Facebook, Mail, Globe, BookMarked,
   Trash2, Pencil, Image, ImagePlus, LogOut, Croissant,
+  Wallet, Coins, ReceiptText, TrendingDown,
 } from "lucide-react";
 
 const map: Record<string, React.ComponentType<{ size?: number; className?: string; strokeWidth?: number }>> = {
@@ -88,6 +89,10 @@ const map: Record<string, React.ComponentType<{ size?: number; className?: strin
   add_photo_alternate: ImagePlus,
   logout: LogOut,
   bakery_dining: Croissant,
+  wallet: Wallet,
+  payments: Coins,
+  receipt_long: ReceiptText,
+  trending_down: TrendingDown,
 };
 
 interface Props {
