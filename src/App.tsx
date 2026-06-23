@@ -31,6 +31,7 @@ function mapIngredient(d: any): Ingredient {
     stock: `${d.stock_value} ${d.unit}`,
     stockValue: d.stock_value,
     unit: d.unit, status: d.status, icon: d.icon, img: d.img,
+    costPerUnit: d.cost_per_unit ?? 0,
   };
 }
 

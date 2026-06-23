@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Icon from "../components/Icon.tsx";
 import { supabase, uploadImage, validateImageFile } from "../lib/supabase.ts";
+import { peso } from "../lib/money.ts";
 
 interface Props {
   onBack: () => void;
@@ -40,6 +41,7 @@ export default function IngredientDetail({ onBack }: Props) {
   const imgInputRef = useRef<HTMLInputElement>(null);
   const [shelfLife, setShelfLife] = useState<number | "">("");
   const [lowThreshold, setLowThreshold] = useState<number | "">("");
+  const [costPerUnit, setCostPerUnit] = useState<number | "">("");
   const [notes, setNotes] = useState("");
 
   useEffect(() => {
@@ -55,6 +57,7 @@ export default function IngredientDetail({ onBack }: Props) {
         setImg(data.img ?? null);
         setShelfLife(data.shelf_life ?? "");
         setLowThreshold(data.low_threshold ?? "");
+        setCostPerUnit(data.cost_per_unit ?? "");
         setNotes(data.notes ?? "");
       }
       setLoading(false);
@@ -71,7 +74,7 @@ export default function IngredientDetail({ onBack }: Props) {
       try { finalImg = await uploadImage("ingredient-images", imgFile); setImg(finalImg); setImgFile(null); }
       catch (e: any) { setSaveError("Photo upload failed: " + e.message); setSaving(false); return; }
     }
-    const { error } = await supabase.from("ingredients").update({ name, sku, img: finalImg, stock_value: stockValue === "" ? 0 : stockValue, unit, status, shelf_life: shelfLife === "" ? null : shelfLife, low_threshold: lowThreshold === "" ? null : lowThreshold, notes: notes.trim() || null }).eq("id", id);
+    const { error } = await supabase.from("ingredients").update({ name, sku, img: finalImg, stock_value: stockValue === "" ? 0 : stockValue, unit, status, shelf_life: shelfLife === "" ? null : shelfLife, low_threshold: lowThreshold === "" ? null : lowThreshold, cost_per_unit: costPerUnit === "" ? 0 : costPerUnit, notes: notes.trim() || null }).eq("id", id);
     setSaving(false);
     if (error) { setSaveError(error.message); return; }
     setSaved(true);
@@ -243,6 +246,30 @@ export default function IngredientDetail({ onBack }: Props) {
                         <div className="w-20 shrink-0 bg-surface-container-high border border-l-0 border-outline-variant/40 px-3 rounded-r-lg flex items-center justify-center text-xs font-bold text-on-surface-variant font-mono">
                           {unit}
                         </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                    <div>
+                      <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">Purchase Cost</label>
+                      <div className="flex">
+                        <div className="w-10 shrink-0 bg-surface-container-high border border-r-0 border-outline-variant/40 rounded-l-lg flex items-center justify-center text-sm font-bold text-on-surface-variant">₱</div>
+                        <input
+                          className="flex-1 min-w-0 bg-surface-bright border border-outline-variant/40 px-4 py-2.5 text-base font-bold text-primary focus:outline-none font-mono"
+                          type="number" min={0} step="0.01" value={costPerUnit}
+                          onChange={(e) => setCostPerUnit(e.target.value === "" ? "" : Number(e.target.value))}
+                          onFocus={(e) => e.target.select()}
+                          placeholder="0.00"
+                        />
+                        <div className="w-24 shrink-0 bg-surface-container-high border border-l-0 border-outline-variant/40 px-2 rounded-r-lg flex items-center justify-center text-[11px] font-bold text-on-surface-variant font-mono">
+                          per {unit}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-col justify-end">
+                      <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">Stock Value</label>
+                      <div className="h-[46px] flex items-center px-4 rounded-lg bg-surface-container border border-outline-variant/30 text-base font-bold text-primary font-mono">
+                        {peso((typeof costPerUnit === "number" ? costPerUnit : 0) * (typeof stockValue === "number" ? stockValue : 0))}
                       </div>
                     </div>
                   </div>

@@ -4,6 +4,7 @@ import { Recipe } from "../data/recipes.ts";
 import { Ingredient } from "../data/inventory.ts";
 import { BakeEntry } from "./BakeLog.tsx";
 import { supabase } from "../lib/supabase.ts";
+import { peso } from "../lib/money.ts";
 
 interface Props {
   onBack: () => void;
@@ -68,6 +69,18 @@ export default function BakeConfirmation({ onBack, onLogBake, recipe, inventory,
   const hasShortage = reconciliation.some((r) => r.status !== "ready");
   const batchId = `#SKU-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`;
 
+  // Cost of one batch = each ingredient consumed × its purchase cost.
+  const batchCost = recipe.ingredients.reduce((sum, ri) => {
+    const inv = inventory.find((i) => i.id === ri.ingredientId);
+    const displayUnit = inv?.unit ?? ri.unit;
+    const consumed = normalizeQty(parseFloat(ri.qty) || 0, ri.unit, displayUnit);
+    return sum + consumed * (inv?.costPerUnit ?? 0);
+  }, 0);
+  const yieldNum = parseFloat(recipe.yield) || 0;
+  const unitCost = yieldNum > 0 ? batchCost / yieldNum : 0;
+  const unitPrice = recipe.price ?? 0;
+  const unitMargin = unitPrice - unitCost;
+
   const handleInitiateBake = async () => {
     const now = new Date();
     const entry: BakeEntry = {
@@ -88,8 +101,21 @@ export default function BakeConfirmation({ onBack, onLogBake, recipe, inventory,
       started_at: now.toISOString(), qty: entry.qty,
       status: entry.status, img: entry.img,
       order_id: entry.order_id,
+      cost: batchCost,
     });
     if (error) console.error("Failed to save bake entry:", error.message);
+
+    // Consume raw ingredients from inventory (a batch uses one recipe's worth).
+    for (const ri of recipe.ingredients) {
+      const inv = inventory.find((i) => i.id === ri.ingredientId);
+      if (!inv) continue;
+      const consumed = normalizeQty(parseFloat(ri.qty) || 0, ri.unit, inv.unit);
+      const newStock = Math.max(0, (inv.stockValue ?? 0) - consumed);
+      const { error: invErr } = await supabase.from("ingredients")
+        .update({ stock_value: newStock, status: newStock <= 0 ? "critical" : inv.status })
+        .eq("id", inv.id);
+      if (invErr) console.error("Failed to deduct ingredient:", invErr.message);
+    }
 
     // If this bake came from an order, flip that order to "baking"
     if (orderId) {
@@ -206,6 +232,36 @@ export default function BakeConfirmation({ onBack, onLogBake, recipe, inventory,
               </tbody>
             </table>
           </div>
+        </section>
+
+        {/* Cost & margin */}
+        <section className="space-y-4">
+          <h3 className="text-primary font-semibold" style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 22 }}>Cost & Margin</h3>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/20 p-4">
+              <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider mb-1">Batch Cost (COGS)</p>
+              <p className="font-bold text-primary text-lg font-mono">{peso(batchCost)}</p>
+              <p className="text-[10px] text-on-surface-variant mt-0.5">for {recipe.yield || "1 batch"}</p>
+            </div>
+            <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/20 p-4">
+              <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider mb-1">Cost / Unit</p>
+              <p className="font-bold text-primary text-lg font-mono">{peso(unitCost)}</p>
+            </div>
+            <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/20 p-4">
+              <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider mb-1">Sells At / Unit</p>
+              <p className="font-bold text-primary text-lg font-mono">{unitPrice ? peso(unitPrice) : "—"}</p>
+            </div>
+            <div className={`rounded-xl border p-4 ${unitMargin >= 0 ? "bg-secondary-container border-secondary/20" : "bg-error-container border-error/20"}`}>
+              <p className={`text-[10px] font-semibold uppercase tracking-wider mb-1 ${unitMargin >= 0 ? "text-on-secondary-container" : "text-on-error-container"}`}>Margin / Unit</p>
+              <p className={`font-bold text-lg font-mono ${unitMargin >= 0 ? "text-on-secondary-container" : "text-on-error-container"}`}>{unitPrice ? peso(unitMargin) : "—"}</p>
+              {unitPrice > 0 && unitCost > 0 && (
+                <p className={`text-[10px] mt-0.5 ${unitMargin >= 0 ? "text-on-secondary-container/70" : "text-on-error-container/70"}`}>{Math.round((unitMargin / unitPrice) * 100)}% margin</p>
+              )}
+            </div>
+          </div>
+          {unitPrice === 0 && (
+            <p className="text-xs text-on-surface-variant flex items-center gap-1.5"><Icon name="info" size={13} /> Set a selling price on this recipe to see margin.</p>
+          )}
         </section>
 
         {/* Footer — single clear CTA */}

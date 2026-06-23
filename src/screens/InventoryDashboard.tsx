@@ -66,12 +66,13 @@ interface NewIngForm {
   name: string;
   sku: string;
   stockValue: string;
+  cost: string;
   unit: string;
   status: "optimal" | "low" | "critical";
   icon: string;
 }
 
-const emptyForm: NewIngForm = { name: "", sku: "", stockValue: "", unit: "kg", status: "optimal", icon: "wheat" };
+const emptyForm: NewIngForm = { name: "", sku: "", stockValue: "", cost: "", unit: "kg", status: "optimal", icon: "wheat" };
 
 export default function InventoryDashboard({ ingredients, onAddIngredient, onViewIngredient, onDeleteIngredient }: Props) {
   const [filter, setFilter] = useState("all");
@@ -138,6 +139,7 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
       id: newIng.id, name: newIng.name, sku: newIng.sku,
       stock_value: newIng.stockValue, unit: newIng.unit,
       status: newIng.status, icon: newIng.icon, img: newIng.img,
+      cost_per_unit: form.cost === "" ? 0 : parseFloat(form.cost) || 0,
     });
     if (error) { setAddError(error.message); setAdding(false); return; }
     onAddIngredient(newIng);
@@ -393,6 +395,19 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
                   >
                     <option>kg</option><option>g</option><option>L</option><option>ml</option><option>units</option><option>bags</option>
                   </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">Purchase Cost (₱ per {form.unit})</label>
+                <div className="flex items-center gap-1 bg-surface-bright border border-outline-variant rounded-lg px-3">
+                  <span className="text-sm font-bold text-on-surface-variant">₱</span>
+                  <input
+                    className="flex-1 min-w-0 bg-transparent py-2.5 text-sm font-bold text-primary focus:outline-none font-mono"
+                    inputMode="decimal" placeholder="0.00"
+                    value={form.cost}
+                    onChange={(e) => setForm((f) => ({ ...f, cost: e.target.value.replace(/[^\d.]/g, "") }))}
+                  />
                 </div>
               </div>
 

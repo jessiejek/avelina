@@ -8,6 +8,7 @@ export interface Ingredient {
   status: "optimal" | "low" | "critical";
   icon: string;
   img: string;
+  costPerUnit?: number;
 }
 
 export const DEFAULT_INGREDIENTS: Ingredient[] = [

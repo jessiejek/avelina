@@ -32,6 +32,7 @@ export default function StockAdjustment({ onBack }: Props) {
   const [unit, setUnit] = useState(ingredient?.unit ?? "kg");
   const [reason, setReason] = useState(REASONS[0]);
   const [notes, setNotes] = useState("");
+  const [cost, setCost] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
@@ -75,9 +76,25 @@ export default function StockAdjustment({ onBack }: Props) {
 
     if (adjErr) { setError(adjErr.message); setSaving(false); return; }
 
+    const costNum = parseFloat(cost) || 0;
+    const ingUpdate: Record<string, any> = { stock_value: newStock, status: newStock <= 0 ? "critical" : newStock < 5 ? "low" : "optimal" };
+    // On a purchase with a cost, log the expense and refresh the unit cost.
+    if (mode === "add" && costNum > 0) {
+      await supabase.from("expenses").insert({
+        type: "ingredient_purchase",
+        amount: costNum,
+        ingredient_id: ingredient.id,
+        qty: adjKg,
+        unit: ingredient.unit,
+        note: reason,
+        created_by: "Avelina",
+      });
+      if (adjKg > 0) ingUpdate.cost_per_unit = costNum / adjKg;
+    }
+
     const { error: updErr } = await supabase
       .from("ingredients")
-      .update({ stock_value: newStock, status: newStock <= 0 ? "critical" : newStock < 5 ? "low" : "optimal" })
+      .update(ingUpdate)
       .eq("id", ingredient.id);
 
     if (updErr) { setError(updErr.message); setSaving(false); return; }
@@ -85,6 +102,7 @@ export default function StockAdjustment({ onBack }: Props) {
     setCurrentStock(newStock);
     setRecentHistory((prev) => [{ created_at: new Date().toISOString(), delta, reason }, ...prev.slice(0, 4)]);
     setAmount(0);
+    setCost("");
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
@@ -204,6 +222,25 @@ export default function StockAdjustment({ onBack }: Props) {
                 <p className="text-primary font-bold font-mono" style={{ fontSize: 36 }}>{projected.toFixed(2)} <span className="text-lg">{ingredient?.unit ?? "kg"}</span></p>
               </div>
             </div>
+
+            {mode === "add" && (
+              <div className="mt-5 flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-outline uppercase tracking-wider">Purchase Cost (optional)</label>
+                <div className="flex items-center gap-1 bg-surface-bright border border-outline-variant/40 rounded-xl px-4 focus-within:border-primary">
+                  <span className="text-base font-bold text-on-surface-variant">₱</span>
+                  <input
+                    className="flex-1 min-w-0 bg-transparent py-3 text-base font-bold text-primary font-mono focus:outline-none"
+                    inputMode="decimal" placeholder="0.00"
+                    value={cost}
+                    onChange={(e) => setCost(e.target.value.replace(/[^\d.]/g, ""))}
+                  />
+                  <span className="text-xs text-outline whitespace-nowrap">total for this shipment</span>
+                </div>
+                {parseFloat(cost) > 0 && amount > 0 && (
+                  <p className="text-[11px] text-on-surface-variant">≈ ₱{(parseFloat(cost) / adjKg).toFixed(2)} per {ingredient?.unit ?? "kg"} · logged to expenses</p>
+                )}
+              </div>
+            )}
 
             <div className="mt-5 flex flex-col gap-1.5">
               <label className="text-xs font-semibold text-outline uppercase tracking-wider">Internal Notes</label>
