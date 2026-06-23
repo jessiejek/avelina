@@ -171,8 +171,52 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto rounded-xl border border-outline-variant/10 bg-surface-container-lowest">
-                <table className="w-full text-left min-w-[480px]">
+              {/* Mobile: cards */}
+              <div className="lg:hidden space-y-2">
+                {rows.map((row, i) => {
+                  const ing = getIngredient(row.ingredientId);
+                  return (
+                    <div key={i} className="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-3 space-y-2">
+                      <div className="flex items-center gap-2">
+                        {ing?.img && <div className="w-7 h-7 rounded-md overflow-hidden shrink-0"><img src={ing.img} alt={ing.name} className="w-full h-full object-cover" /></div>}
+                        <select
+                          className="flex-1 bg-surface-container border border-outline-variant/30 rounded-lg px-3 py-2 text-sm font-semibold text-primary focus:outline-none min-w-0"
+                          value={row.ingredientId}
+                          onChange={(e) => updateRow(i, "ingredientId", e.target.value)}
+                        >
+                          {inventory.map((inv) => <option key={inv.id} value={inv.id}>{inv.name}</option>)}
+                        </select>
+                        <button onClick={() => removeRow(i)} className="w-7 h-7 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-error hover:bg-error-container/30 transition-all shrink-0">
+                          <Icon name="close" size={14} />
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1">
+                          <label className="text-[10px] font-semibold text-outline uppercase tracking-wider">Qty</label>
+                          <input className="w-full bg-surface-container px-3 py-1.5 rounded-lg text-sm text-center border border-outline-variant/30 focus:outline-none font-mono mt-0.5" value={row.qty} onChange={(e) => updateRow(i, "qty", e.target.value)} />
+                        </div>
+                        <div className="flex-1">
+                          <label className="text-[10px] font-semibold text-outline uppercase tracking-wider">Unit</label>
+                          <select className="w-full bg-surface-container px-3 py-1.5 rounded-lg text-sm font-bold border border-outline-variant/30 focus:outline-none font-mono mt-0.5" value={row.unit} onChange={(e) => updateRow(i, "unit", e.target.value)}>
+                            <option>kg</option><option>g</option><option>L</option><option>ml</option><option>units</option>
+                          </select>
+                        </div>
+                        {ing && (
+                          <div className="shrink-0 pt-4">
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${statusStyle(ing.status)}`}>
+                              {ing.status === "optimal" ? "OK" : ing.status === "low" ? "Low" : "Out"}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Desktop: table */}
+              <div className="hidden lg:block overflow-x-auto rounded-xl border border-outline-variant/10 bg-surface-container-lowest">
+                <table className="w-full text-left">
                   <thead>
                     <tr className="bg-surface-container-low border-b border-outline-variant/20">
                       <th className="px-4 py-3 text-xs font-semibold text-on-surface-variant uppercase tracking-widest">Ingredient</th>
@@ -189,12 +233,8 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
                         <tr key={i} className="hover:bg-surface-container-lowest/50 transition-colors">
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
-                              {ing && <div className="w-7 h-7 rounded-md overflow-hidden shrink-0"><img src={ing.img} alt={ing.name} className="w-full h-full object-cover" /></div>}
-                              <select
-                                className="flex-1 bg-transparent border-none focus:outline-none text-sm font-semibold text-primary min-w-0"
-                                value={row.ingredientId}
-                                onChange={(e) => updateRow(i, "ingredientId", e.target.value)}
-                              >
+                              {ing?.img && <div className="w-7 h-7 rounded-md overflow-hidden shrink-0"><img src={ing.img} alt={ing.name} className="w-full h-full object-cover" /></div>}
+                              <select className="flex-1 bg-transparent border-none focus:outline-none text-sm font-semibold text-primary min-w-0" value={row.ingredientId} onChange={(e) => updateRow(i, "ingredientId", e.target.value)}>
                                 {inventory.map((inv) => <option key={inv.id} value={inv.id}>{inv.name}</option>)}
                               </select>
                             </div>
@@ -225,6 +265,7 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
                   </tbody>
                 </table>
               </div>
+
               <button onClick={addRow} className="w-full py-3 rounded-xl border-2 border-dashed border-outline-variant/40 text-xs font-semibold text-on-surface-variant hover:border-primary hover:text-primary transition-all flex items-center justify-center gap-2">
                 <Icon name="add" size={16} strokeWidth={2.5} /> Add Ingredient Row
               </button>
