@@ -7,6 +7,20 @@ interface Props {
   onBack: () => void;
 }
 
+type Measure = "mass" | "volume" | "count";
+
+const UNIT_GROUPS: Record<Measure, string[]> = {
+  mass: ["g", "kg"],
+  volume: ["ml", "L"],
+  count: ["units", "dozen", "pcs"],
+};
+
+function measureForUnit(u: string): Measure {
+  if (UNIT_GROUPS.volume.includes(u)) return "volume";
+  if (UNIT_GROUPS.count.includes(u)) return "count";
+  return "mass";
+}
+
 export default function IngredientDetail({ onBack }: Props) {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -36,6 +50,7 @@ export default function IngredientDetail({ onBack }: Props) {
         setSku(data.sku ?? "");
         setStockValue(data.stock_value ?? "");
         setUnit(data.unit ?? "kg");
+        setMeasureTab(measureForUnit(data.unit ?? "kg"));
         setStatus(data.status ?? "optimal");
         setImg(data.img ?? null);
         setShelfLife(data.shelf_life ?? "");
@@ -184,13 +199,28 @@ export default function IngredientDetail({ onBack }: Props) {
                       {(["mass", "volume", "count"] as const).map((tab) => (
                         <button
                           key={tab}
-                          onClick={() => setMeasureTab(tab)}
+                          onClick={() => {
+                            setMeasureTab(tab);
+                            if (!UNIT_GROUPS[tab].includes(unit)) setUnit(UNIT_GROUPS[tab][0]);
+                          }}
                           className={`flex-1 py-2 text-xs font-semibold uppercase rounded transition-all ${measureTab === tab ? "bg-surface-container-lowest text-primary shadow-sm" : "text-outline hover:text-on-surface"}`}
                         >
                           {tab === "mass" ? "Mass (Weight)" : tab}
                         </button>
                       ))}
                     </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">Unit of Measure</label>
+                    <select
+                      className="w-full bg-surface-bright border border-outline-variant/40 px-4 py-2.5 rounded-lg text-sm font-bold text-primary focus:outline-none focus:border-primary/50 font-mono"
+                      value={unit}
+                      onChange={(e) => setUnit(e.target.value)}
+                    >
+                      {(UNIT_GROUPS[measureTab].includes(unit) ? UNIT_GROUPS[measureTab] : [unit, ...UNIT_GROUPS[measureTab]]).map((u) => (
+                        <option key={u} value={u}>{u}</option>
+                      ))}
+                    </select>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
@@ -202,7 +232,7 @@ export default function IngredientDetail({ onBack }: Props) {
                           onChange={(e) => setStockValue(e.target.value === "" ? "" : Number(e.target.value))}
                           onFocus={(e) => e.target.select()}
                         />
-                        <div className="w-20 bg-surface-container-high border border-l-0 border-outline-variant/40 px-3 rounded-r-lg flex items-center text-xs font-bold text-on-surface-variant font-mono">
+                        <div className="w-20 bg-surface-container-high border border-l-0 border-outline-variant/40 px-3 rounded-r-lg flex items-center justify-center text-xs font-bold text-on-surface-variant font-mono">
                           {unit}
                         </div>
                       </div>
@@ -216,7 +246,7 @@ export default function IngredientDetail({ onBack }: Props) {
                           onChange={(e) => setLowThreshold(e.target.value === "" ? "" : Number(e.target.value))}
                           onFocus={(e) => e.target.select()}
                         />
-                        <div className="w-20 bg-surface-container-high border border-l-0 border-outline-variant/40 px-3 rounded-r-lg flex items-center text-xs font-bold text-on-surface-variant font-mono">
+                        <div className="w-20 bg-surface-container-high border border-l-0 border-outline-variant/40 px-3 rounded-r-lg flex items-center justify-center text-xs font-bold text-on-surface-variant font-mono">
                           {unit}
                         </div>
                       </div>
