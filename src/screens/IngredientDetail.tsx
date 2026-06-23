@@ -18,7 +18,7 @@ export default function IngredientDetail({ onBack }: Props) {
 
   const [name, setName] = useState("");
   const [sku, setSku] = useState("");
-  const [stockValue, setStockValue] = useState(0);
+  const [stockValue, setStockValue] = useState<number | "">("");
   const [unit, setUnit] = useState("kg");
   const [status, setStatus] = useState<"optimal" | "low" | "critical">("optimal");
   const [img, setImg] = useState<string | null>(null);
@@ -34,7 +34,7 @@ export default function IngredientDetail({ onBack }: Props) {
       if (data) {
         setName(data.name ?? "");
         setSku(data.sku ?? "");
-        setStockValue(data.stock_value ?? 0);
+        setStockValue(data.stock_value ?? "");
         setUnit(data.unit ?? "kg");
         setStatus(data.status ?? "optimal");
         setImg(data.img ?? null);
@@ -53,7 +53,7 @@ export default function IngredientDetail({ onBack }: Props) {
       try { finalImg = await uploadImage("ingredient-images", imgFile); setImg(finalImg); setImgFile(null); }
       catch (e: any) { setSaveError("Photo upload failed: " + e.message); setSaving(false); return; }
     }
-    const { error } = await supabase.from("ingredients").update({ name, sku, img: finalImg, stock_value: stockValue, unit, status }).eq("id", id);
+    const { error } = await supabase.from("ingredients").update({ name, sku, img: finalImg, stock_value: stockValue === "" ? 0 : stockValue, unit, status }).eq("id", id);
     setSaving(false);
     if (error) { setSaveError(error.message); return; }
     setSaved(true);
@@ -188,7 +188,8 @@ export default function IngredientDetail({ onBack }: Props) {
                         <input
                           className="flex-1 bg-surface-bright border border-outline-variant/40 px-4 py-2.5 rounded-l-lg text-base font-bold text-primary focus:outline-none font-mono"
                           type="number" value={stockValue}
-                          onChange={(e) => setStockValue(Number(e.target.value))}
+                          onChange={(e) => setStockValue(e.target.value === "" ? "" : Number(e.target.value))}
+                          onFocus={(e) => e.target.select()}
                         />
                         <div className="w-20 bg-surface-container-high border border-l-0 border-outline-variant/40 px-3 rounded-r-lg flex items-center text-xs font-bold text-on-surface-variant font-mono">
                           {unit}
@@ -266,7 +267,7 @@ export default function IngredientDetail({ onBack }: Props) {
                   />
                 </div>
                 <p className={`text-xs opacity-80 ${status === "optimal" ? "text-on-secondary-container" : status === "low" ? "text-on-tertiary-fixed-variant" : "text-on-error-container"}`}>
-                  Current: <span className="font-bold font-mono">{stockValue} {unit}</span>
+                  Current: <span className="font-bold font-mono">{stockValue === "" ? 0 : stockValue} {unit}</span>
                 </p>
               </div>
 
