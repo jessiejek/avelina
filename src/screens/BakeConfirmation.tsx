@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Icon from "../components/Icon.tsx";
 import { Recipe } from "../data/recipes.ts";
 import { Ingredient } from "../data/inventory.ts";
@@ -33,6 +33,20 @@ function fmtQty(value: number, unit: string): string {
 }
 
 export default function BakeConfirmation({ onBack, onLogBake, recipe, inventory }: Props) {
+  const [baker, setBaker] = useState("");
+
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return;
+      const { data } = await supabase.from("users").select("name").eq("id", user.id).single();
+      setBaker(data?.name || user.user_metadata?.name || user.email?.split("@")[0] || "");
+    });
+  }, []);
+
+  const bakerInitials = baker
+    ? baker.trim().split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase()
+    : "—";
+
   const reconciliation = recipe.ingredients.map((ri) => {
     const inv = inventory.find((i) => i.id === ri.ingredientId);
     const reqRaw = parseFloat(ri.qty);
@@ -61,7 +75,7 @@ export default function BakeConfirmation({ onBack, onLogBake, recipe, inventory 
       product: recipe.name,
       img: recipe.img,
       batchId,
-      baker: "Avelina",
+      baker: baker || "Unknown",
       time: now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }),
       qty: recipe.yield,
       status: "in_progress",
@@ -90,8 +104,8 @@ export default function BakeConfirmation({ onBack, onLogBake, recipe, inventory 
           <button className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-surface-container text-on-surface-variant transition-colors">
             <Icon name="notifications" size={18} />
           </button>
-          <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-            <span className="text-[11px] font-bold text-on-primary">AV</span>
+          <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center" title={baker}>
+            <span className="text-[11px] font-bold text-on-primary">{bakerInitials}</span>
           </div>
         </div>
       </header>
@@ -120,9 +134,9 @@ export default function BakeConfirmation({ onBack, onLogBake, recipe, inventory 
             </div>
             <div className="grid grid-cols-3 gap-4 py-4 border-y border-outline-variant/10">
               {[
-                { label: "Total Time", value: recipe.time },
-                { label: "Oven Temp", value: "245°C" },
-                { label: "Planned Yield", value: recipe.yield },
+                { label: "Total Time", value: recipe.time || "—" },
+                { label: "Planned Yield", value: recipe.yield || "—" },
+                { label: "Difficulty", value: recipe.difficulty ? recipe.difficulty.charAt(0).toUpperCase() + recipe.difficulty.slice(1) : "—" },
               ].map((m) => (
                 <div key={m.label}>
                   <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider mb-1">{m.label}</p>
@@ -186,12 +200,12 @@ export default function BakeConfirmation({ onBack, onLogBake, recipe, inventory 
 
         {/* Footer — single clear CTA */}
         <footer className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-surface-container-low p-4 lg:p-6 rounded-xl border border-outline-variant/10">
-          <div className="flex items-center gap-4">
-            <div className="flex -space-x-2">
-              <div className="w-9 h-9 rounded-full border-2 border-surface-bright bg-primary-container flex items-center justify-center text-on-primary-fixed font-bold text-xs">JS</div>
-              <div className="w-9 h-9 rounded-full border-2 border-surface-bright bg-secondary-container flex items-center justify-center text-on-secondary-container font-bold text-xs">AK</div>
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full border-2 border-surface-bright bg-primary flex items-center justify-center text-on-primary font-bold text-xs">{bakerInitials}</div>
+            <div>
+              <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider">Baker</p>
+              <p className="text-sm font-semibold text-primary">{baker || "Loading…"}</p>
             </div>
-            <p className="text-sm text-on-surface-variant">2 bakers assigned</p>
           </div>
           <div className="flex gap-3">
             <button onClick={onBack} className="flex-1 sm:flex-none h-12 px-6 border border-outline text-primary rounded-lg font-semibold text-sm hover:bg-surface-container transition-colors">
