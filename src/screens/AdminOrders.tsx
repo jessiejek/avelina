@@ -70,13 +70,42 @@ export default function AdminOrders() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | OrderStatus>("all");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState("");
 
   const fetchOrders = async () => {
-    const { data } = await supabase
+    setLoadError("");
+    // Try the embedded customer + items query first.
+    const { data, error } = await supabase
       .from("orders")
       .select(SELECT)
       .order("placed_at", { ascending: false });
-    if (data) setOrders(data.map(mapOrder));
+
+    if (!error && data) {
+      setOrders(data.map(mapOrder));
+      setLoading(false);
+      return;
+    }
+
+    // Fallback: the users embed may be failing (missing FK or RLS on users).
+    // Fetch orders + items without the users join, then attach customers separately.
+    const { data: bare, error: bareErr } = await supabase
+      .from("orders")
+      .select("*, order_items(qty, pickup_date, recipes(name, img))")
+      .order("placed_at", { ascending: false });
+
+    if (bareErr || !bare) {
+      setLoadError((error?.message || bareErr?.message || "Failed to load orders") + " — check RLS policies on the orders table.");
+      setLoading(false);
+      return;
+    }
+
+    const userIds = Array.from(new Set(bare.map((o: any) => o.user_id).filter(Boolean)));
+    const usersById: Record<string, any> = {};
+    if (userIds.length > 0) {
+      const { data: users } = await supabase.from("users").select("id, name, phone, address").in("id", userIds);
+      for (const u of users || []) usersById[u.id] = u;
+    }
+    setOrders(bare.map((o: any) => mapOrder({ ...o, users: usersById[o.user_id] })));
     setLoading(false);
   };
 
@@ -166,6 +195,16 @@ export default function AdminOrders() {
             </button>
           ))}
         </div>
+
+        {loadError && (
+          <div className="bg-error-container text-on-error-container p-4 rounded-xl flex items-start gap-3 border border-error/20">
+            <Icon name="warning" size={20} className="shrink-0 mt-0.5" />
+            <div className="min-w-0">
+              <p className="font-semibold text-sm">Could not load orders</p>
+              <p className="text-xs mt-0.5 opacity-80 break-words font-mono">{loadError}</p>
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <div className="py-24 text-center text-on-surface-variant text-sm">Loading orders…</div>
