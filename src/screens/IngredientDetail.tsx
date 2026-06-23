@@ -30,6 +30,11 @@ export default function IngredientDetail({ onBack }: Props) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [editing, setEditing] = useState(false);
+
+  // Read-only styling: when disabled, drop the box so it reads as plain text.
+  const ro = "disabled:border-transparent disabled:bg-transparent disabled:cursor-default";
+  const roSelect = ro + " disabled:appearance-none";
 
   const [name, setName] = useState("");
   const [sku, setSku] = useState("");
@@ -87,6 +92,7 @@ export default function IngredientDetail({ onBack }: Props) {
     setSaving(false);
     if (error) { setSaveError(error.message); return; }
     setSaved(true);
+    setEditing(false);
     setTimeout(() => setSaved(false), 2500);
   };
 
@@ -150,13 +156,25 @@ export default function IngredientDetail({ onBack }: Props) {
             </div>
             <div className="flex items-center gap-3">
               {saveError && <p className="text-xs text-error font-semibold">{saveError}</p>}
+              {saved && !editing && <p className="text-xs text-secondary font-semibold flex items-center gap-1"><Icon name="check_circle" size={13} /> Saved</p>}
               <button onClick={handleAdjustStock} className="h-10 px-5 rounded-lg border border-outline text-on-surface font-semibold hover:bg-surface-container transition-colors flex items-center gap-2 text-sm">
                 <Icon name="scale" size={16} />
                 Adjust Stock
               </button>
-              <button onClick={handleSave} disabled={saving} className={`h-10 px-6 rounded-lg font-bold transition-all text-sm disabled:opacity-50 flex items-center gap-2 ${saved ? "bg-secondary text-white" : "bg-primary text-on-primary hover:opacity-90"}`}>
-                {saving ? "Saving…" : saved ? <><Icon name="check_circle" size={15} /> Saved!</> : "Save Changes"}
-              </button>
+              {editing ? (
+                <>
+                  <button onClick={() => setEditing(false)} className="h-10 px-5 rounded-lg border border-outline text-primary font-semibold hover:bg-surface-container transition-colors text-sm">
+                    Cancel
+                  </button>
+                  <button onClick={handleSave} disabled={saving} className="h-10 px-6 rounded-lg font-bold transition-all text-sm disabled:opacity-50 bg-primary text-on-primary hover:opacity-90">
+                    {saving ? "Saving…" : "Save Changes"}
+                  </button>
+                </>
+              ) : (
+                <button onClick={() => setEditing(true)} className="h-10 px-6 rounded-lg font-bold transition-all text-sm bg-primary text-on-primary hover:opacity-90 flex items-center gap-2">
+                  <Icon name="edit" size={15} /> Edit
+                </button>
+              )}
             </div>
           </div>
 
@@ -170,7 +188,8 @@ export default function IngredientDetail({ onBack }: Props) {
                     <div className="col-span-2">
                       <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">Ingredient Name</label>
                       <input
-                        className="w-full bg-surface-bright border border-outline-variant/40 px-4 py-2.5 rounded-lg text-sm font-semibold text-primary focus:outline-none focus:border-primary/50"
+                        disabled={!editing}
+                        className={`w-full bg-surface-bright border border-outline-variant/40 px-4 py-2.5 rounded-lg text-sm font-semibold text-primary focus:outline-none focus:border-primary/50 ${ro}`}
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                       />
@@ -178,7 +197,8 @@ export default function IngredientDetail({ onBack }: Props) {
                     <div>
                       <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">SKU / Reference</label>
                       <input
-                        className="w-full bg-surface-bright border border-outline-variant/40 px-4 py-2.5 rounded-lg text-sm text-on-surface-variant focus:outline-none font-mono"
+                        disabled={!editing}
+                        className={`w-full bg-surface-bright border border-outline-variant/40 px-4 py-2.5 rounded-lg text-sm text-on-surface-variant focus:outline-none font-mono ${ro}`}
                         value={sku}
                         onChange={(e) => setSku(e.target.value)}
                       />
@@ -187,7 +207,8 @@ export default function IngredientDetail({ onBack }: Props) {
                       <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">Shelf Life</label>
                       <div className="flex">
                         <input
-                          className="flex-1 bg-surface-bright border border-outline-variant/40 px-4 py-2.5 rounded-l-lg text-sm font-bold text-primary focus:outline-none font-mono"
+                          disabled={!editing}
+                          className={`flex-1 bg-surface-bright border border-outline-variant/40 px-4 py-2.5 rounded-l-lg text-sm font-bold text-primary focus:outline-none font-mono ${ro}`}
                           type="number" min={0} value={shelfLife}
                           onChange={(e) => setShelfLife(e.target.value === "" ? "" : Number(e.target.value))}
                           onFocus={(e) => e.target.select()}
@@ -211,11 +232,12 @@ export default function IngredientDetail({ onBack }: Props) {
                       {(["mass", "volume", "count"] as const).map((tab) => (
                         <button
                           key={tab}
+                          disabled={!editing}
                           onClick={() => {
                             setMeasureTab(tab);
                             if (!UNIT_GROUPS[tab].includes(unit)) setUnit(UNIT_GROUPS[tab][0]);
                           }}
-                          className={`flex-1 py-2 text-xs font-semibold uppercase rounded transition-all ${measureTab === tab ? "bg-surface-container-lowest text-primary shadow-sm" : "text-outline hover:text-on-surface"}`}
+                          className={`flex-1 py-2 text-xs font-semibold uppercase rounded transition-all disabled:cursor-default ${measureTab === tab ? "bg-surface-container-lowest text-primary shadow-sm" : "text-outline hover:text-on-surface disabled:hover:text-outline"}`}
                         >
                           {tab === "mass" ? "Mass (Weight)" : tab}
                         </button>
@@ -233,7 +255,8 @@ export default function IngredientDetail({ onBack }: Props) {
                           {stockValue === "" ? 0 : stockValue}
                         </div>
                         <select
-                          className="w-20 shrink-0 bg-surface-container-high border border-l-0 border-outline-variant/40 px-2 rounded-r-lg text-xs font-bold text-primary focus:outline-none font-mono cursor-pointer"
+                          disabled={!editing}
+                          className="w-20 shrink-0 bg-surface-container-high border border-l-0 border-outline-variant/40 px-2 rounded-r-lg text-xs font-bold text-primary focus:outline-none font-mono cursor-pointer disabled:cursor-default disabled:appearance-none"
                           value={unit}
                           onChange={(e) => setUnit(e.target.value)}
                         >
@@ -247,7 +270,8 @@ export default function IngredientDetail({ onBack }: Props) {
                       <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">Low Stock Warning</label>
                       <div className="flex">
                         <input
-                          className="flex-1 min-w-0 bg-surface-bright border border-outline-variant/40 px-4 py-2.5 rounded-l-lg text-base font-bold text-on-tertiary-container focus:outline-none font-mono"
+                          disabled={!editing}
+                          className={`flex-1 min-w-0 bg-surface-bright border border-outline-variant/40 px-4 py-2.5 rounded-l-lg text-base font-bold text-on-tertiary-container focus:outline-none font-mono ${ro}`}
                           type="number" value={lowThreshold}
                           onChange={(e) => setLowThreshold(e.target.value === "" ? "" : Number(e.target.value))}
                           onFocus={(e) => e.target.select()}
@@ -264,7 +288,8 @@ export default function IngredientDetail({ onBack }: Props) {
                       <div className="flex">
                         <div className="w-10 shrink-0 bg-surface-container-high border border-r-0 border-outline-variant/40 rounded-l-lg flex items-center justify-center text-sm font-bold text-on-surface-variant">₱</div>
                         <input
-                          className="flex-1 min-w-0 bg-surface-bright border border-outline-variant/40 px-4 py-2.5 text-base font-bold text-primary focus:outline-none font-mono"
+                          disabled={!editing}
+                          className={`flex-1 min-w-0 bg-surface-bright border border-outline-variant/40 px-4 py-2.5 text-base font-bold text-primary focus:outline-none font-mono ${ro}`}
                           type="number" min={0} step="0.01" value={costPerUnit}
                           onChange={(e) => setCostPerUnit(e.target.value === "" ? "" : Number(e.target.value))}
                           onFocus={(e) => e.target.select()}
@@ -315,9 +340,10 @@ export default function IngredientDetail({ onBack }: Props) {
               <div className="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant/20">
                 <h2 className="font-semibold text-primary mb-4 pb-2 border-b border-outline-variant/10 text-base">Kitchen Notes</h2>
                 <textarea
-                  className="w-full bg-surface-bright border border-outline-variant/40 px-4 py-3 rounded-lg text-sm text-on-surface focus:outline-none focus:border-primary/50 resize-none"
+                  disabled={!editing}
+                  className={`w-full bg-surface-bright border border-outline-variant/40 px-4 py-3 rounded-lg text-sm text-on-surface focus:outline-none focus:border-primary/50 resize-none ${ro}`}
                   rows={4}
-                  placeholder="Storage instructions, handling notes, supplier details, allergen info…"
+                  placeholder={editing ? "Storage instructions, handling notes, supplier details, allergen info…" : "—"}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                 />
@@ -340,12 +366,14 @@ export default function IngredientDetail({ onBack }: Props) {
                   const f = e.target.files?.[0];
                   if (f) { const err = validateImageFile(f); if (err) { alert(err); return; } setImgFile(f); setImg(URL.createObjectURL(f)); }
                 }} />
-                <button
-                  onClick={() => imgInputRef.current?.click()}
-                  className="absolute bottom-4 right-4 bg-surface-container-lowest/90 backdrop-blur-sm text-primary px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 border border-outline-variant/30 hover:bg-surface-container-lowest transition-colors shadow-sm"
-                >
-                  <Icon name="photo_camera" size={14} /> {img ? "Change Photo" : "Upload Photo"}
-                </button>
+                {editing && (
+                  <button
+                    onClick={() => imgInputRef.current?.click()}
+                    className="absolute bottom-4 right-4 bg-surface-container-lowest/90 backdrop-blur-sm text-primary px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 border border-outline-variant/30 hover:bg-surface-container-lowest transition-colors shadow-sm"
+                  >
+                    <Icon name="photo_camera" size={14} /> {img ? "Change Photo" : "Upload Photo"}
+                  </button>
+                )}
                 {img && (
                   <div className="absolute bottom-5 left-5 text-white">
                     <span className="text-[10px] uppercase tracking-[0.2em] opacity-80">Inventory Visualization</span>
