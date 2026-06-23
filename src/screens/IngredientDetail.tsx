@@ -49,7 +49,7 @@ export default function IngredientDetail({ onBack }: Props) {
       try { finalImg = await uploadImage("ingredient-images", imgFile); setImg(finalImg); setImgFile(null); }
       catch (e: any) { setSaving(false); return; }
     }
-    await supabase.from("ingredients").update({ name, sku, img: finalImg }).eq("id", id);
+    await supabase.from("ingredients").update({ name, sku, img: finalImg, stock_value: stockValue, unit, status }).eq("id", id);
     setSaving(false);
   };
 
