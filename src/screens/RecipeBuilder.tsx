@@ -117,7 +117,7 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
         </div>
       </header>
 
-      <div className="p-8 lg:p-12 max-w-7xl mx-auto w-full space-y-8">
+      <div className="p-4 lg:p-12 max-w-7xl mx-auto w-full space-y-6">
         {/* Hero Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-7 bg-surface-container-lowest rounded-xl border border-primary/10 p-6 space-y-4">
@@ -132,7 +132,7 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
               rows={2}
               defaultValue="A classic open-crumb country loaf with complex fermentation notes."
             />
-            <div className="grid grid-cols-4 gap-4 pt-4 border-t border-outline-variant/10">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-outline-variant/10">
               {[
                 { label: "Prep Time", value: "45 min" },
                 { label: "Fermentation", value: recipe.time },
@@ -171,15 +171,15 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
             </div>
           ) : (
             <>
-              <div className="overflow-hidden rounded-xl border border-outline-variant/10 bg-surface-container-lowest">
-                <table className="w-full text-left">
+              <div className="overflow-x-auto rounded-xl border border-outline-variant/10 bg-surface-container-lowest">
+                <table className="w-full text-left min-w-[480px]">
                   <thead>
                     <tr className="bg-surface-container-low border-b border-outline-variant/20">
-                      <th className="px-6 py-3 text-xs font-semibold text-on-surface-variant uppercase tracking-widest">Ingredient</th>
-                      <th className="px-6 py-3 text-xs font-semibold text-on-surface-variant uppercase tracking-widest w-32">Qty</th>
-                      <th className="px-6 py-3 text-xs font-semibold text-on-surface-variant uppercase tracking-widest w-24">Unit</th>
-                      <th className="px-6 py-3 text-xs font-semibold text-on-surface-variant uppercase tracking-widest text-right">Stock</th>
-                      <th className="px-4 py-3 w-10" />
+                      <th className="px-4 py-3 text-xs font-semibold text-on-surface-variant uppercase tracking-widest">Ingredient</th>
+                      <th className="px-4 py-3 text-xs font-semibold text-on-surface-variant uppercase tracking-widest w-24">Qty</th>
+                      <th className="px-4 py-3 text-xs font-semibold text-on-surface-variant uppercase tracking-widest w-20">Unit</th>
+                      <th className="px-4 py-3 text-xs font-semibold text-on-surface-variant uppercase tracking-widest text-right">Stock</th>
+                      <th className="px-3 py-3 w-10" />
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-outline-variant/10">
@@ -187,7 +187,7 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
                       const ing = getIngredient(row.ingredientId);
                       return (
                         <tr key={i} className="hover:bg-surface-container-lowest/50 transition-colors">
-                          <td className="px-6 py-3">
+                          <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
                               {ing && <div className="w-7 h-7 rounded-md overflow-hidden shrink-0"><img src={ing.img} alt={ing.name} className="w-full h-full object-cover" /></div>}
                               <select
@@ -199,15 +199,15 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
                               </select>
                             </div>
                           </td>
-                          <td className="px-6 py-3">
+                          <td className="px-4 py-3">
                             <input className="w-full bg-surface-container px-2 py-1.5 rounded text-sm text-center border border-outline-variant/30 focus:outline-none font-mono" value={row.qty} onChange={(e) => updateRow(i, "qty", e.target.value)} />
                           </td>
-                          <td className="px-6 py-3">
+                          <td className="px-4 py-3">
                             <select className="w-full bg-surface-container px-2 py-1.5 rounded text-xs font-bold border border-outline-variant/30 focus:outline-none font-mono" value={row.unit} onChange={(e) => updateRow(i, "unit", e.target.value)}>
                               <option>kg</option><option>g</option><option>L</option><option>ml</option><option>units</option>
                             </select>
                           </td>
-                          <td className="px-6 py-3 text-right">
+                          <td className="px-4 py-3 text-right">
                             {ing && (
                               <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${statusStyle(ing.status)}`}>
                                 {ing.status === "optimal" ? "OK" : ing.status === "low" ? "Low" : "Out"}
@@ -270,11 +270,11 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
         </section>
 
         {/* Footer */}
-        <div className="flex justify-between items-center pt-4 border-t border-outline-variant/10">
+        <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 pt-4 border-t border-outline-variant/10">
           <button onClick={onBack} className="flex items-center gap-2 text-sm text-on-surface-variant hover:text-primary transition-colors">
             <Icon name="arrow_back" size={16} /> Back to Recipes
           </button>
-          <button onClick={handleSave} disabled={saving} className="px-8 h-12 rounded-lg bg-primary text-on-primary text-sm font-bold hover:opacity-90 active:scale-95 transition-all shadow-sm">
+          <button onClick={handleSave} disabled={saving} className="h-12 px-8 rounded-lg bg-primary text-on-primary text-sm font-bold hover:opacity-90 active:scale-95 transition-all shadow-sm">
             {saving ? "Saving…" : saved ? "✓ Saved" : "Save Changes"}
           </button>
         </div>

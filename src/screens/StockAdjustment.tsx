@@ -117,7 +117,7 @@ export default function StockAdjustment({ onBack }: Props) {
         )}
 
         {/* Current State Card */}
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/20 p-6 mb-6 flex items-center justify-between gap-4" style={{ boxShadow: "0 4px 12px -2px rgba(61,43,31,0.07)" }}>
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/20 p-5 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4" style={{ boxShadow: "0 4px 12px -2px rgba(61,43,31,0.07)" }}>
           <div className="flex items-center gap-5">
             <div className="w-14 h-14 rounded-xl bg-surface-container flex items-center justify-center border border-outline-variant/20 shrink-0">
               <Icon name="inventory_2" size={28} className="text-primary" />
@@ -130,7 +130,7 @@ export default function StockAdjustment({ onBack }: Props) {
               <p className="text-sm text-outline font-mono">{ingredient?.sku ? `SKU: ${ingredient.sku}` : "—"}</p>
             </div>
           </div>
-          <div className="text-right shrink-0">
+          <div className="sm:text-right shrink-0">
             <p className="text-[10px] font-semibold text-outline uppercase tracking-wider mb-1">Current Level</p>
             <p className="text-primary font-bold font-mono" style={{ fontSize: 32 }}>
               {currentStock.toFixed(2)} <span className="text-base opacity-60">{ingredient?.unit ?? "kg"}</span>
@@ -216,17 +216,19 @@ export default function StockAdjustment({ onBack }: Props) {
             </div>
           </div>
 
-          <div className="px-8 py-5 bg-surface-container border-t border-outline-variant/10 flex justify-end gap-3 items-center">
-            {error && <p className="text-xs text-error flex-1">{error}</p>}
-            {saved && <p className="text-xs text-secondary font-semibold flex-1 flex items-center gap-1"><Icon name="check_circle" size={14} /> Adjustment saved!</p>}
-            <button onClick={onBack} className="px-6 h-10 rounded-lg border border-outline text-primary font-semibold hover:bg-surface-variant transition-colors text-sm">Cancel</button>
-            <button
-              onClick={handleConfirm}
-              disabled={saving || !ingredient || amount <= 0}
-              className="px-8 h-10 rounded-lg bg-primary text-white font-bold shadow-md hover:opacity-90 active:scale-95 transition-all text-sm disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {saving ? "Saving…" : "Confirm Adjustment"}
-            </button>
+          <div className="px-5 py-4 bg-surface-container border-t border-outline-variant/10 flex flex-col gap-2">
+            {error && <p className="text-xs text-error">{error}</p>}
+            {saved && <p className="text-xs text-secondary font-semibold flex items-center gap-1"><Icon name="check_circle" size={14} /> Adjustment saved!</p>}
+            <div className="flex gap-3">
+              <button onClick={onBack} className="flex-1 sm:flex-none px-5 h-10 rounded-lg border border-outline text-primary font-semibold hover:bg-surface-variant transition-colors text-sm">Cancel</button>
+              <button
+                onClick={handleConfirm}
+                disabled={saving || !ingredient || amount <= 0}
+                className="flex-1 sm:flex-none px-6 h-10 rounded-lg bg-primary text-white font-bold shadow-md hover:opacity-90 active:scale-95 transition-all text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {saving ? "Saving…" : "Confirm Adjustment"}
+              </button>
+            </div>
           </div>
         </div>
 

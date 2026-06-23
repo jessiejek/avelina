@@ -214,11 +214,11 @@ export default function Stats() {
                 Export CSV
               </button>
             </div>
-            <div className="overflow-hidden rounded-xl border border-outline-variant/10 bg-surface-container-lowest">
+            <div className="overflow-x-auto rounded-xl border border-outline-variant/10 bg-surface-container-lowest">
               {stockHealth.length === 0 ? (
                 <div className="py-16 text-center text-sm text-on-surface-variant">No ingredients found.</div>
               ) : (
-                <table className="w-full text-left">
+                <table className="w-full text-left min-w-[400px]">
                   <thead>
                     <tr className="bg-surface-container-low border-b border-outline-variant/20">
                       <th className="px-6 py-3 text-xs font-semibold text-on-surface-variant uppercase tracking-widest">Ingredient</th>
