@@ -23,6 +23,7 @@ const initialSteps = [
 ];
 
 const YIELD_UNITS = ["units", "pcs", "loaves", "rolls", "slices", "trays", "dozen", "servings", "cakes", "jars"];
+const YIELD_QTYS = ["1", "2", "3", "4", "6", "8", "10", "12", "16", "18", "24", "30", "36", "48", "60", "72", "100"];
 
 // "18h 45m" -> { hours: "18", minutes: "45" }
 function parseDuration(t: string) {
@@ -191,14 +192,16 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
               <div>
                 <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-widest mb-1">Yield</p>
                 <div className="flex items-center gap-1">
-                  <input
-                    type="number" min={0}
-                    className="w-12 bg-surface-container border border-outline-variant/40 rounded-lg px-2 py-1.5 text-sm font-bold text-primary font-mono text-center focus:outline-none focus:border-primary/50"
+                  <select
+                    className="w-14 bg-surface-container border border-outline-variant/40 rounded-lg px-1.5 py-1.5 text-sm font-bold text-primary font-mono focus:outline-none focus:border-primary/50"
                     value={yieldQty}
-                    onChange={(e) => setYieldQty(e.target.value.replace(/[^\d.]/g, ""))}
-                    onFocus={(e) => e.target.select()}
-                    placeholder="0"
-                  />
+                    onChange={(e) => setYieldQty(e.target.value)}
+                  >
+                    <option value="">—</option>
+                    {(yieldQty && !YIELD_QTYS.includes(yieldQty) ? [yieldQty, ...YIELD_QTYS] : YIELD_QTYS).map((q) => (
+                      <option key={q} value={q}>{q}</option>
+                    ))}
+                  </select>
                   <select
                     className="flex-1 min-w-0 bg-surface-container border border-outline-variant/40 rounded-lg px-2 py-1.5 text-xs font-bold text-primary focus:outline-none focus:border-primary/50"
                     value={yieldUnit}
