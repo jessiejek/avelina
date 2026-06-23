@@ -22,6 +22,23 @@ const initialSteps = [
   { num: "03", title: "Bulk Fermentation — Stretch & Fold", description: "Transfer to a clear container. Over the next 4 hours, perform 4 sets of stretch and folds at 30-minute intervals. Ferment until dough has grown by 75–80% and passes the windowpane test." },
 ];
 
+const YIELD_UNITS = ["units", "pcs", "loaves", "rolls", "slices", "trays", "dozen", "servings", "cakes", "jars"];
+
+// "18h 45m" -> { hours: "18", minutes: "45" }
+function parseDuration(t: string) {
+  const h = /(\d+)\s*h/i.exec(t || "");
+  const m = /(\d+)\s*m/i.exec(t || "");
+  return { hours: h ? h[1] : "", minutes: m ? m[1] : "" };
+}
+function composeDuration(hours: string, minutes: string) {
+  return [hours && `${hours}h`, minutes && `${minutes}m`].filter(Boolean).join(" ");
+}
+// "24 units" -> { qty: "24", unit: "units" }
+function parseYield(y: string) {
+  const m = /^\s*(\d+(?:\.\d+)?)\s*(.*)$/.exec(y || "");
+  return { qty: m ? m[1] : "", unit: m && m[2].trim() ? m[2].trim() : "units" };
+}
+
 export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
   const [rows, setRows] = useState<RecipeRow[]>(() => {
     if (recipe.ingredients.length > 0) {
@@ -40,10 +57,18 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [recipeName, setRecipeName] = useState(recipe.name);
   const [description, setDescription] = useState(recipe.description ?? "");
-  const [prepTime, setPrepTime] = useState(recipe.prep_time ?? "");
   const [difficulty, setDifficulty] = useState(recipe.difficulty ?? "");
-  const [totalTime, setTotalTime] = useState(recipe.time ?? "");
-  const [yieldAmt, setYieldAmt] = useState(recipe.yield ?? "");
+  const initTime = parseDuration(recipe.time ?? "");
+  const [hours, setHours] = useState(initTime.hours);
+  const [minutes, setMinutes] = useState(initTime.minutes);
+  const [prepMinutes, setPrepMinutes] = useState((recipe.prep_time ?? "").match(/\d+/)?.[0] ?? "");
+  const initYield = parseYield(recipe.yield ?? "");
+  const [yieldQty, setYieldQty] = useState(initYield.qty);
+  const [yieldUnit, setYieldUnit] = useState(initYield.unit);
+
+  const totalTime = composeDuration(hours, minutes);
+  const yieldAmt = yieldQty ? `${yieldQty} ${yieldUnit}` : "";
+  const prepTime = prepMinutes ? `${prepMinutes} min` : "";
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -141,36 +166,68 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
             />
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-outline-variant/10">
               <div>
-                <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-widest mb-0.5">Total Time</p>
-                <input
-                  className="w-full bg-transparent border-none focus:outline-none font-bold text-primary text-sm font-mono placeholder:text-on-surface-variant/30"
-                  value={totalTime}
-                  onChange={(e) => setTotalTime(e.target.value)}
-                  placeholder="e.g. 18h 45m"
-                />
+                <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-widest mb-1">Total Time</p>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number" min={0}
+                    className="w-11 bg-surface-container border border-outline-variant/40 rounded-lg px-2 py-1.5 text-sm font-bold text-primary font-mono text-center focus:outline-none focus:border-primary/50"
+                    value={hours}
+                    onChange={(e) => setHours(e.target.value.replace(/\D/g, ""))}
+                    onFocus={(e) => e.target.select()}
+                    placeholder="0"
+                  />
+                  <span className="text-xs font-semibold text-on-surface-variant">h</span>
+                  <input
+                    type="number" min={0} max={59}
+                    className="w-11 bg-surface-container border border-outline-variant/40 rounded-lg px-2 py-1.5 text-sm font-bold text-primary font-mono text-center focus:outline-none focus:border-primary/50"
+                    value={minutes}
+                    onChange={(e) => setMinutes(e.target.value.replace(/\D/g, ""))}
+                    onFocus={(e) => e.target.select()}
+                    placeholder="0"
+                  />
+                  <span className="text-xs font-semibold text-on-surface-variant">m</span>
+                </div>
               </div>
               <div>
-                <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-widest mb-0.5">Yield</p>
-                <input
-                  className="w-full bg-transparent border-none focus:outline-none font-bold text-primary text-sm font-mono placeholder:text-on-surface-variant/30"
-                  value={yieldAmt}
-                  onChange={(e) => setYieldAmt(e.target.value)}
-                  placeholder="e.g. 24 units"
-                />
+                <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-widest mb-1">Yield</p>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number" min={0}
+                    className="w-12 bg-surface-container border border-outline-variant/40 rounded-lg px-2 py-1.5 text-sm font-bold text-primary font-mono text-center focus:outline-none focus:border-primary/50"
+                    value={yieldQty}
+                    onChange={(e) => setYieldQty(e.target.value.replace(/[^\d.]/g, ""))}
+                    onFocus={(e) => e.target.select()}
+                    placeholder="0"
+                  />
+                  <select
+                    className="flex-1 min-w-0 bg-surface-container border border-outline-variant/40 rounded-lg px-2 py-1.5 text-xs font-bold text-primary focus:outline-none focus:border-primary/50"
+                    value={yieldUnit}
+                    onChange={(e) => setYieldUnit(e.target.value)}
+                  >
+                    {(YIELD_UNITS.includes(yieldUnit) ? YIELD_UNITS : [yieldUnit, ...YIELD_UNITS]).map((u) => (
+                      <option key={u} value={u}>{u}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div>
-                <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-widest mb-0.5">Prep Time</p>
-                <input
-                  className="w-full bg-transparent border-none focus:outline-none font-bold text-primary text-sm font-mono placeholder:text-on-surface-variant/30"
-                  value={prepTime}
-                  onChange={(e) => setPrepTime(e.target.value)}
-                  placeholder="e.g. 30 min"
-                />
+                <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-widest mb-1">Prep Time</p>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number" min={0}
+                    className="w-12 bg-surface-container border border-outline-variant/40 rounded-lg px-2 py-1.5 text-sm font-bold text-primary font-mono text-center focus:outline-none focus:border-primary/50"
+                    value={prepMinutes}
+                    onChange={(e) => setPrepMinutes(e.target.value.replace(/\D/g, ""))}
+                    onFocus={(e) => e.target.select()}
+                    placeholder="0"
+                  />
+                  <span className="text-xs font-semibold text-on-surface-variant">min</span>
+                </div>
               </div>
               <div>
-                <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-widest mb-0.5">Difficulty</p>
+                <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-widest mb-1">Difficulty</p>
                 <select
-                  className="w-full bg-transparent border-none focus:outline-none font-bold text-primary text-sm font-mono"
+                  className="w-full bg-surface-container border border-outline-variant/40 rounded-lg px-2 py-1.5 text-sm font-bold text-primary focus:outline-none focus:border-primary/50"
                   value={difficulty}
                   onChange={(e) => setDifficulty(e.target.value)}
                 >
