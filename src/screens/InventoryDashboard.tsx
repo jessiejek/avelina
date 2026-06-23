@@ -142,6 +142,13 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
       cost_per_unit: form.cost === "" ? 0 : parseFloat(form.cost) || 0,
     });
     if (error) { setAddError(error.message); setAdding(false); return; }
+    // Record the opening balance as the first stock movement.
+    if (val > 0) {
+      await supabase.from("inventory_adjustments").insert({
+        ingredient_id: newIng.id, delta: val, unit: newIng.unit,
+        reason: "Opening balance", adjusted_by: "Avelina",
+      });
+    }
     onAddIngredient(newIng);
     setForm(emptyForm);
     setImgFile(null);

@@ -14,6 +14,7 @@ interface IngredientState {
   stockValue: number;
   unit: string;
   status: string;
+  costPerUnit?: number;
 }
 
 const REASONS = [
@@ -78,7 +79,7 @@ export default function StockAdjustment({ onBack }: Props) {
 
     const costNum = parseFloat(cost) || 0;
     const ingUpdate: Record<string, any> = { stock_value: newStock, status: newStock <= 0 ? "critical" : newStock < 5 ? "low" : "optimal" };
-    // On a purchase with a cost, log the expense and refresh the unit cost.
+    // On a purchase with a cost, log the expense and blend into a weighted-average cost.
     if (mode === "add" && costNum > 0) {
       await supabase.from("expenses").insert({
         type: "ingredient_purchase",
@@ -89,7 +90,10 @@ export default function StockAdjustment({ onBack }: Props) {
         note: reason,
         created_by: "Avelina",
       });
-      if (adjKg > 0) ingUpdate.cost_per_unit = costNum / adjKg;
+      // Weighted average: (existing value + new spend) / new quantity.
+      const oldCost = ingredient.costPerUnit ?? 0;
+      const oldValue = base * oldCost;
+      ingUpdate.cost_per_unit = newStock > 0 ? (oldValue + costNum) / newStock : oldCost;
     }
 
     const { error: updErr } = await supabase
@@ -236,9 +240,17 @@ export default function StockAdjustment({ onBack }: Props) {
                   />
                   <span className="text-xs text-outline whitespace-nowrap">total for this shipment</span>
                 </div>
-                {parseFloat(cost) > 0 && amount > 0 && (
-                  <p className="text-[11px] text-on-surface-variant">≈ ₱{(parseFloat(cost) / adjKg).toFixed(2)} per {ingredient?.unit ?? "kg"} · logged to expenses</p>
-                )}
+                {parseFloat(cost) > 0 && amount > 0 && (() => {
+                  const c = parseFloat(cost);
+                  const thisUnit = adjKg > 0 ? c / adjKg : 0;
+                  const oldCost = ingredient?.costPerUnit ?? 0;
+                  const newAvg = projected > 0 ? (base * oldCost + c) / projected : thisUnit;
+                  return (
+                    <p className="text-[11px] text-on-surface-variant">
+                      ₱{thisUnit.toFixed(2)}/{ingredient?.unit ?? "kg"} this buy · new avg cost <span className="font-bold text-primary">₱{newAvg.toFixed(2)}/{ingredient?.unit ?? "kg"}</span> · logged to expenses
+                    </p>
+                  );
+                })()}
               </div>
             )}
 

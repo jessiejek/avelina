@@ -43,6 +43,7 @@ export default function IngredientDetail({ onBack }: Props) {
   const [lowThreshold, setLowThreshold] = useState<number | "">("");
   const [costPerUnit, setCostPerUnit] = useState<number | "">("");
   const [notes, setNotes] = useState("");
+  const [movements, setMovements] = useState<{ created_at: string; delta: number; reason: string; notes: string | null }[]>([]);
 
   useEffect(() => {
     if (!id) return;
@@ -62,6 +63,13 @@ export default function IngredientDetail({ onBack }: Props) {
       }
       setLoading(false);
     });
+
+    supabase.from("inventory_adjustments")
+      .select("created_at, delta, reason, notes")
+      .eq("ingredient_id", id)
+      .order("created_at", { ascending: false })
+      .limit(10)
+      .then(({ data }) => { if (data) setMovements(data as any); });
   }, [id]);
 
   const handleSave = async () => {
@@ -74,7 +82,8 @@ export default function IngredientDetail({ onBack }: Props) {
       try { finalImg = await uploadImage("ingredient-images", imgFile); setImg(finalImg); setImgFile(null); }
       catch (e: any) { setSaveError("Photo upload failed: " + e.message); setSaving(false); return; }
     }
-    const { error } = await supabase.from("ingredients").update({ name, sku, img: finalImg, stock_value: stockValue === "" ? 0 : stockValue, unit, status, shelf_life: shelfLife === "" ? null : shelfLife, low_threshold: lowThreshold === "" ? null : lowThreshold, cost_per_unit: costPerUnit === "" ? 0 : costPerUnit, notes: notes.trim() || null }).eq("id", id);
+    // Note: stock_value is intentionally NOT written here — quantity only changes via Adjust Stock.
+    const { error } = await supabase.from("ingredients").update({ name, sku, img: finalImg, unit, status, shelf_life: shelfLife === "" ? null : shelfLife, low_threshold: lowThreshold === "" ? null : lowThreshold, cost_per_unit: costPerUnit === "" ? 0 : costPerUnit, notes: notes.trim() || null }).eq("id", id);
     setSaving(false);
     if (error) { setSaveError(error.message); return; }
     setSaved(true);
@@ -83,7 +92,7 @@ export default function IngredientDetail({ onBack }: Props) {
 
   const handleAdjustStock = () => {
     navigate("/admin/inventory/adjust", {
-      state: { ingredient: { id, name, sku, stockValue, unit, status, img } },
+      state: { ingredient: { id, name, sku, stockValue, unit, status, img, costPerUnit: costPerUnit === "" ? 0 : costPerUnit } },
     });
   };
 
@@ -215,14 +224,14 @@ export default function IngredientDetail({ onBack }: Props) {
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">Current Stock</label>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Current Stock</label>
+                        <span className="text-[10px] font-semibold text-outline flex items-center gap-1"><Icon name="lock" size={10} /> via Adjust Stock</span>
+                      </div>
                       <div className="flex">
-                        <input
-                          className="flex-1 min-w-0 bg-surface-bright border border-outline-variant/40 px-4 py-2.5 rounded-l-lg text-base font-bold text-primary focus:outline-none font-mono"
-                          type="number" value={stockValue}
-                          onChange={(e) => setStockValue(e.target.value === "" ? "" : Number(e.target.value))}
-                          onFocus={(e) => e.target.select()}
-                        />
+                        <div className="flex-1 min-w-0 bg-surface-container border border-outline-variant/40 px-4 py-2.5 rounded-l-lg text-base font-bold text-primary font-mono flex items-center">
+                          {stockValue === "" ? 0 : stockValue}
+                        </div>
                         <select
                           className="w-20 shrink-0 bg-surface-container-high border border-l-0 border-outline-variant/40 px-2 rounded-r-lg text-xs font-bold text-primary focus:outline-none font-mono cursor-pointer"
                           value={unit}
@@ -274,6 +283,33 @@ export default function IngredientDetail({ onBack }: Props) {
                     </div>
                   </div>
                 </div>
+              </div>
+
+              <div className="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant/20">
+                <div className="flex items-center justify-between mb-4 pb-2 border-b border-outline-variant/10">
+                  <h2 className="font-semibold text-primary text-base">Stock Movements</h2>
+                  <span className="text-[10px] font-semibold text-outline uppercase tracking-wider">last 10</span>
+                </div>
+                {movements.length === 0 ? (
+                  <p className="text-sm text-on-surface-variant py-4 text-center">No movements yet. Use Adjust Stock to add or remove.</p>
+                ) : (
+                  <div className="divide-y divide-outline-variant/10">
+                    {movements.map((m, i) => (
+                      <div key={i} className="flex items-center justify-between py-2.5">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-primary truncate">{m.reason}</p>
+                          <p className="text-[11px] text-on-surface-variant">
+                            {new Date(m.created_at).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })}
+                            {m.notes ? ` · ${m.notes}` : ""}
+                          </p>
+                        </div>
+                        <span className={`text-sm font-bold font-mono shrink-0 ${m.delta >= 0 ? "text-secondary" : "text-error"}`}>
+                          {m.delta >= 0 ? "+" : ""}{m.delta} {unit}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant/20">

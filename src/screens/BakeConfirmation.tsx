@@ -105,16 +105,26 @@ export default function BakeConfirmation({ onBack, onLogBake, recipe, inventory,
     });
     if (error) console.error("Failed to save bake entry:", error.message);
 
-    // Consume raw ingredients from inventory (a batch uses one recipe's worth).
+    // Consume raw ingredients from inventory (a batch uses one recipe's worth)
+    // and log each as a stock movement so inventory has a full audit trail.
     for (const ri of recipe.ingredients) {
       const inv = inventory.find((i) => i.id === ri.ingredientId);
       if (!inv) continue;
       const consumed = normalizeQty(parseFloat(ri.qty) || 0, ri.unit, inv.unit);
+      if (consumed <= 0) continue;
       const newStock = Math.max(0, (inv.stockValue ?? 0) - consumed);
       const { error: invErr } = await supabase.from("ingredients")
         .update({ stock_value: newStock, status: newStock <= 0 ? "critical" : inv.status })
         .eq("id", inv.id);
       if (invErr) console.error("Failed to deduct ingredient:", invErr.message);
+      await supabase.from("inventory_adjustments").insert({
+        ingredient_id: inv.id,
+        delta: -consumed,
+        unit: inv.unit,
+        reason: "Production",
+        notes: `Bake ${batchId} · ${recipe.name}`,
+        adjusted_by: baker || "Unknown",
+      });
     }
 
     // If this bake came from an order, flip that order to "baking"
