@@ -2,10 +2,10 @@ import React, { useEffect, useState } from "react";
 import Icon from "../components/Icon.tsx";
 import { supabase } from "../lib/supabase.ts";
 
-type OrderStatus = "pending" | "confirmed" | "ready" | "completed";
+type OrderStatus = "pending" | "confirmed" | "baking" | "ready" | "completed";
 
 interface Props {
-  onStartBake: (recipeId: string) => void;
+  onStartBake: (recipeId: string, orderId: string) => void;
 }
 
 interface AdminOrderItem {
@@ -27,18 +27,20 @@ interface AdminOrder {
   items: AdminOrderItem[];
 }
 
-const STATUS_FLOW: OrderStatus[] = ["pending", "confirmed", "ready", "completed"];
+const STATUS_FLOW: OrderStatus[] = ["pending", "confirmed", "baking", "ready", "completed"];
 
 const NEXT_ACTION: Record<OrderStatus, { next: OrderStatus; label: string } | null> = {
   pending: { next: "confirmed", label: "Confirm" },
   confirmed: { next: "ready", label: "Mark Ready" },
+  baking: { next: "ready", label: "Mark Ready" },
   ready: { next: "completed", label: "Complete" },
   completed: null,
 };
 
 const statusStyle = (s: OrderStatus) => {
-  if (s === "completed") return "bg-secondary-container text-on-secondary-container";
-  if (s === "ready") return "bg-tertiary-fixed text-on-tertiary-fixed-variant";
+  if (s === "completed") return "bg-secondary text-white";
+  if (s === "ready") return "bg-secondary-container text-on-secondary-container";
+  if (s === "baking") return "bg-tertiary-fixed text-on-tertiary-fixed-variant";
   if (s === "confirmed") return "bg-primary-container text-on-primary-fixed";
   return "bg-surface-container-high text-on-surface-variant";
 };
@@ -46,6 +48,7 @@ const statusStyle = (s: OrderStatus) => {
 const statusLabel = (s: OrderStatus) => {
   if (s === "completed") return "Completed";
   if (s === "ready") return "Ready for Pickup";
+  if (s === "baking") return "Baking";
   if (s === "confirmed") return "Confirmed";
   return "Pending";
 };
@@ -168,7 +171,7 @@ export default function AdminOrders({ onStartBake }: Props) {
 
       <div className="p-4 lg:p-10 max-w-6xl mx-auto w-full space-y-6">
         {/* Status summary cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
           {STATUS_FLOW.map((s) => (
             <button
               key={s}
@@ -282,7 +285,7 @@ export default function AdminOrders({ onStartBake }: Props) {
                       <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider">Items</p>
                       <div className="space-y-2">
                         {order.items.map((item, i) => {
-                          const canBake = (order.status === "confirmed" || order.status === "ready") && !!item.recipeId;
+                          const canBake = order.status === "confirmed" && !!item.recipeId;
                           return (
                             <div key={i} className="flex items-center gap-3">
                               <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 bg-surface-container">
@@ -295,7 +298,7 @@ export default function AdminOrders({ onStartBake }: Props) {
                               <span className="text-sm font-bold text-primary font-mono shrink-0">x{item.qty}</span>
                               {canBake && (
                                 <button
-                                  onClick={() => onStartBake(item.recipeId)}
+                                  onClick={() => onStartBake(item.recipeId, order.id)}
                                   className="shrink-0 h-8 px-3 rounded-lg bg-secondary-container text-on-secondary-container text-xs font-bold hover:opacity-80 active:scale-95 transition-all flex items-center gap-1.5"
                                   title="Start a production bake for this item"
                                 >

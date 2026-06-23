@@ -12,6 +12,7 @@ export interface BakeEntry {
   time: string;
   qty: string;
   status: "completed" | "in_progress" | "failed";
+  order_id?: string | null;
 }
 
 interface Props {
@@ -37,8 +38,20 @@ export default function BakeLog({ entries, onUpdateEntry }: Props) {
   React.useEffect(() => { setLocalEntries(entries); }, [entries]);
 
   const updateStatus = async (id: string, status: BakeEntry["status"]) => {
+    const entry = localEntries.find((e) => e.id === id);
     setLocalEntries((prev) => prev.map((e) => e.id === id ? { ...e, status } : e));
     await supabase.from("bake_entries").update({ status }).eq("id", id);
+
+    // If this bake is tied to an order, advance the order when the bake finishes.
+    if (entry?.order_id) {
+      if (status === "completed") {
+        await supabase.from("orders").update({ status: "ready" }).eq("id", entry.order_id);
+      } else if (status === "failed") {
+        // Bake failed — send the order back to confirmed so it can be re-baked.
+        await supabase.from("orders").update({ status: "confirmed" }).eq("id", entry.order_id);
+      }
+    }
+
     onUpdateEntry?.(id, status);
   };
 

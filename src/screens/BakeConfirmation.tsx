@@ -10,6 +10,7 @@ interface Props {
   onLogBake: (entry: BakeEntry) => void;
   recipe: Recipe;
   inventory: Ingredient[];
+  orderId?: string | null;
 }
 
 const INV_ICON: Record<string, string> = {
@@ -32,7 +33,7 @@ function fmtQty(value: number, unit: string): string {
   return `${value.toFixed(2)}${unit}`;
 }
 
-export default function BakeConfirmation({ onBack, onLogBake, recipe, inventory }: Props) {
+export default function BakeConfirmation({ onBack, onLogBake, recipe, inventory, orderId }: Props) {
   const [baker, setBaker] = useState("");
 
   useEffect(() => {
@@ -79,14 +80,23 @@ export default function BakeConfirmation({ onBack, onLogBake, recipe, inventory 
       time: now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }),
       qty: recipe.yield,
       status: "in_progress",
+      order_id: orderId ?? null,
     };
     const { error } = await supabase.from("bake_entries").insert({
       id: entry.id, recipe_id: entry.recipe_id,
       batch_id: entry.batchId, baker: entry.baker,
       started_at: now.toISOString(), qty: entry.qty,
       status: entry.status, img: entry.img,
+      order_id: entry.order_id,
     });
     if (error) console.error("Failed to save bake entry:", error.message);
+
+    // If this bake came from an order, flip that order to "baking"
+    if (orderId) {
+      const { error: ordErr } = await supabase.from("orders").update({ status: "baking" }).eq("id", orderId);
+      if (ordErr) console.error("Failed to update order status:", ordErr.message);
+    }
+
     onLogBake(entry);
   };
 

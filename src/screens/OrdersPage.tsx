@@ -12,6 +12,7 @@ interface Props {
 const statusColor = (s: Order["status"]) => {
   if (s === "completed") return "bg-[#d4e8ce] text-[#26170c]";
   if (s === "ready") return "bg-[#ffddb9] text-[#26170c]";
+  if (s === "baking") return "bg-[#fde0a3] text-[#26170c]";
   if (s === "confirmed") return "bg-blue-100 text-blue-800";
   return "bg-[#26170c]/10 text-[#26170c]/70";
 };
@@ -19,6 +20,7 @@ const statusColor = (s: Order["status"]) => {
 const statusLabel = (s: Order["status"]) => {
   if (s === "completed") return "Completed";
   if (s === "ready") return "Ready for Pickup";
+  if (s === "baking") return "Being Baked";
   if (s === "confirmed") return "Confirmed";
   return "Pending";
 };

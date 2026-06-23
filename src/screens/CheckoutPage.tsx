@@ -10,7 +10,7 @@ export interface Order {
   items: CartItem[];
   profile: UserProfile;
   placedAt: string;
-  status: "pending" | "confirmed" | "ready" | "completed";
+  status: "pending" | "confirmed" | "baking" | "ready" | "completed";
 }
 
 interface Props {

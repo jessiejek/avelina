@@ -62,6 +62,7 @@ function mapBakeEntry(d: any): BakeEntry {
     time: new Date(d.started_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }),
     qty: d.qty,
     status: d.status,
+    order_id: d.order_id ?? null,
   };
 }
 
@@ -113,6 +114,7 @@ function AdminShell() {
   const [bakeLogs, setBakeLogs] = useState<BakeEntry[]>([]);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [confirmRecipe, setConfirmRecipe] = useState<Recipe | null>(null);
+  const [confirmOrderId, setConfirmOrderId] = useState<string | null>(null);
   const [showPicker, setShowPicker] = useState(false);
 
   useEffect(() => {
@@ -193,8 +195,9 @@ function AdminShell() {
     return "inventory";
   })();
 
-  const pickRecipe = (r: Recipe) => {
+  const pickRecipe = (r: Recipe, orderId: string | null = null) => {
     setConfirmRecipe(r);
+    setConfirmOrderId(orderId);
     setShowPicker(false);
     navigate("/admin/recipes/confirm");
   };
@@ -247,14 +250,14 @@ function AdminShell() {
           } />
           <Route path="recipes/confirm" element={
             confirmRecipe
-              ? <BakeConfirmation recipe={confirmRecipe} inventory={inventory} onBack={() => { setShowPicker(true); navigate("/admin/recipes"); }} onLogBake={handleLogBake} />
+              ? <BakeConfirmation recipe={confirmRecipe} inventory={inventory} orderId={confirmOrderId} onBack={() => { setShowPicker(true); navigate("/admin/recipes"); }} onLogBake={handleLogBake} />
               : <Navigate to="/admin/recipes" replace />
           } />
 
           <Route path="orders" element={
-            <AdminOrders onStartBake={(recipeId) => {
+            <AdminOrders onStartBake={(recipeId, orderId) => {
               const r = recipes.find((x) => x.id === recipeId);
-              if (r) pickRecipe(r);
+              if (r) pickRecipe(r, orderId);
             }} />
           } />
           <Route path="bakelog" element={<BakeLog entries={bakeLogs} />} />
