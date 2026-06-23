@@ -39,6 +39,7 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
   const [photo, setPhoto] = useState<string>(recipe.img);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [recipeName, setRecipeName] = useState(recipe.name);
+  const [description, setDescription] = useState(recipe.description ?? "");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -56,7 +57,7 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
     }
 
     // Update recipe basics
-    const { error: recErr } = await supabase.from("recipes").update({ name: recipeName, img: finalImg }).eq("id", recipe.id);
+    const { error: recErr } = await supabase.from("recipes").update({ name: recipeName, img: finalImg, description }).eq("id", recipe.id);
     if (recErr) { setSaveError(recErr.message); setSaving(false); return; }
     // Replace ingredients
     await supabase.from("recipe_ingredients").delete().eq("recipe_id", recipe.id);
@@ -128,22 +129,21 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
               onChange={(e) => setRecipeName(e.target.value)}
             />
             <textarea
-              className="w-full bg-transparent border-none focus:outline-none text-on-surface-variant text-base italic resize-none"
+              className="w-full bg-transparent border-none focus:outline-none text-on-surface-variant text-sm italic resize-none"
               rows={2}
-              defaultValue="A classic open-crumb country loaf with complex fermentation notes."
+              placeholder="Short description of this recipe…"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
             />
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-outline-variant/10">
-              {[
-                { label: "Prep Time", value: "45 min" },
-                { label: "Fermentation", value: recipe.time },
-                { label: "Difficulty", value: "Advanced" },
-                { label: "Yield", value: recipe.yield },
-              ].map((meta) => (
-                <div key={meta.label}>
-                  <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-widest mb-0.5">{meta.label}</p>
-                  <p className="font-bold text-primary text-sm font-mono">{meta.value}</p>
-                </div>
-              ))}
+            <div className="grid grid-cols-2 gap-3 pt-4 border-t border-outline-variant/10">
+              <div>
+                <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-widest mb-0.5">Total Time</p>
+                <p className="font-bold text-primary text-sm font-mono">{recipe.time || "—"}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-widest mb-0.5">Yield</p>
+                <p className="font-bold text-primary text-sm font-mono">{recipe.yield || "—"}</p>
+              </div>
             </div>
           </div>
 

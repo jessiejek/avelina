@@ -1,6 +1,7 @@
 import React from "react";
 import Icon from "../components/Icon.tsx";
 import { Recipe } from "../data/recipes.ts";
+import { Ingredient } from "../data/inventory.ts";
 import { BakeEntry } from "./BakeLog.tsx";
 import { supabase } from "../lib/supabase.ts";
 
@@ -8,16 +9,47 @@ interface Props {
   onBack: () => void;
   onLogBake: (entry: BakeEntry) => void;
   recipe: Recipe;
+  inventory: Ingredient[];
 }
 
-const reconciliation = [
-  { name: "Bread Flour (T65)", supplier: "Millers Choice - Organic", icon: "grain", required: "12.00 kg", available: "45.50 kg", pct: 26, status: "ready" },
-  { name: "Filtered Water", supplier: "Station 2 Supply", icon: "water_drop", required: "8.40 kg", available: "6.20 kg", pct: 100, status: "short", shortfall: "-2.2 kg" },
-  { name: "Sea Salt (Fine)", supplier: "Maldon Professional", icon: "science", required: "0.24 kg", available: "5.00 kg", pct: 5, status: "ready" },
-  { name: "Active Levain", supplier: "Mother Starter #1", icon: "auto_awesome", required: "1.50 kg", available: "0.80 kg", pct: 100, status: "low" },
-];
+const INV_ICON: Record<string, string> = {
+  wheat: "grain",
+  sparkles: "auto_awesome",
+  flask: "science",
+  droplets: "water_drop",
+  leaf: "compost",
+  egg: "egg",
+};
 
-export default function BakeConfirmation({ onBack, onLogBake, recipe }: Props) {
+function normalizeQty(qty: number, fromUnit: string, toUnit: string): number {
+  if (fromUnit === toUnit) return qty;
+  if ((fromUnit === "g" || fromUnit === "ml") && toUnit === "kg") return qty / 1000;
+  if (fromUnit === "kg" && (toUnit === "g" || toUnit === "ml")) return qty * 1000;
+  return qty;
+}
+
+function fmtQty(value: number, unit: string): string {
+  return `${value.toFixed(2)}${unit}`;
+}
+
+export default function BakeConfirmation({ onBack, onLogBake, recipe, inventory }: Props) {
+  const reconciliation = recipe.ingredients.map((ri) => {
+    const inv = inventory.find((i) => i.id === ri.ingredientId);
+    const reqRaw = parseFloat(ri.qty);
+    const displayUnit = inv?.unit ?? ri.unit;
+    const required = normalizeQty(reqRaw, ri.unit, displayUnit);
+    const available = inv?.stockValue ?? 0;
+    const isShort = required > available;
+    const isLow = !isShort && (inv?.status === "low" || inv?.status === "critical");
+    return {
+      name: ri.name,
+      icon: inv ? (INV_ICON[inv.icon] ?? "inventory_2") : "inventory_2",
+      required: fmtQty(required, displayUnit),
+      available: fmtQty(available, displayUnit),
+      status: isShort ? "short" : isLow ? "low" : "ready",
+    };
+  });
+
   const hasShortage = reconciliation.some((r) => r.status !== "ready");
   const batchId = `#SKU-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`;
 

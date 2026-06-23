@@ -243,7 +243,7 @@ function AdminShell() {
           } />
           <Route path="recipes/confirm" element={
             confirmRecipe
-              ? <BakeConfirmation recipe={confirmRecipe} onBack={() => { setShowPicker(true); navigate("/admin/recipes"); }} onLogBake={handleLogBake} />
+              ? <BakeConfirmation recipe={confirmRecipe} inventory={inventory} onBack={() => { setShowPicker(true); navigate("/admin/recipes"); }} onLogBake={handleLogBake} />
               : <Navigate to="/admin/recipes" replace />
           } />
 

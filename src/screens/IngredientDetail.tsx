@@ -145,20 +145,13 @@ export default function IngredientDetail({ onBack }: Props) {
                         onChange={(e) => setName(e.target.value)}
                       />
                     </div>
-                    <div>
+                    <div className="col-span-2">
                       <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">SKU / Reference</label>
                       <input
                         className="w-full bg-surface-bright border border-outline-variant/40 px-4 py-2.5 rounded-lg text-sm text-on-surface-variant focus:outline-none font-mono"
                         value={sku}
                         onChange={(e) => setSku(e.target.value)}
                       />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">Shelf Life</label>
-                      <div className="relative">
-                        <input className="w-full bg-surface-bright border border-outline-variant/40 px-4 py-2.5 rounded-lg text-sm focus:outline-none" type="number" value={shelfLife} onChange={(e) => setShelfLife(Number(e.target.value))} />
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-outline font-mono">days</span>
-                      </div>
                     </div>
                   </div>
                 </div>
@@ -214,16 +207,6 @@ export default function IngredientDetail({ onBack }: Props) {
                 </div>
               </div>
 
-              <div className="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant/20">
-                <label className="block font-semibold text-primary mb-4 pb-2 border-b border-outline-variant/10 text-base">Internal Kitchen Notes</label>
-                <textarea
-                  className="w-full bg-surface-bright border border-outline-variant/40 px-4 py-3 rounded-lg text-sm italic text-on-surface-variant focus:outline-none"
-                  placeholder="Add notes about sourcing, protein content, special handling…"
-                  rows={3}
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                />
-              </div>
             </div>
 
             {/* Right Column — photo first on mobile */}
