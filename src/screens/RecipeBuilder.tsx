@@ -42,6 +42,8 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
   const [description, setDescription] = useState(recipe.description ?? "");
   const [prepTime, setPrepTime] = useState(recipe.prep_time ?? "");
   const [difficulty, setDifficulty] = useState(recipe.difficulty ?? "");
+  const [totalTime, setTotalTime] = useState(recipe.time ?? "");
+  const [yieldAmt, setYieldAmt] = useState(recipe.yield ?? "");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -59,7 +61,7 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
     }
 
     // Update recipe basics
-    const { error: recErr } = await supabase.from("recipes").update({ name: recipeName, img: finalImg, description, prep_time: prepTime || null, difficulty: difficulty || null }).eq("id", recipe.id);
+    const { error: recErr } = await supabase.from("recipes").update({ name: recipeName, img: finalImg, description, prep_time: prepTime || null, difficulty: difficulty || null, time: totalTime || null, yield: yieldAmt || null }).eq("id", recipe.id);
     if (recErr) { setSaveError(recErr.message); setSaving(false); return; }
     // Replace ingredients
     await supabase.from("recipe_ingredients").delete().eq("recipe_id", recipe.id);
@@ -140,11 +142,21 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-outline-variant/10">
               <div>
                 <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-widest mb-0.5">Total Time</p>
-                <p className="font-bold text-primary text-sm font-mono">{recipe.time || "—"}</p>
+                <input
+                  className="w-full bg-transparent border-none focus:outline-none font-bold text-primary text-sm font-mono placeholder:text-on-surface-variant/30"
+                  value={totalTime}
+                  onChange={(e) => setTotalTime(e.target.value)}
+                  placeholder="e.g. 18h 45m"
+                />
               </div>
               <div>
                 <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-widest mb-0.5">Yield</p>
-                <p className="font-bold text-primary text-sm font-mono">{recipe.yield || "—"}</p>
+                <input
+                  className="w-full bg-transparent border-none focus:outline-none font-bold text-primary text-sm font-mono placeholder:text-on-surface-variant/30"
+                  value={yieldAmt}
+                  onChange={(e) => setYieldAmt(e.target.value)}
+                  placeholder="e.g. 24 units"
+                />
               </div>
               <div>
                 <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-widest mb-0.5">Prep Time</p>
