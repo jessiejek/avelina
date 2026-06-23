@@ -40,6 +40,8 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [recipeName, setRecipeName] = useState(recipe.name);
   const [description, setDescription] = useState(recipe.description ?? "");
+  const [prepTime, setPrepTime] = useState(recipe.prep_time ?? "");
+  const [difficulty, setDifficulty] = useState(recipe.difficulty ?? "");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -57,7 +59,7 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
     }
 
     // Update recipe basics
-    const { error: recErr } = await supabase.from("recipes").update({ name: recipeName, img: finalImg, description }).eq("id", recipe.id);
+    const { error: recErr } = await supabase.from("recipes").update({ name: recipeName, img: finalImg, description, prep_time: prepTime || null, difficulty: difficulty || null }).eq("id", recipe.id);
     if (recErr) { setSaveError(recErr.message); setSaving(false); return; }
     // Replace ingredients
     await supabase.from("recipe_ingredients").delete().eq("recipe_id", recipe.id);
@@ -135,7 +137,7 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
-            <div className="grid grid-cols-2 gap-3 pt-4 border-t border-outline-variant/10">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-outline-variant/10">
               <div>
                 <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-widest mb-0.5">Total Time</p>
                 <p className="font-bold text-primary text-sm font-mono">{recipe.time || "—"}</p>
@@ -143,6 +145,28 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
               <div>
                 <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-widest mb-0.5">Yield</p>
                 <p className="font-bold text-primary text-sm font-mono">{recipe.yield || "—"}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-widest mb-0.5">Prep Time</p>
+                <input
+                  className="w-full bg-transparent border-none focus:outline-none font-bold text-primary text-sm font-mono placeholder:text-on-surface-variant/30"
+                  value={prepTime}
+                  onChange={(e) => setPrepTime(e.target.value)}
+                  placeholder="e.g. 30 min"
+                />
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-widest mb-0.5">Difficulty</p>
+                <select
+                  className="w-full bg-transparent border-none focus:outline-none font-bold text-primary text-sm font-mono"
+                  value={difficulty}
+                  onChange={(e) => setDifficulty(e.target.value)}
+                >
+                  <option value="">—</option>
+                  <option value="beginner">Beginner</option>
+                  <option value="intermediate">Intermediate</option>
+                  <option value="advanced">Advanced</option>
+                </select>
               </div>
             </div>
           </div>

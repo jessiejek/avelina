@@ -18,6 +18,9 @@ export interface Recipe {
   yield: string;
   time: string;
   img: string;
+  description?: string;
+  prep_time?: string;
+  difficulty?: string;
   ingredients: RecipeIngredient[];
   steps: RecipeStep[];
 }

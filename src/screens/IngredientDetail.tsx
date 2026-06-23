@@ -26,6 +26,7 @@ export default function IngredientDetail({ onBack }: Props) {
   const imgInputRef = useRef<HTMLInputElement>(null);
   const [shelfLife, setShelfLife] = useState<number | "">("");
   const [lowThreshold, setLowThreshold] = useState<number | "">("");
+  const [notes, setNotes] = useState("");
 
   useEffect(() => {
     if (!id) return;
@@ -39,6 +40,7 @@ export default function IngredientDetail({ onBack }: Props) {
         setImg(data.img ?? null);
         setShelfLife(data.shelf_life ?? "");
         setLowThreshold(data.low_threshold ?? "");
+        setNotes(data.notes ?? "");
       }
       setLoading(false);
     });
@@ -54,7 +56,7 @@ export default function IngredientDetail({ onBack }: Props) {
       try { finalImg = await uploadImage("ingredient-images", imgFile); setImg(finalImg); setImgFile(null); }
       catch (e: any) { setSaveError("Photo upload failed: " + e.message); setSaving(false); return; }
     }
-    const { error } = await supabase.from("ingredients").update({ name, sku, img: finalImg, stock_value: stockValue === "" ? 0 : stockValue, unit, status, shelf_life: shelfLife === "" ? null : shelfLife, low_threshold: lowThreshold === "" ? null : lowThreshold }).eq("id", id);
+    const { error } = await supabase.from("ingredients").update({ name, sku, img: finalImg, stock_value: stockValue === "" ? 0 : stockValue, unit, status, shelf_life: shelfLife === "" ? null : shelfLife, low_threshold: lowThreshold === "" ? null : lowThreshold, notes: notes.trim() || null }).eq("id", id);
     setSaving(false);
     if (error) { setSaveError(error.message); return; }
     setSaved(true);
@@ -223,6 +225,16 @@ export default function IngredientDetail({ onBack }: Props) {
                 </div>
               </div>
 
+              <div className="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant/20">
+                <h2 className="font-semibold text-primary mb-4 pb-2 border-b border-outline-variant/10 text-base">Kitchen Notes</h2>
+                <textarea
+                  className="w-full bg-surface-bright border border-outline-variant/40 px-4 py-3 rounded-lg text-sm text-on-surface focus:outline-none focus:border-primary/50 resize-none"
+                  rows={4}
+                  placeholder="Storage instructions, handling notes, supplier details, allergen info…"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                />
+              </div>
             </div>
 
             {/* Right Column — photo first on mobile */}
