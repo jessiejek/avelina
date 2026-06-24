@@ -235,20 +235,7 @@ export default function BakeConfirmation({ onBack, onLogBake, recipe, inventory,
         totalConsumed += consumed;
       }
 
-      // Notify parent of each new bake entry (updates BakeLog state without navigating)
-      onLogBake({
-        id: entryId,
-        recipe_id: recipe.id,
-        product: recipe.name,
-        img: recipe.img,
-        batchId: thisBatchId,
-        baker: baker || "Unknown",
-        time: now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }),
-        qty: recipe.yield,
-        status: "in_progress",
-        order_id: orderId ?? null,
-      });
-
+      // Real-time subscription in App.tsx picks up the DB insert — no need to call onLogBake here.
       successfulBatches++;
     }
 
