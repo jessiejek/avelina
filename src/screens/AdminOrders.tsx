@@ -38,8 +38,8 @@ const STATUS_FLOW: OrderStatus[] = ["pending", "confirmed", "baking", "ready", "
 const NEXT_ACTION: Record<OrderStatus, { next: OrderStatus; label: string } | null> = {
   pending: { next: "confirmed", label: "Confirm" },
   confirmed: null,
-  baking: { next: "ready", label: "Mark Ready" },
-  ready: { next: "completed", label: "Complete" },
+  baking: { next: "ready", label: "Mark Ready for Pickup" },
+  ready: { next: "completed", label: "Picked Up" },
   completed: null,
   cancelled: null,
 };
@@ -170,19 +170,9 @@ export default function AdminOrders({ onStartBake }: Props) {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
-  // Fix A — gate baking→ready on fulfilled_qty
   const advance = async (order: AdminOrder) => {
     const action = NEXT_ACTION[order.status];
     if (!action) return;
-
-    if (action.next === "ready") {
-      const totalQty = order.items.reduce((s, i) => s + i.qty, 0);
-      if (order.fulfilledQty < totalQty) {
-        setAdvanceError(`Cannot mark ready — ${order.fulfilledQty} of ${totalQty} units fulfilled. Complete all bakes first.`);
-        setTimeout(() => setAdvanceError(null), 6000);
-        return;
-      }
-    }
 
     setUpdatingId(order.id);
     setOrders((prev) => prev.map((o) => o.id === order.id ? { ...o, status: action.next } : o));

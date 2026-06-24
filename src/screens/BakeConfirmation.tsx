@@ -250,9 +250,8 @@ export default function BakeConfirmation({ onBack, onLogBake, recipe, inventory,
         .maybeSingle();
       const prevFulfilled = orderData?.fulfilled_qty ?? 0;
       cumulativeFulfilled = prevFulfilled + totalConsumed;
-      const newStatus = cumulativeFulfilled >= orderQty ? "ready" : "baking";
       const { error: orderErr } = await supabase.from("orders").update({
-        status: newStatus,
+        status: "baking",
         fulfilled_qty: cumulativeFulfilled,
       }).eq("id", orderId);
       if (orderErr) stopReason = `Order update failed: ${orderErr.message} (code: ${orderErr.code})`;
@@ -318,7 +317,7 @@ export default function BakeConfirmation({ onBack, onLogBake, recipe, inventory,
                   )}
                   {isFullyFulfilled && (
                     <p className="text-on-secondary-container/80 text-xs mt-1">
-                      Order is now Ready for Pickup.
+                      Let it cool and box it up — then mark Ready in Orders.
                     </p>
                   )}
                 </>
