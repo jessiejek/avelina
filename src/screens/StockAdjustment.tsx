@@ -11,10 +11,11 @@ interface IngredientState {
   id: string;
   name: string;
   sku: string;
-  stockValue: number;
+  quantity: number;
   unit: string;
   status: string;
   costPerUnit?: number;
+  lowThreshold?: number;
 }
 
 const REASONS = [
@@ -37,8 +38,17 @@ export default function StockAdjustment({ onBack }: Props) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
-  const [currentStock, setCurrentStock] = useState(ingredient?.stockValue ?? 0);
+  const [currentStock, setCurrentStock] = useState(ingredient?.quantity ?? 0);
   const [recentHistory, setRecentHistory] = useState<{ created_at: string; delta: number; reason: string }[]>([]);
+  const [adjusterName, setAdjusterName] = useState("Avelina");
+
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return;
+      const { data } = await supabase.from("users").select("name").eq("id", user.id).maybeSingle();
+      if (data?.name) setAdjusterName(data.name);
+    });
+  }, []);
 
   const base = currentStock;
   const factor = unit === "g" ? 0.001 : unit === "bags" ? 25 : 1;
@@ -72,13 +82,14 @@ export default function StockAdjustment({ onBack }: Props) {
       unit: ingredient.unit,
       reason,
       notes: notes.trim() || null,
-      adjusted_by: "Avelina",
+      adjusted_by: adjusterName,
     });
 
     if (adjErr) { setError(adjErr.message); setSaving(false); return; }
 
     const costNum = parseFloat(cost) || 0;
-    const ingUpdate: Record<string, any> = { stock_value: newStock, status: newStock <= 0 ? "critical" : newStock < 5 ? "low" : "optimal" };
+    const threshold = ingredient.lowThreshold ?? 5;
+    const ingUpdate: Record<string, any> = { quantity: newStock, status: newStock <= 0 ? "critical" : newStock < threshold ? "low" : "optimal" };
     // On a purchase with a cost, log the expense and blend into a weighted-average cost.
     if (mode === "add" && costNum > 0) {
       await supabase.from("expenses").insert({
@@ -88,7 +99,7 @@ export default function StockAdjustment({ onBack }: Props) {
         qty: adjKg,
         unit: ingredient.unit,
         note: reason,
-        created_by: "Avelina",
+        created_by: adjusterName,
       });
       // Weighted average: (existing value + new spend) / new quantity.
       const oldCost = ingredient.costPerUnit ?? 0;

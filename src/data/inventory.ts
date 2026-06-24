@@ -3,12 +3,13 @@ export interface Ingredient {
   name: string;
   sku: string;
   stock: string;
-  stockValue: number;
+  quantity: number;
   unit: string;
   status: "optimal" | "low" | "critical";
   icon: string;
   img: string;
   costPerUnit?: number;
+  lowThreshold?: number;
 }
 
 export const DEFAULT_INGREDIENTS: Ingredient[] = [
@@ -17,7 +18,7 @@ export const DEFAULT_INGREDIENTS: Ingredient[] = [
     name: "Organic Bread Flour",
     sku: "FLR-ORG-001",
     stock: "45.5 kg",
-    stockValue: 45.5,
+    quantity: 45.5,
     unit: "kg",
     status: "optimal",
     icon: "wheat",
@@ -28,7 +29,7 @@ export const DEFAULT_INGREDIENTS: Ingredient[] = [
     name: "Active Sourdough Levain",
     sku: "STR-ACT-001",
     stock: "0.80 kg",
-    stockValue: 0.8,
+    quantity: 0.8,
     unit: "kg",
     status: "critical",
     icon: "sparkles",
@@ -39,7 +40,7 @@ export const DEFAULT_INGREDIENTS: Ingredient[] = [
     name: "Sea Salt (Fine)",
     sku: "SLT-FIN-001",
     stock: "5.00 kg",
-    stockValue: 5.0,
+    quantity: 5.0,
     unit: "kg",
     status: "optimal",
     icon: "flask",
@@ -50,7 +51,7 @@ export const DEFAULT_INGREDIENTS: Ingredient[] = [
     name: "Filtered Water",
     sku: "WTR-FLT-001",
     stock: "6.20 kg",
-    stockValue: 6.2,
+    quantity: 6.2,
     unit: "kg",
     status: "low",
     icon: "droplets",
@@ -61,7 +62,7 @@ export const DEFAULT_INGREDIENTS: Ingredient[] = [
     name: "European Block Butter",
     sku: "BTR-EUR-001",
     stock: "12.0 kg",
-    stockValue: 12.0,
+    quantity: 12.0,
     unit: "kg",
     status: "optimal",
     icon: "leaf",
@@ -72,7 +73,7 @@ export const DEFAULT_INGREDIENTS: Ingredient[] = [
     name: "T45 Pastry Flour",
     sku: "FLR-T45-001",
     stock: "8.2 kg",
-    stockValue: 8.2,
+    quantity: 8.2,
     unit: "kg",
     status: "low",
     icon: "wheat",
@@ -83,7 +84,7 @@ export const DEFAULT_INGREDIENTS: Ingredient[] = [
     name: "Eggs",
     sku: "EGG-001",
     stock: "48 units",
-    stockValue: 48,
+    quantity: 48,
     unit: "units",
     status: "optimal",
     icon: "egg",

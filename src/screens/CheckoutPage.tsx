@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Icon from "../components/Icon.tsx";
 import { CartItem } from "./CartPage.tsx";
@@ -26,13 +26,26 @@ interface Props {
 export default function CheckoutPage({ cart, profile, userId, onUpdateQty, onUpdateDate, onPlaceOrder }: Props) {
   const navigate = useNavigate();
   const [notes, setNotes] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "gcash">("cash");
+  const [gcashRef, setGcashRef] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Fix 14: auth gate — redirect to /login if no authenticated user
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) navigate("/login", { replace: true });
+    });
+  }, []);
 
   const allDatesSet = cart.every((item) => item.date);
 
   const handlePlaceOrder = async () => {
     if (!allDatesSet || cart.length === 0 || !userId) return;
+    if (paymentMethod === "gcash" && !gcashRef.trim()) {
+      setError("Please enter your GCash reference number.");
+      return;
+    }
     setLoading(true);
     setError("");
     const orderId = `AV-${Date.now().toString().slice(-6)}`;
@@ -41,6 +54,8 @@ export default function CheckoutPage({ cart, profile, userId, onUpdateQty, onUpd
     const { error: orderErr } = await supabase.from("orders").insert({
       id: orderId, user_id: userId, status: "pending",
       notes: notes.trim() || null, placed_at: now,
+      payment_method: paymentMethod,
+      gcash_reference: paymentMethod === "gcash" ? gcashRef.trim() : null,
     });
 
     if (orderErr) { setError(orderErr.message); setLoading(false); return; }
@@ -139,6 +154,35 @@ export default function CheckoutPage({ cart, profile, userId, onUpdateQty, onUpd
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
           />
+        </div>
+
+        {/* Payment Method */}
+        <div className="bg-white rounded-2xl border border-[#26170c]/8 p-5 space-y-3">
+          <h3 className="font-bold text-[#26170c] text-sm" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>Payment Method</h3>
+          <div className="flex gap-3">
+            {(["cash", "gcash"] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setPaymentMethod(m)}
+                className={`flex-1 py-3 rounded-xl border-2 text-sm font-bold transition-all ${paymentMethod === m ? "border-[#26170c] bg-[#26170c] text-white" : "border-[#26170c]/15 text-[#26170c]/60 hover:border-[#26170c]/40"}`}
+              >
+                {m === "cash" ? "Cash on Pickup" : "GCash"}
+              </button>
+            ))}
+          </div>
+          {paymentMethod === "gcash" && (
+            <div>
+              <label className="block text-xs font-semibold text-[#26170c]/50 uppercase tracking-wider mb-1.5">GCash Reference Number</label>
+              <input
+                type="text"
+                className="w-full h-10 px-3 rounded-lg border border-[#26170c]/15 bg-[#fff8f5] text-sm text-[#26170c] font-mono focus:outline-none focus:border-[#26170c]/40"
+                placeholder="e.g. 1234567890"
+                value={gcashRef}
+                onChange={(e) => setGcashRef(e.target.value)}
+              />
+            </div>
+          )}
         </div>
 
         {/* Summary */}

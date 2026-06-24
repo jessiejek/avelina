@@ -33,8 +33,8 @@ export default function Stats() {
 
       // Ingredients for stock health
       supabase.from("ingredients")
-        .select("id, name, stock_value, unit, status")
-        .order("stock_value", { ascending: true })
+        .select("id, name, quantity, unit, status")
+        .order("quantity", { ascending: true })
         .limit(8),
     ]).then(([bakeRes, ordersRes, ingRes]) => {
       // ── Bar chart ──
@@ -82,7 +82,7 @@ export default function Stats() {
       setStockHealth(ings.map((i) => ({
         id: i.id,
         name: i.name,
-        stock: `${i.stock_value} ${i.unit}`,
+        stock: `${i.quantity} ${i.unit}`,
         status: i.status as "optimal" | "low" | "critical",
       })));
 

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import Icon from "../components/Icon.tsx";
 import { supabase } from "../lib/supabase.ts";
 
@@ -33,26 +33,53 @@ const statusLabel = (s: string) => {
 
 export default function BakeLog({ entries, onUpdateEntry }: Props) {
   const [localEntries, setLocalEntries] = useState<BakeEntry[]>(entries);
+  const [pendingComplete, setPendingComplete] = useState<{ id: string; actualQty: string } | null>(null);
+  const actualQtyRef = useRef<HTMLInputElement>(null);
 
   // Sync when parent pushes new entries
   React.useEffect(() => { setLocalEntries(entries); }, [entries]);
 
-  const updateStatus = async (id: string, status: BakeEntry["status"]) => {
+  const updateStatus = async (id: string, status: BakeEntry["status"], actualQty?: number) => {
     const entry = localEntries.find((e) => e.id === id);
     setLocalEntries((prev) => prev.map((e) => e.id === id ? { ...e, status } : e));
-    await supabase.from("bake_entries").update({ status }).eq("id", id);
+    const dbUpdate: Record<string, any> = { status };
+    if (actualQty !== undefined) dbUpdate.actual_qty = actualQty;
+    await supabase.from("bake_entries").update(dbUpdate).eq("id", id);
 
-    // If this bake is tied to an order, advance the order when the bake finishes.
+    // If this bake is tied to an order, conditionally advance it when done.
     if (entry?.order_id) {
       if (status === "completed") {
-        await supabase.from("orders").update({ status: "ready" }).eq("id", entry.order_id);
+        // Fix A: only advance to "ready" when fully fulfilled
+        const { data: orderData } = await supabase
+          .from("orders")
+          .select("fulfilled_qty, order_items(qty)")
+          .eq("id", entry.order_id)
+          .maybeSingle();
+        const totalNeeded = ((orderData?.order_items as any[]) ?? [])
+          .reduce((s: number, it: any) => s + (it.qty ?? 0), 0);
+        const fulfilled = orderData?.fulfilled_qty ?? 0;
+        if (totalNeeded > 0 && fulfilled >= totalNeeded) {
+          await supabase.from("orders").update({ status: "ready" }).eq("id", entry.order_id);
+        }
+        // If not fully fulfilled yet, order stays "baking" until another bake session completes it.
       } else if (status === "failed") {
-        // Bake failed — send the order back to confirmed so it can be re-baked.
         await supabase.from("orders").update({ status: "confirmed" }).eq("id", entry.order_id);
       }
     }
 
     onUpdateEntry?.(id, status);
+  };
+
+  const handleDoneClick = (row: BakeEntry) => {
+    setPendingComplete({ id: row.id, actualQty: row.qty });
+    setTimeout(() => actualQtyRef.current?.select(), 50);
+  };
+
+  const confirmComplete = async () => {
+    if (!pendingComplete) return;
+    const actualQtyNum = parseFloat(pendingComplete.actualQty) || undefined;
+    await updateStatus(pendingComplete.id, "completed", actualQtyNum);
+    setPendingComplete(null);
   };
 
   const completed = localEntries.filter(e => e.status === "completed").length;
@@ -117,7 +144,7 @@ export default function BakeLog({ entries, onUpdateEntry }: Props) {
           <table className="w-full text-left min-w-[700px]">
             <thead>
               <tr className="bg-surface-container-low border-b border-outline-variant/20">
-                {["Product", "Batch ID", "Baker", "Time", "Quantity", "Status", "Actions"].map((h) => (
+                {["Product", "Batch ID", "Baker", "Time", "Planned Qty", "Status", "Actions"].map((h) => (
                   <th key={h} className="px-5 py-3 text-[11px] font-semibold text-on-surface-variant uppercase tracking-widest">{h}</th>
                 ))}
               </tr>
@@ -143,10 +170,31 @@ export default function BakeLog({ entries, onUpdateEntry }: Props) {
                     </span>
                   </td>
                   <td className="px-5 py-4">
-                    {row.status === "in_progress" ? (
+                    {row.status === "in_progress" && pendingComplete?.id === row.id ? (
+                      <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1 border border-outline-variant/40 rounded-lg overflow-hidden h-7">
+                          <span className="text-[10px] text-on-surface-variant px-2 whitespace-nowrap">Actual qty:</span>
+                          <input
+                            ref={actualQtyRef}
+                            type="text"
+                            inputMode="decimal"
+                            className="w-16 h-full px-1 text-sm font-mono font-bold text-primary focus:outline-none bg-surface-bright border-l border-outline-variant/40"
+                            value={pendingComplete.actualQty}
+                            onChange={(e) => setPendingComplete((p) => p ? { ...p, actualQty: e.target.value } : null)}
+                            onKeyDown={(e) => { if (e.key === "Enter") confirmComplete(); if (e.key === "Escape") setPendingComplete(null); }}
+                          />
+                        </div>
+                        <button onClick={confirmComplete} className="flex items-center gap-1 px-2.5 h-7 rounded-lg bg-secondary-container text-on-secondary-container text-[11px] font-bold hover:opacity-80 transition-all">
+                          <Icon name="check_circle" size={12} /> Save
+                        </button>
+                        <button onClick={() => setPendingComplete(null)} className="flex items-center gap-1 px-2.5 h-7 rounded-lg bg-surface-container text-on-surface-variant text-[11px] font-bold hover:opacity-80 transition-all">
+                          <Icon name="close" size={12} />
+                        </button>
+                      </div>
+                    ) : row.status === "in_progress" ? (
                       <div className="flex items-center gap-1.5">
                         <button
-                          onClick={() => updateStatus(row.id, "completed")}
+                          onClick={() => handleDoneClick(row)}
                           className="flex items-center gap-1 px-2.5 h-7 rounded-lg bg-secondary-container text-on-secondary-container text-[11px] font-bold hover:opacity-80 transition-all"
                         >
                           <Icon name="check_circle" size={12} /> Done

@@ -3,6 +3,8 @@ import { Ingredient } from "../data/inventory.ts";
 import { Recipe } from "../data/recipes.ts";
 import Icon from "../components/Icon.tsx";
 import { supabase, uploadImage, validateImageFile } from "../lib/supabase.ts";
+import { computeBatchCost } from "../lib/recipeCost.ts";
+import { peso } from "../lib/money.ts";
 
 interface Props {
   onBack: () => void;
@@ -16,11 +18,6 @@ interface RecipeRow {
   unit: string;
 }
 
-const initialSteps = [
-  { num: "01", title: "Autolyse", description: "Combine the bread flour and 700g of the water in a large mixing bowl. Mix until no dry flour remains. Cover and rest at room temperature for 45–60 minutes." },
-  { num: "02", title: "Levain & Salt Incorporation", description: "Add the active levain and remaining 50g water to the autolysed dough. Use the slap-and-fold technique for 8–10 minutes until fully incorporated. Add sea salt and work in evenly." },
-  { num: "03", title: "Bulk Fermentation — Stretch & Fold", description: "Transfer to a clear container. Over the next 4 hours, perform 4 sets of stretch and folds at 30-minute intervals. Ferment until dough has grown by 75–80% and passes the windowpane test." },
-];
 
 const YIELD_UNITS = ["units", "pcs", "loaves", "rolls", "slices", "trays", "dozen", "servings", "cakes", "jars"];
 const YIELD_QTYS = ["1", "2", "3", "4", "6", "8", "10", "12", "16", "18", "24", "30", "36", "48", "60", "72", "100"];
@@ -52,7 +49,7 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
     return inventory.slice(0, 4).map((ing) => ({ ingredientId: ing.id, qty: "100", unit: ing.unit }));
   });
   const [steps, setSteps] = useState(() =>
-    recipe.steps.length > 0 ? recipe.steps : initialSteps
+    recipe.steps.length > 0 ? recipe.steps : []
   );
   const [photo, setPhoto] = useState<string>(recipe.img);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -66,6 +63,9 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
   const initYield = parseYield(recipe.yield ?? "");
   const [yieldQty, setYieldQty] = useState(initYield.qty);
   const [yieldUnit, setYieldUnit] = useState(initYield.unit);
+  const [shelfLifeDays, setShelfLifeDays] = useState<string>(
+    recipe.finished_shelf_life_days != null ? String(recipe.finished_shelf_life_days) : ""
+  );
   const [price, setPrice] = useState<string>(recipe.price != null ? String(recipe.price) : "");
   const [isAvailable, setIsAvailable] = useState(recipe.is_available ?? true);
 
@@ -87,6 +87,13 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
     setSaved(false);
     setSaveError("");
 
+    const invalidRows = rows.filter((r) => !r.ingredientId || !(parseFloat(r.qty) > 0));
+    if (invalidRows.length > 0) {
+      setSaveError("Each ingredient row needs an ingredient selected and a quantity greater than 0.");
+      setSaving(false);
+      return;
+    }
+
     let finalImg = photo;
     if (photoFile) {
       try { finalImg = await uploadImage("recipe-images", photoFile); setPhoto(finalImg); setPhotoFile(null); }
@@ -94,7 +101,7 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
     }
 
     // Update recipe basics
-    const { error: recErr } = await supabase.from("recipes").update({ name: recipeName, img: finalImg, description, prep_time: prepTime || null, difficulty: difficulty || null, time: totalTime || null, yield: yieldAmt || null, price: price === "" ? 0 : Number(price), is_available: isAvailable }).eq("id", recipe.id);
+    const { error: recErr } = await supabase.from("recipes").update({ name: recipeName, img: finalImg, description, prep_time: prepTime || null, difficulty: difficulty || null, time: totalTime || null, yield: yieldAmt || null, price: price === "" ? 0 : Number(price), is_available: isAvailable, finished_shelf_life_days: shelfLifeDays === "" ? null : parseInt(shelfLifeDays) || null }).eq("id", recipe.id);
     if (recErr) { setSaveError(recErr.message); setSaving(false); return; }
     // Replace ingredients
     await supabase.from("recipe_ingredients").delete().eq("recipe_id", recipe.id);
@@ -119,7 +126,7 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
     if (file) { const err = validateImageFile(file); if (err) { setSaveError(err); return; } setPhotoFile(file); setPhoto(URL.createObjectURL(file)); setSaveError(""); }
   };
 
-  const addRow = () => setRows((prev) => [...prev, { ingredientId: inventory[0]?.id ?? "", qty: "0", unit: inventory[0]?.unit ?? "g" }]);
+  const addRow = () => setRows((prev) => [...prev, { ingredientId: "", qty: "", unit: "" }]);
   const removeRow = (i: number) => setRows((prev) => prev.filter((_, idx) => idx !== i));
   const updateRow = (i: number, field: keyof RecipeRow, value: string) => {
     setRows((prev) => prev.map((r, idx) => {
@@ -187,7 +194,7 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-outline-variant/10">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-4 border-t border-outline-variant/10">
               <div>
                 <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-widest mb-1">Total Time</p>
                 <div className="flex items-center gap-1.5">
@@ -264,6 +271,23 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
                   <option value="intermediate">Intermediate</option>
                   <option value="advanced">Advanced</option>
                 </select>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-widest mb-1">Finished Shelf Life</p>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="text" inputMode="numeric" maxLength={3} disabled={!editing}
+                    className={`w-12 bg-surface-container border border-outline-variant/40 rounded-lg px-2 py-1.5 text-sm font-bold text-primary font-mono text-center focus:outline-none focus:border-primary/50 ${ro}`}
+                    value={shelfLifeDays}
+                    onChange={(e) => setShelfLifeDays(e.target.value.replace(/\D/g, ""))}
+                    onFocus={(e) => e.target.select()}
+                    placeholder="—"
+                  />
+                  <span className="text-xs font-semibold text-on-surface-variant">days</span>
+                </div>
+                {!editing && !shelfLifeDays && (
+                  <p className="text-[9px] text-on-surface-variant/50 italic mt-0.5">no shelf life set</p>
+                )}
               </div>
             </div>
 
@@ -345,6 +369,7 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
                           value={row.ingredientId}
                           onChange={(e) => updateRow(i, "ingredientId", e.target.value)}
                         >
+                          <option value="" disabled>— select ingredient —</option>
                           {inventory.map((inv) => <option key={inv.id} value={inv.id}>{inv.name}</option>)}
                         </select>
                         {editing && (
@@ -398,6 +423,7 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
                             <div className="flex items-center gap-2">
                               {ing?.img && <div className="w-7 h-7 rounded-md overflow-hidden shrink-0"><img src={ing.img} alt={ing.name} className="w-full h-full object-cover" /></div>}
                               <select disabled={!editing} className={`flex-1 bg-transparent border-none focus:outline-none text-sm font-semibold text-primary min-w-0 ${roSelect}`} value={row.ingredientId} onChange={(e) => updateRow(i, "ingredientId", e.target.value)}>
+                                <option value="" disabled>— select ingredient —</option>
                                 {inventory.map((inv) => <option key={inv.id} value={inv.id}>{inv.name}</option>)}
                               </select>
                             </div>
@@ -439,6 +465,44 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
             </>
           )}
         </section>
+
+        {/* Cost & Margin — always visible, derived from current rows + inventory prices */}
+        {(() => {
+          const batchCost = computeBatchCost(rows, inventory);
+          const yieldNum = parseFloat(yieldQty) || 0;
+          const unitCost = yieldNum > 0 ? batchCost / yieldNum : 0;
+          const priceNum = price === "" ? 0 : Number(price);
+          const unitMargin = priceNum > 0 && unitCost > 0 ? priceNum - unitCost : null;
+          const marginPct = unitMargin !== null && priceNum > 0 ? Math.round((unitMargin / priceNum) * 100) : null;
+          return (
+            <section className="space-y-3">
+              <h3 className="font-semibold text-primary" style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 22 }}>Cost & Margin</h3>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/20 p-4">
+                  <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider mb-1">Batch Cost</p>
+                  <p className="font-bold text-primary text-lg font-mono">{peso(batchCost)}</p>
+                  <p className="text-[10px] text-on-surface-variant mt-0.5">{yieldQty ? `for ${yieldQty} ${yieldUnit}` : "set yield to compute"}</p>
+                </div>
+                <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/20 p-4">
+                  <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider mb-1">Cost / Unit</p>
+                  <p className="font-bold text-primary text-lg font-mono">{yieldNum > 0 ? peso(unitCost) : "—"}</p>
+                  <p className="text-[10px] text-on-surface-variant mt-0.5">per {yieldUnit}</p>
+                </div>
+                <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/20 p-4">
+                  <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider mb-1">Selling Price</p>
+                  <p className="font-bold text-primary text-lg font-mono">{priceNum > 0 ? peso(priceNum) : "—"}</p>
+                  <p className="text-[10px] text-on-surface-variant mt-0.5">per {yieldUnit}</p>
+                </div>
+                <div className={`rounded-xl border p-4 ${unitMargin !== null ? (unitMargin >= 0 ? "bg-secondary-container border-secondary/20" : "bg-error-container border-error/20") : "bg-surface-container-lowest border-outline-variant/20"}`}>
+                  <p className={`text-[10px] font-semibold uppercase tracking-wider mb-1 ${unitMargin !== null ? (unitMargin >= 0 ? "text-on-secondary-container" : "text-on-error-container") : "text-on-surface-variant"}`}>Margin / Unit</p>
+                  <p className={`font-bold text-lg font-mono ${unitMargin !== null ? (unitMargin >= 0 ? "text-on-secondary-container" : "text-on-error-container") : "text-primary"}`}>{unitMargin !== null ? peso(unitMargin) : "—"}</p>
+                  {marginPct !== null && <p className={`text-[10px] mt-0.5 ${unitMargin! >= 0 ? "text-on-secondary-container/70" : "text-on-error-container/70"}`}>{marginPct}% margin</p>}
+                  {priceNum === 0 && <p className="text-[10px] text-on-surface-variant mt-0.5">set price to see margin</p>}
+                </div>
+              </div>
+            </section>
+          );
+        })()}
 
         {/* Production Steps */}
         <section className="space-y-4">

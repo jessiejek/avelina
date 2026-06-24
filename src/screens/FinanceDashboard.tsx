@@ -3,13 +3,19 @@ import Icon from "../components/Icon.tsx";
 import { supabase } from "../lib/supabase.ts";
 import { peso } from "../lib/money.ts";
 
-const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
 function normalizeQty(qty: number, fromUnit: string, toUnit: string): number {
   if (fromUnit === toUnit) return qty;
   if ((fromUnit === "g" || fromUnit === "ml") && toUnit === "kg") return qty / 1000;
   if (fromUnit === "kg" && (toUnit === "g" || toUnit === "ml")) return qty * 1000;
   return qty;
+}
+
+function toDateKey(iso: string): string {
+  return iso.split("T")[0]; // "2025-06-24"
+}
+
+function shortDateLabel(d: Date): string {
+  return d.toLocaleDateString("en-PH", { month: "short", day: "numeric" }); // "Jun 24"
 }
 
 interface DayBar { label: string; revenue: number; expense: number }
@@ -35,28 +41,38 @@ export default function FinanceDashboard() {
     since.setHours(0, 0, 0, 0);
 
     Promise.all([
-      supabase.from("orders").select("status, placed_at, order_items(qty, unit_price, recipes(id, name))"),
+      // Orders with items + recipe info (needed for revenue and COGS)
+      supabase.from("orders").select("id, status, placed_at, completed_at, order_items(qty, unit_price, recipes(id, name))"),
       supabase.from("expenses").select("amount, note, created_at, type").order("created_at", { ascending: false }),
-      supabase.from("bake_entries").select("cost, started_at"),
-      supabase.from("ingredients").select("stock_value, cost_per_unit"),
+      // Bake entries: include order_id + recipe_id + qty so we can compute COGS per sale
+      supabase.from("bake_entries").select("cost, started_at, order_id, recipe_id, qty"),
+      supabase.from("ingredients").select("quantity, cost_per_unit"),
       supabase.from("recipes").select("id, name, price, yield, recipe_ingredients(qty, unit, ingredients(cost_per_unit, unit))"),
-    ]).then(([ordRes, expRes, bakeRes, ingRes, recRes]) => {
+      // Fix E: cash sales from finished-goods dispositions
+      supabase.from("finished_goods_dispositions").select("qty, reason, amount_collected, disposed_at"),
+    ]).then(([ordRes, expRes, bakeRes, ingRes, recRes, dispRes]) => {
       const orders = ordRes.data ?? [];
-      const orderTotal = (o: any) => (o.order_items || []).reduce((s: number, it: any) => s + (it.unit_price ?? 0) * (it.qty ?? 0), 0);
+      const orderTotal = (o: any) =>
+        (o.order_items || []).reduce((s: number, it: any) => s + (it.unit_price ?? 0) * (it.qty ?? 0), 0);
 
-      // Revenue (completed) vs pipeline (everything else)
+      // ── Revenue, pipeline, chart data ──────────────────────────────────────
       let rev = 0, pipe = 0;
       const revByDay: Record<string, number> = {};
-      const prodAgg: Record<string, { name: string; units: number; revenue: number }> = {};
+      const prodAgg: Record<string, { name: string; units: number; revenue: number; totalCogs: number }> = {};
+
       for (const o of orders) {
         const total = orderTotal(o);
         if (o.status === "completed") {
           rev += total;
-          const key = DAY_NAMES[new Date(o.placed_at).getDay()];
-          revByDay[key] = (revByDay[key] || 0) + total;
+          const completedAt = o.completed_at || o.placed_at;
+          const completedDate = new Date(completedAt);
+          if (completedDate >= since) {
+            const key = toDateKey(completedAt);
+            revByDay[key] = (revByDay[key] || 0) + total;
+          }
           for (const it of (o.order_items || []) as any[]) {
             const id = it.recipes?.id || "?";
-            if (!prodAgg[id]) prodAgg[id] = { name: it.recipes?.name || "—", units: 0, revenue: 0 };
+            if (!prodAgg[id]) prodAgg[id] = { name: it.recipes?.name || "—", units: 0, revenue: 0, totalCogs: 0 };
             prodAgg[id].units += it.qty ?? 0;
             prodAgg[id].revenue += (it.unit_price ?? 0) * (it.qty ?? 0);
           }
@@ -64,37 +80,54 @@ export default function FinanceDashboard() {
           pipe += total;
         }
       }
-      setRevenue(rev); setPipeline(pipe);
+      // Fix E: add cash sales from finished-goods dispositions to revenue
+      for (const d of (dispRes.data ?? []) as any[]) {
+        if (d.reason !== "cash_sale" || !(d.amount_collected > 0)) continue;
+        rev += d.amount_collected;
+        const disposed = new Date(d.disposed_at);
+        if (disposed >= since) {
+          const key = toDateKey(d.disposed_at);
+          revByDay[key] = (revByDay[key] || 0) + d.amount_collected;
+        }
+      }
+
+      setRevenue(rev);
+      setPipeline(pipe);
       setCompletedOrders(orders.filter((o: any) => o.status === "completed").length);
 
-      // Expenses
+      // ── Expenses ───────────────────────────────────────────────────────────
       const expenses = expRes.data ?? [];
-      const purch = expenses.reduce((s: number, e: any) => s + (e.amount ?? 0), 0);
-      setPurchases(purch);
+      setPurchases(expenses.reduce((s: number, e: any) => s + (e.amount ?? 0), 0));
       setRecentExpenses(expenses.slice(0, 6) as ExpenseRow[]);
+
       const expByDay: Record<string, number> = {};
       for (const e of expenses) {
         const d = new Date(e.created_at);
-        if (d >= since) { const key = DAY_NAMES[d.getDay()]; expByDay[key] = (expByDay[key] || 0) + (e.amount ?? 0); }
+        if (d >= since) {
+          const key = toDateKey(e.created_at);
+          expByDay[key] = (expByDay[key] || 0) + (e.amount ?? 0);
+        }
       }
 
-      // COGS from bakes
+      // ── Bake entries: build order→recipe→unitCost lookup ──────────────────
       const bakes = bakeRes.data ?? [];
-      setCogs(bakes.reduce((s: number, b: any) => s + (b.cost ?? 0), 0));
       setBakesCount(bakes.length);
 
-      // Raw stock value
+      // Map: orderId → { recipeId → unit cost at bake time }
+      const bakeUnitCostByOrder: Record<string, Record<string, number>> = {};
+      for (const b of bakes) {
+        if (!b.order_id || !b.recipe_id) continue;
+        const qtyNum = parseFloat(b.qty) || 1;
+        const unitCostAtBake = qtyNum > 0 ? (b.cost ?? 0) / qtyNum : 0;
+        if (!bakeUnitCostByOrder[b.order_id]) bakeUnitCostByOrder[b.order_id] = {};
+        bakeUnitCostByOrder[b.order_id][b.recipe_id] = unitCostAtBake;
+      }
+
+      // ── Stock value ────────────────────────────────────────────────────────
       const ings = ingRes.data ?? [];
-      setStockValue(ings.reduce((s: number, i: any) => s + (i.stock_value ?? 0) * (i.cost_per_unit ?? 0), 0));
+      setStockValue(ings.reduce((s: number, i: any) => s + (i.quantity ?? 0) * (i.cost_per_unit ?? 0), 0));
 
-      // 7-day bars
-      setBars(Array.from({ length: 7 }, (_, i) => {
-        const d = new Date(); d.setDate(d.getDate() - (6 - i));
-        const key = DAY_NAMES[d.getDay()];
-        return { label: key, revenue: revByDay[key] || 0, expense: expByDay[key] || 0 };
-      }));
-
-      // Per-product unit cost → margin
+      // ── Per-recipe cost lookup (fallback for fulfilled-from-stock orders) ──
       const costByRecipe: Record<string, { price: number; unitCost: number }> = {};
       for (const r of (recRes.data ?? []) as any[]) {
         const yieldNum = parseFloat(r.yield) || 0;
@@ -105,10 +138,49 @@ export default function FinanceDashboard() {
         }, 0);
         costByRecipe[r.id] = { price: r.price ?? 0, unitCost: yieldNum > 0 ? batch / yieldNum : 0 };
       }
+
+      // ── COGS: sum cost_per_unit × qty_sold for each completed order item ──
+      // Uses the actual bake-time unit cost when a linked bake entry exists;
+      // falls back to the recipe's current computed unit cost otherwise
+      // (covers orders fulfilled from finished-goods stock).
+      let totalCogs = 0;
+      for (const o of orders.filter((o: any) => o.status === "completed")) {
+        for (const it of (o.order_items || []) as any[]) {
+          const recipeId = it.recipes?.id;
+          const qtySold = it.qty ?? 0;
+          if (!recipeId || !qtySold) continue;
+          const bakeUnitCost = bakeUnitCostByOrder[o.id]?.[recipeId];
+          const itemUnitCost = bakeUnitCost !== undefined ? bakeUnitCost : (costByRecipe[recipeId]?.unitCost ?? 0);
+          totalCogs += itemUnitCost * qtySold;
+          if (prodAgg[recipeId]) {
+            prodAgg[recipeId].totalCogs += itemUnitCost * qtySold;
+          }
+        }
+      }
+      setCogs(totalCogs);
+
+      // ── 7-day chart bars (one per actual calendar date) ───────────────────
+      setBars(
+        Array.from({ length: 7 }, (_, i) => {
+          const d = new Date();
+          d.setDate(d.getDate() - (6 - i));
+          d.setHours(0, 0, 0, 0);
+          const key = d.toISOString().split("T")[0];
+          return { label: shortDateLabel(d), revenue: revByDay[key] || 0, expense: expByDay[key] || 0 };
+        }),
+      );
+
+      // ── Product performance ────────────────────────────────────────────────
       setProducts(
         Object.entries(prodAgg)
-          .map(([id, p]) => ({ ...p, price: costByRecipe[id]?.price ?? 0, unitCost: costByRecipe[id]?.unitCost ?? 0 }))
-          .sort((a, b) => b.revenue - a.revenue)
+          .map(([id, p]) => ({
+            name: p.name,
+            units: p.units,
+            revenue: p.revenue,
+            price: costByRecipe[id]?.price ?? 0,
+            unitCost: p.units > 0 ? p.totalCogs / p.units : (costByRecipe[id]?.unitCost ?? 0),
+          }))
+          .sort((a, b) => b.revenue - a.revenue),
       );
 
       setLoading(false);
@@ -157,11 +229,11 @@ export default function FinanceDashboard() {
             ))}
           </div>
 
-          {/* secondary stats */}
+          {/* Secondary stats */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {[
               { label: "Pipeline", sub: "unpaid orders", value: peso(pipeline) },
-              { label: "COGS", sub: `${bakesCount} bakes`, value: peso(cogs) },
+              { label: "COGS", sub: "cost of sold goods", value: peso(cogs) },
               { label: "Completed Orders", sub: "all time", value: String(completedOrders) },
               { label: "Net Cash", sub: "revenue − purchases", value: peso(revenue - purchases) },
             ].map((s) => (

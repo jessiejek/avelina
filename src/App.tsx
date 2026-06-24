@@ -29,10 +29,11 @@ import { Recipe } from "./data/recipes.ts";
 function mapIngredient(d: any): Ingredient {
   return {
     id: d.id, name: d.name, sku: d.sku,
-    stock: `${d.stock_value} ${d.unit}`,
-    stockValue: d.stock_value,
+    stock: `${d.quantity} ${d.unit}`,
+    quantity: d.quantity,
     unit: d.unit, status: d.status, icon: d.icon, img: d.img,
     costPerUnit: d.cost_per_unit ?? 0,
+    lowThreshold: d.low_threshold ?? undefined,
   };
 }
 
@@ -118,6 +119,7 @@ function AdminShell() {
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [confirmRecipe, setConfirmRecipe] = useState<Recipe | null>(null);
   const [confirmOrderId, setConfirmOrderId] = useState<string | null>(null);
+  const [confirmOrderQty, setConfirmOrderQty] = useState<number | null>(null);
   const [showPicker, setShowPicker] = useState(false);
 
   useEffect(() => {
@@ -202,9 +204,10 @@ function AdminShell() {
     return "inventory";
   })();
 
-  const pickRecipe = (r: Recipe, orderId: string | null = null) => {
+  const pickRecipe = (r: Recipe, orderId: string | null = null, orderQty: number | null = null) => {
     setConfirmRecipe(r);
     setConfirmOrderId(orderId);
+    setConfirmOrderQty(orderQty);
     setShowPicker(false);
     navigate("/admin/recipes/confirm");
   };
@@ -259,14 +262,14 @@ function AdminShell() {
           } />
           <Route path="recipes/confirm" element={
             confirmRecipe
-              ? <BakeConfirmation recipe={confirmRecipe} inventory={inventory} orderId={confirmOrderId} onBack={() => { setShowPicker(true); navigate("/admin/recipes"); }} onLogBake={handleLogBake} />
+              ? <BakeConfirmation recipe={confirmRecipe} inventory={inventory} orderId={confirmOrderId} orderQty={confirmOrderQty ?? undefined} onBack={() => { setShowPicker(true); navigate("/admin/recipes"); }} onLogBake={handleLogBake} />
               : <Navigate to="/admin/recipes" replace />
           } />
 
           <Route path="orders" element={
-            <AdminOrders onStartBake={(recipeId, orderId) => {
+            <AdminOrders onStartBake={(recipeId, orderId, orderQty) => {
               const r = recipes.find((x) => x.id === recipeId);
-              if (r) pickRecipe(r, orderId);
+              if (r) pickRecipe(r, orderId, orderQty);
             }} />
           } />
           <Route path="bakelog" element={<BakeLog entries={bakeLogs} />} />
@@ -316,7 +319,14 @@ function PublicShell() {
   const navigate = useNavigate();
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cart, setCart] = useState<CartItem[]>(() => {
+    try {
+      const saved = localStorage.getItem("avelinas_cart_v1");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [pendingRecipe, setPendingRecipe] = useState<Recipe | null>(null);
   const [lastOrder, setLastOrder] = useState<Order | null>(null);
 
@@ -353,6 +363,11 @@ function PublicShell() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Persist cart to localStorage on every change
+  useEffect(() => {
+    try { localStorage.setItem("avelinas_cart_v1", JSON.stringify(cart)); } catch {}
+  }, [cart]);
 
   // Load profile whenever session changes
   useEffect(() => {
@@ -423,6 +438,7 @@ function PublicShell() {
   const handlePlaceOrder = (order: Order) => {
     setLastOrder(order);
     setCart([]);
+    try { localStorage.removeItem("avelinas_cart_v1"); } catch {}
     navigate("/order-confirmed");
   };
 

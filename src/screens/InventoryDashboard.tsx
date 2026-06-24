@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { supabase, uploadImage, validateImageFile } from "../lib/supabase.ts";
 import {
   Wheat, Droplets, FlaskConical, Sparkles, Egg, ChefHat, Coffee, Cookie,
@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { Ingredient } from "../data/inventory.ts";
 import Icon from "../components/Icon.tsx";
+import { peso } from "../lib/money.ts";
 
 interface Props {
   ingredients: Ingredient[];
@@ -23,32 +24,26 @@ const statusConfig: Record<string, { label: string; bg: string; text: string; do
 };
 
 const ICON_OPTIONS: { id: string; Comp: LucideIcon; label: string }[] = [
-  // Grains & Base
   { id: "wheat",       Comp: Wheat,          label: "Flour"     },
   { id: "croissant",   Comp: Croissant,      label: "Pastry"    },
   { id: "cake",        Comp: CakeSlice,      label: "Cake"      },
   { id: "donut",       Comp: Donut,          label: "Donut"     },
   { id: "cookie",      Comp: Cookie,         label: "Cookie"    },
-  // Dairy & Eggs
   { id: "milk",        Comp: Milk,           label: "Dairy"     },
   { id: "egg",         Comp: Egg,            label: "Eggs"      },
   { id: "ice-cream",   Comp: IceCreamCone,   label: "Cream"     },
-  // Liquids
   { id: "droplets",    Comp: Droplets,       label: "Water"     },
   { id: "coffee",      Comp: Coffee,         label: "Coffee"    },
   { id: "wine",        Comp: Wine,           label: "Extract"   },
-  // Fruits & Veg
   { id: "apple",       Comp: Apple,          label: "Apple"     },
   { id: "banana",      Comp: Banana,         label: "Banana"    },
   { id: "cherry",      Comp: Cherry,         label: "Cherry"    },
   { id: "grape",       Comp: Grape,          label: "Grape"     },
   { id: "carrot",      Comp: Carrot,         label: "Carrot"    },
-  // Fats, Nuts & Sweet
   { id: "nut",         Comp: Nut,            label: "Nuts"      },
   { id: "candy",       Comp: Candy,          label: "Sugar"     },
   { id: "leaf",        Comp: Leaf,           label: "Herbs"     },
   { id: "flame",       Comp: Flame,          label: "Spice"     },
-  // Science & Tools
   { id: "flask",       Comp: FlaskConical,   label: "Chemical"  },
   { id: "sparkles",    Comp: Sparkles,       label: "Starter"   },
   { id: "thermo",      Comp: Thermometer,    label: "Temp"      },
@@ -72,6 +67,26 @@ interface NewIngForm {
   icon: string;
 }
 
+// Fix E — shelf stock
+type DispositionReason = "cash_sale" | "personal_use" | "donated_comped" | "spoiled_discarded";
+
+interface ShelfItem {
+  recipeId: string;
+  name: string;
+  quantity: number;
+  bakedAt: string | null;
+  costPerUnit: number;
+  unit: string;
+  shelfLifeDays: number | null;
+}
+
+const DISPOSITION_OPTS: { value: DispositionReason; label: string }[] = [
+  { value: "cash_sale",         label: "Cash Sale"          },
+  { value: "personal_use",      label: "Personal Use"       },
+  { value: "donated_comped",    label: "Donated / Comped"   },
+  { value: "spoiled_discarded", label: "Spoiled / Discarded"},
+];
+
 const emptyForm: NewIngForm = { name: "", sku: "", stockValue: "", cost: "", unit: "kg", status: "optimal", icon: "wheat" };
 
 export default function InventoryDashboard({ ingredients, onAddIngredient, onViewIngredient, onDeleteIngredient }: Props) {
@@ -88,6 +103,99 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
   const [deleteTarget, setDeleteTarget] = useState<Ingredient | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+
+  // Fix E — shelf stock state
+  const [shelfStock, setShelfStock] = useState<ShelfItem[]>([]);
+  const [dispModal, setDispModal] = useState<ShelfItem | null>(null);
+  const [dispQty, setDispQty] = useState("1");
+  const [dispReason, setDispReason] = useState<DispositionReason>("cash_sale");
+  const [dispNotes, setDispNotes] = useState("");
+  const [dispUnitPrice, setDispUnitPrice] = useState("");
+  const [dispSaving, setDispSaving] = useState(false);
+  const [dispError, setDispError] = useState("");
+
+  useEffect(() => {
+    supabase
+      .from("finished_goods")
+      .select("recipe_id, quantity, baked_at, cost_per_unit, unit, recipes(id, name, finished_shelf_life_days)")
+      .gt("quantity", 0)
+      .then(({ data }) => {
+        setShelfStock(
+          (data || []).map((row: any) => ({
+            recipeId: row.recipe_id,
+            name: row.recipes?.name || "Unknown",
+            quantity: row.quantity ?? 0,
+            bakedAt: row.baked_at ?? null,
+            costPerUnit: row.cost_per_unit ?? 0,
+            unit: row.unit || "units",
+            shelfLifeDays: row.recipes?.finished_shelf_life_days ?? null,
+          }))
+        );
+      });
+  }, []);
+
+  const isExpired = (item: ShelfItem) => {
+    if (!item.shelfLifeDays || !item.bakedAt) return false;
+    const daysSince = (Date.now() - new Date(item.bakedAt).getTime()) / (1000 * 60 * 60 * 24);
+    return daysSince > item.shelfLifeDays;
+  };
+
+  const openDispModal = (item: ShelfItem) => {
+    setDispModal(item);
+    setDispQty("1");
+    setDispReason("cash_sale");
+    setDispNotes("");
+    setDispUnitPrice("");
+    setDispError("");
+  };
+
+  const handleDisposition = async () => {
+    if (!dispModal) return;
+    const qty = parseFloat(dispQty) || 0;
+    if (qty <= 0) { setDispError("Quantity must be greater than 0"); return; }
+    if (qty > dispModal.quantity) { setDispError(`Only ${dispModal.quantity} ${dispModal.unit} available`); return; }
+
+    setDispSaving(true);
+    setDispError("");
+    const now = new Date().toISOString();
+    const amountCollected = dispReason === "cash_sale" ? (parseFloat(dispUnitPrice) || 0) * qty : null;
+    const writeoffValue = dispReason !== "cash_sale" ? dispModal.costPerUnit * qty : null;
+    const newQty = dispModal.quantity - qty;
+
+    await supabase
+      .from("finished_goods")
+      .update({ quantity: newQty, updated_at: now })
+      .eq("recipe_id", dispModal.recipeId);
+
+    await supabase.from("finished_goods_dispositions").insert({
+      recipe_id: dispModal.recipeId,
+      qty,
+      reason: dispReason,
+      amount_collected: amountCollected,
+      writeoff_value: writeoffValue,
+      notes: dispNotes || null,
+      disposed_at: now,
+      unit: dispModal.unit,
+    });
+
+    if (dispReason !== "cash_sale" && writeoffValue && writeoffValue > 0) {
+      const category = dispReason === "spoiled_discarded" ? "spoilage_writeoff" : "writeoff";
+      await supabase.from("expenses").insert({
+        category,
+        amount: writeoffValue,
+        description: `${dispModal.name} — ${qty} ${dispModal.unit} ${dispReason.replace(/_/g, " ")}`,
+        recorded_at: now,
+      });
+    }
+
+    setShelfStock((prev) =>
+      prev
+        .map((s) => s.recipeId === dispModal.recipeId ? { ...s, quantity: newQty } : s)
+        .filter((s) => s.quantity > 0)
+    );
+    setDispSaving(false);
+    setDispModal(null);
+  };
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -129,7 +237,7 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
       name: form.name.trim(),
       sku: form.sku.trim() || `ING-${Date.now()}`,
       stock: `${val} ${form.unit}`,
-      stockValue: val,
+      quantity: val,
       unit: form.unit,
       status: form.status,
       icon: form.icon,
@@ -137,17 +245,28 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
     };
     const { error } = await supabase.from("ingredients").insert({
       id: newIng.id, name: newIng.name, sku: newIng.sku,
-      stock_value: newIng.stockValue, unit: newIng.unit,
+      quantity: newIng.quantity, unit: newIng.unit,
       status: newIng.status, icon: newIng.icon, img: newIng.img,
       cost_per_unit: form.cost === "" ? 0 : parseFloat(form.cost) || 0,
     });
     if (error) { setAddError(error.message); setAdding(false); return; }
-    // Record the opening balance as the first stock movement.
     if (val > 0) {
       await supabase.from("inventory_adjustments").insert({
         ingredient_id: newIng.id, delta: val, unit: newIng.unit,
         reason: "Opening balance", adjusted_by: "Avelina",
       });
+      const costPerUnit = form.cost === "" ? 0 : parseFloat(form.cost) || 0;
+      if (costPerUnit > 0) {
+        await supabase.from("expenses").insert({
+          type: "ingredient_purchase",
+          amount: val * costPerUnit,
+          ingredient_id: newIng.id,
+          qty: val,
+          unit: newIng.unit,
+          note: form.name.trim() + " opening stock",
+          created_by: "Avelina",
+        });
+      }
     }
     onAddIngredient(newIng);
     setForm(emptyForm);
@@ -159,7 +278,6 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-y-auto bg-surface">
-      {/* TopBar */}
       <header className="sticky top-0 z-50 flex justify-between items-center px-6 h-14 w-full bg-surface-bright border-b border-outline-variant/20">
         <h1 className="font-bold text-primary" style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 22 }}>Inventory</h1>
         <div className="flex items-center gap-3">
@@ -196,14 +314,73 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
                     <p className="font-semibold text-primary text-sm truncate">{item.name}</p>
                     <p className="text-xs text-on-surface-variant mt-0.5">{item.stock} remaining</p>
                   </div>
-                  <button
-                    onClick={() => onViewIngredient(item.id)}
-                    className="shrink-0 px-3 h-8 rounded-lg text-xs font-semibold border border-outline text-primary hover:bg-surface-container transition-colors"
-                  >
+                  <button onClick={() => onViewIngredient(item.id)} className="shrink-0 px-3 h-8 rounded-lg text-xs font-semibold border border-outline text-primary hover:bg-surface-container transition-colors">
                     Order
                   </button>
                 </div>
               ))}
+            </div>
+          </section>
+        )}
+
+        {/* Fix E: Finished Goods on Shelf */}
+        {shelfStock.length > 0 && (
+          <section className="space-y-3">
+            <h3 className="font-semibold text-primary" style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 16 }}>Finished Goods on Shelf</h3>
+            <div className="rounded-xl border border-outline-variant/20 bg-surface-container-lowest overflow-x-auto">
+              <table className="w-full text-left min-w-[560px]">
+                <thead>
+                  <tr className="bg-surface-container-low border-b border-outline-variant/20">
+                    {["Product", "On Shelf", "Last Baked", "Expiry", ""].map((h) => (
+                      <th key={h} className="px-4 py-3 text-[11px] font-semibold text-on-surface-variant uppercase tracking-widest">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-outline-variant/10">
+                  {shelfStock.map((item) => {
+                    const expired = isExpired(item);
+                    return (
+                      <tr key={item.recipeId} className={expired ? "bg-error-container/10" : ""}>
+                        <td className="px-4 py-3">
+                          <p className="font-semibold text-primary text-sm">{item.name}</p>
+                          {item.costPerUnit > 0 && (
+                            <p className="text-[10px] text-on-surface-variant mt-0.5 font-mono">cost {peso(item.costPerUnit)}/{item.unit}</p>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-sm font-bold text-primary font-mono">
+                          {item.quantity} <span className="font-normal text-on-surface-variant">{item.unit}</span>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-on-surface-variant">
+                          {item.bakedAt
+                            ? new Date(item.bakedAt).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })
+                            : "—"}
+                        </td>
+                        <td className="px-4 py-3">
+                          {expired ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-error-container text-on-error-container rounded-full text-[10px] font-bold uppercase tracking-wide">
+                              <Icon name="warning" size={10} /> Expired
+                            </span>
+                          ) : item.shelfLifeDays ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-secondary-container text-on-secondary-container rounded-full text-[10px] font-bold uppercase tracking-wide">
+                              <Icon name="check_circle" size={10} /> Fresh
+                            </span>
+                          ) : (
+                            <span className="text-xs text-on-surface-variant/50">no expiry set</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <button
+                            onClick={() => openDispModal(item)}
+                            className="h-7 px-3 rounded-lg bg-primary-container text-on-primary-fixed text-xs font-bold hover:opacity-80 active:scale-95 transition-all flex items-center gap-1.5 whitespace-nowrap"
+                          >
+                            <Icon name="sell" size={11} /> Tag Disposition
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </section>
         )}
@@ -240,7 +417,6 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
                 key={item.id}
                 className="bg-surface-container-lowest rounded-xl border border-outline-variant/20 overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all group"
               >
-                {/* Photo */}
                 <div className="relative aspect-[16/9] overflow-hidden bg-surface-container cursor-pointer" onClick={() => onViewIngredient(item.id)}>
                   {item.img
                     ? <img src={item.img} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
@@ -252,7 +428,6 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
                     </span>
                   </div>
                 </div>
-
                 <div className="p-4">
                   <div className="flex justify-between items-start gap-2 mb-3">
                     <div className="min-w-0">
@@ -334,6 +509,130 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
         </div>
       )}
 
+      {/* Fix E: Disposition Modal */}
+      {dispModal && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+          style={{ backgroundColor: "rgba(29,27,26,0.5)" }}
+          onClick={() => !dispSaving && setDispModal(null)}
+        >
+          <div
+            className="bg-surface-container-lowest rounded-2xl border border-outline-variant/20 w-full max-w-sm shadow-2xl p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-12 h-12 rounded-full bg-primary-container flex items-center justify-center mb-4">
+              <Icon name="sell" size={22} className="text-on-primary-fixed" />
+            </div>
+            <h3 className="font-bold text-primary text-lg" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>Tag Disposition</h3>
+            <p className="text-sm text-on-surface-variant mt-1">
+              {dispModal.name} · <span className="font-bold text-primary">{dispModal.quantity} {dispModal.unit}</span> available
+            </p>
+
+            <div className="mt-4 space-y-4">
+              {/* Reason */}
+              <div>
+                <label className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Reason</label>
+                <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+                  {DISPOSITION_OPTS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setDispReason(opt.value)}
+                      className={`py-2 px-3 rounded-lg text-xs font-semibold text-left border transition-all ${
+                        dispReason === opt.value
+                          ? "bg-primary/10 border-primary text-primary"
+                          : "bg-surface-container border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-high"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Qty */}
+              <div className="flex items-center gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Quantity</label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={dispQty}
+                    onChange={(e) => { setDispQty(e.target.value.replace(/[^\d.]/g, "")); setDispError(""); }}
+                    className="mt-1.5 w-24 h-9 px-3 text-center font-bold text-primary font-mono bg-surface-container border border-outline-variant/40 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                </div>
+                <span className="text-xs text-on-surface-variant mt-5">{dispModal.unit}</span>
+              </div>
+
+              {/* Unit price — cash sale only */}
+              {dispReason === "cash_sale" && (
+                <div>
+                  <label className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Unit Price</label>
+                  <div className="mt-1.5 flex items-center gap-1 bg-surface-container border border-outline-variant/40 rounded-lg px-3 w-36">
+                    <span className="text-sm font-bold text-on-surface-variant">₱</span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={dispUnitPrice}
+                      onChange={(e) => setDispUnitPrice(e.target.value.replace(/[^\d.]/g, ""))}
+                      className="flex-1 bg-transparent py-2 text-sm font-bold text-primary focus:outline-none font-mono"
+                      placeholder="0.00"
+                    />
+                  </div>
+                  {dispUnitPrice && parseFloat(dispQty) > 0 && (
+                    <p className="text-xs text-on-surface-variant mt-1">
+                      Total collected: <span className="font-bold text-secondary font-mono">{peso((parseFloat(dispUnitPrice) || 0) * (parseFloat(dispQty) || 0))}</span>
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Write-off preview */}
+              {dispReason !== "cash_sale" && dispModal.costPerUnit > 0 && parseFloat(dispQty) > 0 && (
+                <p className="text-xs text-on-surface-variant bg-surface-container rounded-lg px-3 py-2">
+                  Write-off value: <span className="font-bold text-error font-mono">{peso(dispModal.costPerUnit * (parseFloat(dispQty) || 0))}</span> (at cost)
+                </p>
+              )}
+
+              {/* Notes */}
+              <div>
+                <label className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Notes (optional)</label>
+                <input
+                  type="text"
+                  value={dispNotes}
+                  onChange={(e) => setDispNotes(e.target.value)}
+                  className="mt-1.5 w-full h-9 px-3 text-sm text-primary bg-surface-container border border-outline-variant/40 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  placeholder="e.g. sold at weekend market"
+                />
+              </div>
+
+              {dispError && (
+                <p className="text-xs text-error flex items-center gap-1">
+                  <Icon name="error" size={12} /> {dispError}
+                </p>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={() => setDispModal(null)}
+                disabled={dispSaving}
+                className="px-5 h-10 rounded-lg border border-outline text-primary text-sm font-semibold hover:bg-surface-container transition-colors disabled:opacity-40"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDisposition}
+                disabled={dispSaving}
+                className="px-5 h-10 rounded-lg bg-primary text-on-primary text-sm font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-40"
+              >
+                {dispSaving ? "Saving…" : "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Add Ingredient Modal */}
       {showModal && (
         <div
@@ -346,18 +645,15 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
             style={{ maxHeight: "92vh" }}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Drag handle on mobile */}
             <div className="flex justify-center pt-3 pb-1 sm:hidden">
               <div className="w-10 h-1 rounded-full bg-outline-variant/40" />
             </div>
-
             <div className="flex items-center justify-between px-6 py-4 border-b border-outline-variant/10 shrink-0">
               <h3 className="font-bold text-primary" style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 18 }}>Add New Ingredient</h3>
               <button onClick={() => { setShowModal(false); setForm(emptyForm); }} className="w-8 h-8 rounded-full hover:bg-surface-container flex items-center justify-center text-on-surface-variant transition-colors">
                 <Icon name="close" size={18} />
               </button>
             </div>
-
             <div className="px-6 py-5 space-y-4 overflow-y-auto flex-1">
               <div>
                 <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">Ingredient Name *</label>
@@ -369,7 +665,6 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
                   autoFocus
                 />
               </div>
-
               <div>
                 <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">SKU / Reference</label>
                 <input
@@ -379,16 +674,12 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
                   onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))}
                 />
               </div>
-
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">Initial Stock</label>
                   <input
                     className="w-full bg-surface-bright border border-outline-variant px-4 py-2.5 rounded-lg text-sm font-bold text-primary focus:outline-none focus:border-primary/50 font-mono"
-                    type="number"
-                    min={0}
-                    step={0.1}
-                    placeholder="0.0"
+                    type="number" min={0} step={0.1} placeholder="0.0"
                     value={form.stockValue}
                     onChange={(e) => setForm((f) => ({ ...f, stockValue: e.target.value }))}
                   />
@@ -404,7 +695,6 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
                   </select>
                 </div>
               </div>
-
               <div>
                 <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">Purchase Cost (₱ per {form.unit})</label>
                 <div className="flex items-center gap-1 bg-surface-bright border border-outline-variant rounded-lg px-3">
@@ -417,7 +707,6 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
                   />
                 </div>
               </div>
-
               <div>
                 <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-2">Stock Status</label>
                 <div className="flex gap-2">
@@ -438,7 +727,6 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
                   ))}
                 </div>
               </div>
-
               <div>
                 <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">Photo (optional)</label>
                 <input ref={imgInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
@@ -459,7 +747,6 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
                   </button>
                 )}
               </div>
-
               <div>
                 <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-2">Icon</label>
                 <div className="grid grid-cols-6 gap-1.5">
@@ -484,7 +771,6 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
                 </div>
               </div>
             </div>
-
             <div className="px-6 py-4 border-t border-outline-variant/10 flex flex-col gap-2 shrink-0">
               {addError && <p className="text-xs text-error">{addError}</p>}
               <div className="flex justify-end gap-3">

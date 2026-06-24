@@ -38,7 +38,7 @@ export default function IngredientDetail({ onBack }: Props) {
 
   const [name, setName] = useState("");
   const [sku, setSku] = useState("");
-  const [stockValue, setStockValue] = useState<number | "">("");
+  const [quantity, setQuantity] = useState<number | "">("");
   const [unit, setUnit] = useState("kg");
   const [status, setStatus] = useState<"optimal" | "low" | "critical">("optimal");
   const [img, setImg] = useState<string | null>(null);
@@ -56,7 +56,7 @@ export default function IngredientDetail({ onBack }: Props) {
       if (data) {
         setName(data.name ?? "");
         setSku(data.sku ?? "");
-        setStockValue(data.stock_value ?? "");
+        setQuantity(data.quantity ?? "");
         setUnit(data.unit ?? "kg");
         setMeasureTab(measureForUnit(data.unit ?? "kg"));
         setStatus(data.status ?? "optimal");
@@ -87,10 +87,15 @@ export default function IngredientDetail({ onBack }: Props) {
       try { finalImg = await uploadImage("ingredient-images", imgFile); setImg(finalImg); setImgFile(null); }
       catch (e: any) { setSaveError("Photo upload failed: " + e.message); setSaving(false); return; }
     }
-    // Note: stock_value is intentionally NOT written here — quantity only changes via Adjust Stock.
-    const { error } = await supabase.from("ingredients").update({ name, sku, img: finalImg, unit, status, shelf_life: shelfLife === "" ? null : shelfLife, low_threshold: lowThreshold === "" ? null : lowThreshold, cost_per_unit: costPerUnit === "" ? 0 : costPerUnit, notes: notes.trim() || null }).eq("id", id);
+    // Recompute status from current stock level and the (possibly edited) low_threshold.
+    // quantity is intentionally NOT written here — it only changes via Adjust Stock.
+    const currentQty = typeof quantity === "number" ? quantity : 0;
+    const threshold = typeof lowThreshold === "number" ? lowThreshold : 5;
+    const newStatus: "optimal" | "low" | "critical" = currentQty <= 0 ? "critical" : currentQty < threshold ? "low" : "optimal";
+    const { error } = await supabase.from("ingredients").update({ name, sku, img: finalImg, unit, status: newStatus, shelf_life: shelfLife === "" ? null : shelfLife, low_threshold: lowThreshold === "" ? null : lowThreshold, cost_per_unit: costPerUnit === "" ? 0 : costPerUnit, notes: notes.trim() || null }).eq("id", id);
     setSaving(false);
     if (error) { setSaveError(error.message); return; }
+    setStatus(newStatus);
     setSaved(true);
     setEditing(false);
     setTimeout(() => setSaved(false), 2500);
@@ -98,7 +103,7 @@ export default function IngredientDetail({ onBack }: Props) {
 
   const handleAdjustStock = () => {
     navigate("/admin/inventory/adjust", {
-      state: { ingredient: { id, name, sku, stockValue, unit, status, img, costPerUnit: costPerUnit === "" ? 0 : costPerUnit } },
+      state: { ingredient: { id, name, sku, quantity, unit, status, img, costPerUnit: costPerUnit === "" ? 0 : costPerUnit, lowThreshold: lowThreshold === "" ? undefined : Number(lowThreshold) } },
     });
   };
 
@@ -252,7 +257,7 @@ export default function IngredientDetail({ onBack }: Props) {
                       </div>
                       <div className="flex">
                         <div className="flex-1 min-w-0 bg-surface-container border border-outline-variant/40 px-4 py-2.5 rounded-l-lg text-base font-bold text-primary font-mono flex items-center">
-                          {stockValue === "" ? 0 : stockValue}
+                          {quantity === "" ? 0 : quantity}
                         </div>
                         <select
                           disabled={!editing}
@@ -303,7 +308,7 @@ export default function IngredientDetail({ onBack }: Props) {
                     <div className="flex flex-col justify-end">
                       <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">Stock Value</label>
                       <div className="h-[46px] flex items-center px-4 rounded-lg bg-surface-container border border-outline-variant/30 text-base font-bold text-primary font-mono">
-                        {peso((typeof costPerUnit === "number" ? costPerUnit : 0) * (typeof stockValue === "number" ? stockValue : 0))}
+                        {peso((typeof costPerUnit === "number" ? costPerUnit : 0) * (typeof quantity === "number" ? quantity : 0))}
                       </div>
                     </div>
                   </div>
@@ -394,7 +399,7 @@ export default function IngredientDetail({ onBack }: Props) {
                   />
                 </div>
                 <p className={`text-xs opacity-80 ${status === "optimal" ? "text-on-secondary-container" : status === "low" ? "text-on-tertiary-fixed-variant" : "text-on-error-container"}`}>
-                  Current: <span className="font-bold font-mono">{stockValue === "" ? 0 : stockValue} {unit}</span>
+                  Current: <span className="font-bold font-mono">{quantity === "" ? 0 : quantity} {unit}</span>
                 </p>
               </div>
 

@@ -23,6 +23,7 @@ export interface Recipe {
   difficulty?: string;
   price?: number;
   is_available?: boolean;
+  finished_shelf_life_days?: number | null;
   ingredients: RecipeIngredient[];
   steps: RecipeStep[];
 }
