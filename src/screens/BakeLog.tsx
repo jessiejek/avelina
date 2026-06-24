@@ -46,10 +46,12 @@ export default function BakeLog({ entries, onUpdateEntry }: Props) {
     if (actualQty !== undefined) dbUpdate.actual_qty = actualQty;
     await supabase.from("bake_entries").update(dbUpdate).eq("id", id);
 
-    // If this bake is tied to an order, conditionally advance it when done.
+    // If this bake is tied to an order, advance it based on accumulated yield.
     if (entry?.order_id) {
       if (status === "completed") {
-        // Fix A: only advance to "ready" when fully fulfilled
+        // Use the actual qty if the baker entered one, otherwise fall back to planned qty.
+        const batchYield = actualQty ?? parseFloat(entry.qty) ?? 0;
+
         const { data: orderData } = await supabase
           .from("orders")
           .select("fulfilled_qty, order_items(qty)")
@@ -57,11 +59,17 @@ export default function BakeLog({ entries, onUpdateEntry }: Props) {
           .maybeSingle();
         const totalNeeded = ((orderData?.order_items as any[]) ?? [])
           .reduce((s: number, it: any) => s + (it.qty ?? 0), 0);
-        const fulfilled = orderData?.fulfilled_qty ?? 0;
-        if (totalNeeded > 0 && fulfilled >= totalNeeded) {
-          await supabase.from("orders").update({ status: "ready" }).eq("id", entry.order_id);
+
+        // Accumulate fulfilled_qty here so BakeLog is authoritative regardless of
+        // whether BakeConfirmation already wrote it (handles old-code-path orders too).
+        const newFulfilled = (orderData?.fulfilled_qty ?? 0) + batchYield;
+
+        if (totalNeeded > 0 && newFulfilled >= totalNeeded) {
+          await supabase.from("orders").update({ status: "ready", fulfilled_qty: newFulfilled }).eq("id", entry.order_id);
+        } else {
+          // Partial — at minimum move from "confirmed" → "baking" and record progress.
+          await supabase.from("orders").update({ status: "baking", fulfilled_qty: newFulfilled }).eq("id", entry.order_id);
         }
-        // If not fully fulfilled yet, order stays "baking" until another bake session completes it.
       } else if (status === "failed") {
         await supabase.from("orders").update({ status: "confirmed" }).eq("id", entry.order_id);
       }
