@@ -382,7 +382,7 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
                             onClick={() => openDispModal(item)}
                             className="h-7 px-3 rounded-lg bg-primary-container text-on-primary-fixed text-xs font-bold hover:opacity-80 active:scale-95 transition-all flex items-center gap-1.5 whitespace-nowrap"
                           >
-                            <Icon name="sell" size={11} /> Mark as Sold / Given
+                            <Icon name="sell" size={11} /> Sell or Give Away
                           </button>
                         </td>
                       </tr>
