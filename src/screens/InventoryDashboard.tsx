@@ -4,7 +4,7 @@ import {
   Wheat, Droplets, FlaskConical, Sparkles, Egg, ChefHat, Coffee, Cookie,
   Leaf, Flame, Apple, UtensilsCrossed, Milk, Nut, Croissant, CakeSlice,
   Carrot, Grape, Cherry, Wine, Candy, Donut, Thermometer, Scale,
-  CookingPot, Banana, IceCreamCone, LucideIcon,
+  CookingPot, Banana, IceCreamCone,
 } from "lucide-react";
 import { Ingredient } from "../data/inventory.ts";
 import Icon from "../components/Icon.tsx";
@@ -23,39 +23,13 @@ const statusConfig: Record<string, { label: string; bg: string; text: string; do
   critical: { label: "Out of Stock", bg: "bg-error-container", text: "text-on-error-container", dot: "bg-error" },
 };
 
-const ICON_OPTIONS: { id: string; Comp: LucideIcon; label: string }[] = [
-  { id: "wheat",       Comp: Wheat,          label: "Flour"     },
-  { id: "croissant",   Comp: Croissant,      label: "Pastry"    },
-  { id: "cake",        Comp: CakeSlice,      label: "Cake"      },
-  { id: "donut",       Comp: Donut,          label: "Donut"     },
-  { id: "cookie",      Comp: Cookie,         label: "Cookie"    },
-  { id: "milk",        Comp: Milk,           label: "Dairy"     },
-  { id: "egg",         Comp: Egg,            label: "Eggs"      },
-  { id: "ice-cream",   Comp: IceCreamCone,   label: "Cream"     },
-  { id: "droplets",    Comp: Droplets,       label: "Water"     },
-  { id: "coffee",      Comp: Coffee,         label: "Coffee"    },
-  { id: "wine",        Comp: Wine,           label: "Extract"   },
-  { id: "apple",       Comp: Apple,          label: "Apple"     },
-  { id: "banana",      Comp: Banana,         label: "Banana"    },
-  { id: "cherry",      Comp: Cherry,         label: "Cherry"    },
-  { id: "grape",       Comp: Grape,          label: "Grape"     },
-  { id: "carrot",      Comp: Carrot,         label: "Carrot"    },
-  { id: "nut",         Comp: Nut,            label: "Nuts"      },
-  { id: "candy",       Comp: Candy,          label: "Sugar"     },
-  { id: "leaf",        Comp: Leaf,           label: "Herbs"     },
-  { id: "flame",       Comp: Flame,          label: "Spice"     },
-  { id: "flask",       Comp: FlaskConical,   label: "Chemical"  },
-  { id: "sparkles",    Comp: Sparkles,       label: "Starter"   },
-  { id: "thermo",      Comp: Thermometer,    label: "Temp"      },
-  { id: "scale",       Comp: Scale,          label: "Weight"    },
-  { id: "pot",         Comp: CookingPot,     label: "Cooking"   },
-  { id: "chef",        Comp: ChefHat,        label: "Chef"      },
-  { id: "pantry",      Comp: UtensilsCrossed,label: "Pantry"    },
-];
-
-const ICON_MAP: Record<string, LucideIcon> = Object.fromEntries(
-  ICON_OPTIONS.map(({ id, Comp }) => [id, Comp])
-);
+const ICON_MAP: Record<string, React.FC<{ size?: number; strokeWidth?: number }>> = {
+  wheat: Wheat, croissant: Croissant, cake: CakeSlice, donut: Donut, cookie: Cookie,
+  milk: Milk, egg: Egg, "ice-cream": IceCreamCone, droplets: Droplets, coffee: Coffee,
+  wine: Wine, apple: Apple, banana: Banana, cherry: Cherry, grape: Grape, carrot: Carrot,
+  nut: Nut, candy: Candy, leaf: Leaf, flame: Flame, flask: FlaskConical, sparkles: Sparkles,
+  thermo: Thermometer, scale: Scale, pot: CookingPot, chef: ChefHat, pantry: UtensilsCrossed,
+};
 
 interface NewIngForm {
   name: string;
@@ -64,7 +38,6 @@ interface NewIngForm {
   cost: string;
   unit: string;
   status: "optimal" | "low" | "critical";
-  icon: string;
 }
 
 // Fix E — shelf stock
@@ -87,7 +60,7 @@ const DISPOSITION_OPTS: { value: DispositionReason; label: string; sub: string }
   { value: "spoiled_discarded", label: "Thrown Away",       sub: "Spoiled or can't be sold"     },
 ];
 
-const emptyForm: NewIngForm = { name: "", sku: "", stockValue: "", cost: "", unit: "kg", status: "optimal", icon: "wheat" };
+const emptyForm: NewIngForm = { name: "", sku: "", stockValue: "", cost: "", unit: "kg", status: "optimal" };
 
 export default function InventoryDashboard({ ingredients, onAddIngredient, onViewIngredient, onDeleteIngredient }: Props) {
   const [filter, setFilter] = useState("all");
@@ -261,13 +234,13 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
       quantity: val,
       unit: form.unit,
       status: form.status,
-      icon: form.icon,
+      icon: "wheat",
       img: finalImg,
     };
     const { error } = await supabase.from("ingredients").insert({
       id: newIng.id, name: newIng.name, sku: newIng.sku,
       quantity: newIng.quantity, unit: newIng.unit,
-      status: newIng.status, icon: newIng.icon, img: newIng.img,
+      status: newIng.status, icon: "wheat", img: newIng.img,
       cost_per_unit: form.cost === "" ? 0 : parseFloat(form.cost) || 0,
     });
     if (error) { setAddError(error.message); setAdding(false); return; }
@@ -572,18 +545,30 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
               </div>
 
               {/* Qty */}
-              <div className="flex items-center gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">How many pieces?</label>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={dispQty}
-                    onChange={(e) => { setDispQty(e.target.value.replace(/[^\d.]/g, "")); setDispError(""); }}
-                    className="mt-1.5 w-24 h-9 px-3 text-center font-bold text-primary font-mono bg-surface-container border border-outline-variant/40 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  />
+              <div>
+                <label className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">How many pieces?</label>
+                <div className="mt-1.5 flex items-center gap-2">
+                  <div className="flex items-center border border-outline-variant/40 rounded-xl overflow-hidden bg-surface-container">
+                    <button
+                      type="button"
+                      onClick={() => { const v = Math.max(1, (parseFloat(dispQty) || 1) - 1); setDispQty(String(v)); setDispError(""); }}
+                      className="w-10 h-10 flex items-center justify-center text-lg font-bold text-on-surface-variant hover:bg-surface-container-high active:bg-surface-container-highest transition-colors select-none"
+                    >−</button>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={dispQty}
+                      onChange={(e) => { setDispQty(e.target.value.replace(/[^\d.]/g, "")); setDispError(""); }}
+                      className="w-14 h-10 text-center font-bold text-primary font-mono bg-transparent border-x border-outline-variant/40 focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => { setDispQty(String((parseFloat(dispQty) || 0) + 1)); setDispError(""); }}
+                      className="w-10 h-10 flex items-center justify-center text-lg font-bold text-on-surface-variant hover:bg-surface-container-high active:bg-surface-container-highest transition-colors select-none"
+                    >+</button>
+                  </div>
+                  <span className="text-xs text-on-surface-variant">{dispModal.unit}</span>
                 </div>
-                <span className="text-xs text-on-surface-variant mt-5">{dispModal.unit}</span>
               </div>
 
               {/* Unit price — cash sale only */}
@@ -768,29 +753,6 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
                     Upload Photo
                   </button>
                 )}
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-2">Icon</label>
-                <div className="grid grid-cols-6 gap-1.5">
-                  {ICON_OPTIONS.map(({ id, Comp, label }) => {
-                    const selected = form.icon === id;
-                    return (
-                      <button
-                        key={id}
-                        type="button"
-                        onClick={() => setForm((f) => ({ ...f, icon: id }))}
-                        className={`flex flex-col items-center gap-1 py-2.5 px-1 rounded-xl transition-all border ${
-                          selected
-                            ? "bg-primary/10 border-primary text-primary ring-1 ring-primary"
-                            : "bg-surface-container border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-high hover:border-outline-variant/40"
-                        }`}
-                      >
-                        <Comp size={18} strokeWidth={selected ? 2.2 : 1.6} />
-                        <span className="text-[8px] font-bold uppercase tracking-wide leading-none">{label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
               </div>
             </div>
             <div className="px-6 py-4 border-t border-outline-variant/10 flex flex-col gap-2 shrink-0">
