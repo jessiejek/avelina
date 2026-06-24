@@ -56,7 +56,7 @@ export default function IngredientDetail({ onBack }: Props) {
       if (data) {
         setName(data.name ?? "");
         setSku(data.sku ?? "");
-        setQuantity(data.quantity ?? "");
+        setQuantity(data.quantity != null ? parseFloat(Number(data.quantity).toFixed(3)) : "");
         setUnit(data.unit ?? "kg");
         setMeasureTab(measureForUnit(data.unit ?? "kg"));
         setStatus(data.status ?? "optimal");
