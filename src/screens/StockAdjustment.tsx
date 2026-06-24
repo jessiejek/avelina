@@ -222,20 +222,24 @@ export default function StockAdjustment({ onBack }: Props) {
             </div>
 
             {/* Preview */}
-            <div className="mt-6 p-4 bg-surface-bright rounded-xl border-2 border-dashed border-outline-variant/30 grid grid-cols-3 items-center gap-1">
-              <div className="text-center min-w-0">
-                <p className="text-[10px] font-semibold text-outline mb-2 uppercase tracking-wider">Before</p>
-                <p className="text-primary/40 font-bold font-mono text-xl truncate">{base.toFixed(2)} <span className="text-xs">{ingredient?.unit ?? "kg"}</span></p>
-              </div>
-              <div className="flex flex-col items-center min-w-0">
-                <Icon name="trending_flat" size={22} className="text-primary" />
-                <span className={`text-[10px] font-bold px-2 py-1 rounded-full mt-2 font-mono text-center ${mode === "add" ? "bg-secondary text-white" : "bg-error text-white"}`}>
-                  {mode === "add" ? "+" : "-"}{adjKg.toFixed(2)} {ingredient?.unit ?? "kg"}
-                </span>
-              </div>
-              <div className="text-center min-w-0">
-                <p className="text-[10px] font-bold text-outline mb-2 uppercase tracking-wider">After</p>
-                <p className="text-primary font-bold font-mono text-2xl truncate">{projected.toFixed(2)} <span className="text-sm">{ingredient?.unit ?? "kg"}</span></p>
+            <div className="mt-6 bg-surface-bright rounded-xl border-2 border-dashed border-outline-variant/30 overflow-hidden">
+              <div className="flex items-stretch divide-x divide-outline-variant/20">
+                <div className="flex-1 p-4 text-center">
+                  <p className="text-[10px] font-semibold text-outline mb-2 uppercase tracking-wider">Before</p>
+                  <p className="text-primary/40 font-bold font-mono text-lg leading-tight">{base.toFixed(2)}</p>
+                  <p className="text-[10px] text-outline mt-1">{ingredient?.unit ?? "kg"}</p>
+                </div>
+                <div className="flex flex-col items-center justify-center px-3 py-4 gap-2">
+                  <Icon name="trending_flat" size={20} className="text-primary" />
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full font-mono whitespace-nowrap ${mode === "add" ? "bg-secondary text-white" : "bg-error text-white"}`}>
+                    {mode === "add" ? "+" : "-"}{adjKg.toFixed(2)} {ingredient?.unit ?? "kg"}
+                  </span>
+                </div>
+                <div className="flex-1 p-4 text-center">
+                  <p className="text-[10px] font-semibold text-outline mb-2 uppercase tracking-wider">After</p>
+                  <p className={`font-bold font-mono text-xl leading-tight ${projected < 0 ? "text-error" : "text-primary"}`}>{projected.toFixed(2)}</p>
+                  <p className="text-[10px] text-outline mt-1">{ingredient?.unit ?? "kg"}</p>
+                </div>
               </div>
             </div>
 
