@@ -173,6 +173,7 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
     const qty = parseFloat(dispQty) || 0;
     if (qty <= 0) { setDispError("Quantity must be greater than 0"); return; }
     if (qty > dispModal.quantity) { setDispError(`Only ${dispModal.quantity} ${dispModal.unit} available`); return; }
+    if (dispReason === "cash_sale" && !(parseFloat(dispUnitPrice) > 0)) { setDispError("Selling price is required for walk-in sales"); return; }
 
     setDispSaving(true);
     setDispError("");
