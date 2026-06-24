@@ -149,37 +149,37 @@ export default function IngredientDetail({ onBack }: Props) {
 
       <div className="flex-1 overflow-y-auto p-6 lg:p-10">
         <div className="max-w-[1200px] mx-auto">
-          <div className="flex justify-between items-end mb-8">
-            <div>
-              <button onClick={onBack} className="flex items-center gap-1.5 text-outline mb-2 hover:text-primary transition-colors text-xs font-semibold uppercase tracking-wide">
-                <Icon name="arrow_back" size={14} />
-                Back to Inventory
-              </button>
-              <h1 className="text-primary font-bold" style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 32 }}>
+          <div className="flex flex-col gap-4 mb-8">
+            <button onClick={onBack} className="flex items-center gap-1.5 text-outline hover:text-primary transition-colors text-xs font-semibold uppercase tracking-wide w-fit">
+              <Icon name="arrow_back" size={14} />
+              Back to Inventory
+            </button>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h1 className="text-primary font-bold" style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 28 }}>
                 {name || "—"}
               </h1>
-            </div>
-            <div className="flex items-center gap-3">
-              {saveError && <p className="text-xs text-error font-semibold">{saveError}</p>}
-              {saved && !editing && <p className="text-xs text-secondary font-semibold flex items-center gap-1"><Icon name="check_circle" size={13} /> Saved</p>}
-              <button onClick={handleAdjustStock} className="h-10 px-5 rounded-lg border border-outline text-on-surface font-semibold hover:bg-surface-container transition-colors flex items-center gap-2 text-sm">
-                <Icon name="scale" size={16} />
-                Adjust Stock
-              </button>
-              {editing ? (
-                <>
-                  <button onClick={() => setEditing(false)} className="h-10 px-5 rounded-lg border border-outline text-primary font-semibold hover:bg-surface-container transition-colors text-sm">
-                    Cancel
-                  </button>
-                  <button onClick={handleSave} disabled={saving} className="h-10 px-6 rounded-lg font-bold transition-all text-sm disabled:opacity-50 bg-primary text-on-primary hover:opacity-90">
-                    {saving ? "Saving…" : "Save Changes"}
-                  </button>
-                </>
-              ) : (
-                <button onClick={() => setEditing(true)} className="h-10 px-6 rounded-lg font-bold transition-all text-sm bg-primary text-on-primary hover:opacity-90 flex items-center gap-2">
-                  <Icon name="edit" size={15} /> Edit
+              <div className="flex items-center gap-2 flex-wrap">
+                {saveError && <p className="text-xs text-error font-semibold w-full">{saveError}</p>}
+                {saved && !editing && <p className="text-xs text-secondary font-semibold flex items-center gap-1"><Icon name="check_circle" size={13} /> Saved</p>}
+                <button onClick={handleAdjustStock} className="h-9 px-4 rounded-lg border border-outline text-on-surface font-semibold hover:bg-surface-container transition-colors flex items-center gap-1.5 text-sm">
+                  <Icon name="scale" size={15} />
+                  Adjust Stock
                 </button>
-              )}
+                {editing ? (
+                  <>
+                    <button onClick={() => setEditing(false)} className="h-9 px-4 rounded-lg border border-outline text-primary font-semibold hover:bg-surface-container transition-colors text-sm">
+                      Cancel
+                    </button>
+                    <button onClick={handleSave} disabled={saving} className="h-9 px-5 rounded-lg font-bold transition-all text-sm disabled:opacity-50 bg-primary text-on-primary hover:opacity-90">
+                      {saving ? "Saving…" : "Save"}
+                    </button>
+                  </>
+                ) : (
+                  <button onClick={() => setEditing(true)} className="h-9 px-5 rounded-lg font-bold transition-all text-sm bg-primary text-on-primary hover:opacity-90 flex items-center gap-1.5">
+                    <Icon name="edit" size={14} /> Edit
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
