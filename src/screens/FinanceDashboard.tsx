@@ -21,6 +21,14 @@ function shortDateLabel(d: Date): string {
 interface DayBar { label: string; revenue: number; expense: number }
 interface ProductRow { name: string; units: number; revenue: number; price: number; unitCost: number }
 interface ExpenseRow { amount: number; note: string; created_at: string; type: string }
+interface DispositionRow { productName: string; qty: number; unit: string; reason: string; amountCollected: number; writeoffValue: number; notes: string | null; disposedAt: string }
+
+const DISP_LABEL: Record<string, string> = {
+  cash_sale:         "Sold — Walk-in",
+  personal_use:      "Staff / Personal",
+  donated_comped:    "Given / Comped",
+  spoiled_discarded: "Thrown Away",
+};
 
 export default function FinanceDashboard() {
   const [loading, setLoading] = useState(true);
@@ -34,6 +42,7 @@ export default function FinanceDashboard() {
   const [bars, setBars] = useState<DayBar[]>([]);
   const [products, setProducts] = useState<ProductRow[]>([]);
   const [recentExpenses, setRecentExpenses] = useState<ExpenseRow[]>([]);
+  const [dispositions, setDispositions] = useState<DispositionRow[]>([]);
 
   useEffect(() => {
     const since = new Date();
@@ -49,7 +58,9 @@ export default function FinanceDashboard() {
       supabase.from("ingredients").select("quantity, cost_per_unit"),
       supabase.from("recipes").select("id, name, price, yield, recipe_ingredients(qty, unit, ingredients(cost_per_unit, unit))"),
       // Fix E: cash sales from finished-goods dispositions
-      supabase.from("finished_goods_dispositions").select("qty, reason, amount_collected, disposed_at"),
+      supabase.from("finished_goods_dispositions")
+        .select("qty, unit, reason, amount_collected, writeoff_value, notes, disposed_at, recipes(name)")
+        .order("disposed_at", { ascending: false }),
     ]).then(([ordRes, expRes, bakeRes, ingRes, recRes, dispRes]) => {
       const orders = ordRes.data ?? [];
       const orderTotal = (o: any) =>
@@ -90,6 +101,19 @@ export default function FinanceDashboard() {
           revByDay[key] = (revByDay[key] || 0) + d.amount_collected;
         }
       }
+
+      setDispositions(
+        (dispRes.data ?? []).map((d: any) => ({
+          productName: d.recipes?.name || "—",
+          qty: d.qty ?? 0,
+          unit: d.unit || "units",
+          reason: d.reason || "",
+          amountCollected: d.amount_collected ?? 0,
+          writeoffValue: d.writeoff_value ?? 0,
+          notes: d.notes ?? null,
+          disposedAt: d.disposed_at,
+        }))
+      );
 
       setRevenue(rev);
       setPipeline(pipe);
@@ -305,6 +329,52 @@ export default function FinanceDashboard() {
                         </tr>
                       );
                     })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </section>
+
+          {/* Walk-in Sales & Giveaways */}
+          <section className="space-y-3">
+            <h3 className="font-semibold text-primary" style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 18 }}>Walk-in Sales & Giveaways</h3>
+            <div className="overflow-x-auto rounded-xl border border-outline-variant/20 bg-surface-container-lowest">
+              {dispositions.length === 0 ? (
+                <div className="py-12 text-center text-sm text-on-surface-variant">No dispositions logged yet. Use "Sell or Give Away" in Inventory.</div>
+              ) : (
+                <table className="w-full text-left min-w-[560px]">
+                  <thead>
+                    <tr className="bg-surface-container-low border-b border-outline-variant/20">
+                      {["Product", "What Happened", "Qty", "Cash Collected", "Loss / Writeoff", "Date"].map((h) => (
+                        <th key={h} className="px-5 py-3 text-[11px] font-semibold text-on-surface-variant uppercase tracking-widest">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-outline-variant/10">
+                    {dispositions.map((d, i) => (
+                      <tr key={i} className="hover:bg-surface-container/30 transition-colors">
+                        <td className="px-5 py-3 text-sm font-semibold text-primary">{d.productName}</td>
+                        <td className="px-5 py-3">
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                            d.reason === "cash_sale" ? "bg-secondary-container text-on-secondary-container"
+                            : d.reason === "spoiled_discarded" ? "bg-error-container text-on-error-container"
+                            : "bg-surface-container-high text-on-surface-variant"
+                          }`}>
+                            {DISP_LABEL[d.reason] || d.reason}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3 text-sm text-on-surface-variant font-mono">{d.qty} {d.unit}</td>
+                        <td className="px-5 py-3 text-sm font-bold font-mono">
+                          {d.amountCollected > 0 ? <span className="text-secondary">{peso(d.amountCollected)}</span> : <span className="text-on-surface-variant/40">—</span>}
+                        </td>
+                        <td className="px-5 py-3 text-sm font-bold font-mono">
+                          {d.writeoffValue > 0 ? <span className="text-error">−{peso(d.writeoffValue)}</span> : <span className="text-on-surface-variant/40">—</span>}
+                        </td>
+                        <td className="px-5 py-3 text-xs text-on-surface-variant">
+                          {new Date(d.disposedAt).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })}
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               )}

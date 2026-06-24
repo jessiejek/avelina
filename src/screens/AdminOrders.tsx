@@ -430,8 +430,8 @@ export default function AdminOrders({ onStartBake }: Props) {
                       {order.fulfillmentType === "delivery" ? "Delivery" : "Pickup"}
                     </button>
 
-                    {/* Primary action button — visible in collapsed state too */}
-                    {action && (
+                    {/* Primary action button — only visible when collapsed */}
+                    {action && !isOpen && (
                       <button
                         onClick={(e) => { e.stopPropagation(); advance(order); }}
                         disabled={updatingId === order.id}
