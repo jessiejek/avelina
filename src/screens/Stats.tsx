@@ -18,6 +18,7 @@ export default function Stats() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const load = () => {
     const since = new Date();
     since.setDate(since.getDate() - 6);
     since.setHours(0, 0, 0, 0);
@@ -88,6 +89,17 @@ export default function Stats() {
 
       setLoading(false);
     });
+    }; // end load
+
+    load();
+
+    const ch = supabase.channel("rt-stats")
+      .on("postgres_changes", { event: "*", schema: "public", table: "bake_entries" }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "ingredients" }, load)
+      .subscribe();
+
+    return () => { supabase.removeChannel(ch); };
   }, []);
 
   const maxBar = Math.max(...barData.map((d) => d.count), 1);

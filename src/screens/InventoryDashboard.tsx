@@ -124,23 +124,33 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
   }, []);
 
   useEffect(() => {
-    supabase
-      .from("finished_goods")
-      .select("recipe_id, quantity, baked_at, cost_per_unit, unit, recipes(id, name, finished_shelf_life_days)")
-      .gt("quantity", 0)
-      .then(({ data }) => {
-        setShelfStock(
-          (data || []).map((row: any) => ({
-            recipeId: row.recipe_id,
-            name: row.recipes?.name || "Unknown",
-            quantity: row.quantity ?? 0,
-            bakedAt: row.baked_at ?? null,
-            costPerUnit: row.cost_per_unit ?? 0,
-            unit: row.unit || "units",
-            shelfLifeDays: row.recipes?.finished_shelf_life_days ?? null,
-          }))
-        );
-      });
+    const loadShelf = () =>
+      supabase
+        .from("finished_goods")
+        .select("recipe_id, quantity, baked_at, cost_per_unit, unit, recipes(id, name, finished_shelf_life_days)")
+        .gt("quantity", 0)
+        .then(({ data }) => {
+          setShelfStock(
+            (data || []).map((row: any) => ({
+              recipeId: row.recipe_id,
+              name: row.recipes?.name || "Unknown",
+              quantity: row.quantity ?? 0,
+              bakedAt: row.baked_at ?? null,
+              costPerUnit: row.cost_per_unit ?? 0,
+              unit: row.unit || "units",
+              shelfLifeDays: row.recipes?.finished_shelf_life_days ?? null,
+            }))
+          );
+        });
+
+    loadShelf();
+
+    const ch = supabase.channel("rt-finished-goods")
+      .on("postgres_changes", { event: "*", schema: "public", table: "finished_goods" }, loadShelf)
+      .on("postgres_changes", { event: "*", schema: "public", table: "finished_goods_dispositions" }, loadShelf)
+      .subscribe();
+
+    return () => { supabase.removeChannel(ch); };
   }, []);
 
   const isExpired = (item: ShelfItem) => {

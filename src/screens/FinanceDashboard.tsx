@@ -45,6 +45,7 @@ export default function FinanceDashboard() {
   const [dispositions, setDispositions] = useState<DispositionRow[]>([]);
 
   useEffect(() => {
+    const load = () => {
     const since = new Date();
     since.setDate(since.getDate() - 6);
     since.setHours(0, 0, 0, 0);
@@ -212,6 +213,18 @@ export default function FinanceDashboard() {
 
       setLoading(false);
     });
+    }; // end load
+
+    load();
+
+    const ch = supabase.channel("rt-finance")
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "expenses" }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "finished_goods_dispositions" }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "bake_entries" }, load)
+      .subscribe();
+
+    return () => { supabase.removeChannel(ch); };
   }, []);
 
   const grossProfit = revenue - cogs;
