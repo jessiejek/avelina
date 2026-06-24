@@ -335,12 +335,12 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
         {/* Fix E: Finished Goods on Shelf */}
         {shelfStock.length > 0 && (
           <section className="space-y-3">
-            <h3 className="font-semibold text-primary" style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 16 }}>Finished Goods on Shelf</h3>
+            <h3 className="font-semibold text-primary" style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 16 }}>Ready to Sell — Items on Shelf</h3>
             <div className="rounded-xl border border-outline-variant/20 bg-surface-container-lowest overflow-x-auto">
               <table className="w-full text-left min-w-[560px]">
                 <thead>
                   <tr className="bg-surface-container-low border-b border-outline-variant/20">
-                    {["Product", "On Shelf", "Last Baked", "Expiry", ""].map((h) => (
+                    {["Product", "Available", "Baked On", "Best Before", ""].map((h) => (
                       <th key={h} className="px-4 py-3 text-[11px] font-semibold text-on-surface-variant uppercase tracking-widest">{h}</th>
                     ))}
                   </tr>
@@ -374,7 +374,7 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
                               <Icon name="check_circle" size={10} /> Fresh
                             </span>
                           ) : (
-                            <span className="text-xs text-on-surface-variant/50">no expiry set</span>
+                            <span className="text-xs text-on-surface-variant/50">No expiry set</span>
                           )}
                         </td>
                         <td className="px-4 py-3">
