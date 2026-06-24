@@ -95,6 +95,13 @@ export default function AdminOrders({ onStartBake }: Props) {
   const [loadError, setLoadError] = useState("");
   const [advanceError, setAdvanceError] = useState<string | null>(null);
   const [adminName, setAdminName] = useState("");
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  const toggleExpand = (id: string) => setExpanded((prev) => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
 
   // Fix C — cancel modal state
   const [cancelModal, setCancelModal] = useState<AdminOrder | null>(null);
@@ -122,7 +129,9 @@ export default function AdminOrders({ onStartBake }: Props) {
       .order("placed_at", { ascending: false });
 
     if (!error && data) {
-      setOrders(data.map(mapOrder));
+      const mapped = data.map(mapOrder);
+      setOrders(mapped);
+      setExpanded(new Set(mapped.filter((o) => o.status !== "completed" && o.status !== "cancelled").map((o) => o.id)));
       setLoading(false);
       return;
     }
@@ -145,7 +154,9 @@ export default function AdminOrders({ onStartBake }: Props) {
       const { data: users } = await supabase.from("users").select("id, name, phone, address").in("id", userIds);
       for (const u of users || []) usersById[u.id] = u;
     }
-    setOrders(bare.map((o: any) => mapOrder({ ...o, users: usersById[o.user_id] })));
+    const mapped2 = bare.map((o: any) => mapOrder({ ...o, users: usersById[o.user_id] }));
+    setOrders(mapped2);
+    setExpanded(new Set(mapped2.filter((o) => o.status !== "completed" && o.status !== "cancelled").map((o) => o.id)));
     setLoading(false);
   };
 
@@ -313,40 +324,28 @@ export default function AdminOrders({ onStartBake }: Props) {
         </div>
       </header>
 
-      <div className="p-4 lg:p-10 max-w-6xl mx-auto w-full space-y-6">
-        {/* Status summary cards — forward flow only */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-          {STATUS_FLOW.map((s) => (
-            <button
-              key={s}
-              onClick={() => setFilter(filter === s ? "all" : s)}
-              className={`text-left rounded-xl border p-4 transition-all ${
-                filter === s ? "border-primary bg-surface-container-low" : "border-outline-variant/20 bg-surface-container-lowest hover:border-outline-variant/50"
-              }`}
-            >
-              <span className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider">{s === "ready" ? "Ready" : statusLabel(s)}</span>
-              <p className="font-bold text-primary font-mono mt-1" style={{ fontSize: 28, lineHeight: 1 }}>{counts[s]}</p>
-            </button>
-          ))}
-        </div>
-
-        {/* Filter pills — includes Cancelled */}
-        <div className="flex items-center gap-2 flex-wrap">
+      <div className="p-4 lg:p-8 max-w-5xl mx-auto w-full space-y-5">
+        {/* Status summary cards — clickable filter */}
+        <div className="grid grid-cols-3 lg:grid-cols-6 gap-2">
           <button
             onClick={() => setFilter("all")}
-            className={`px-3 h-8 rounded-full text-xs font-semibold transition-colors ${filter === "all" ? "bg-primary text-on-primary" : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high"}`}
+            className={`text-left rounded-xl border p-3 transition-all ${filter === "all" ? "border-primary bg-surface-container-low ring-1 ring-primary/20" : "border-outline-variant/20 bg-surface-container-lowest hover:border-outline-variant/40"}`}
           >
-            All ({orders.length})
+            <span className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">All</span>
+            <p className="font-bold text-primary font-mono" style={{ fontSize: 26, lineHeight: 1.1 }}>{orders.length}</p>
           </button>
           {allStatuses.map((s) => (
             <button
               key={s}
-              onClick={() => setFilter(s)}
-              className={`px-3 h-8 rounded-full text-xs font-semibold transition-colors ${
-                filter === s ? "bg-primary text-on-primary" : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high"
-              }`}
+              onClick={() => setFilter(filter === s ? "all" : s)}
+              className={`text-left rounded-xl border p-3 transition-all ${filter === s ? "border-primary bg-surface-container-low ring-1 ring-primary/20" : "border-outline-variant/20 bg-surface-container-lowest hover:border-outline-variant/40"}`}
             >
-              {s === "ready" ? "Ready" : statusLabel(s)} {counts[s] > 0 ? `(${counts[s]})` : ""}
+              <span className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">
+                {s === "ready" ? "Ready" : s.charAt(0).toUpperCase() + s.slice(1)}
+              </span>
+              <p className={`font-bold font-mono ${counts[s] > 0 && (s === "pending" || s === "confirmed" || s === "baking") ? "text-primary" : "text-on-surface-variant"}`} style={{ fontSize: 26, lineHeight: 1.1 }}>
+                {counts[s]}
+              </p>
             </button>
           ))}
         </div>
@@ -374,153 +373,196 @@ export default function AdminOrders({ onStartBake }: Props) {
           <div className="py-24 text-center rounded-xl border-2 border-dashed border-outline-variant/30">
             <Icon name="assignment" size={40} className="mx-auto mb-3 text-outline/40" />
             <p className="text-sm text-on-surface-variant">
-              {filter === "all" ? "No orders yet." : `No ${statusLabel(filter as OrderStatus).toLowerCase()} orders.`}
+              {filter === "all" ? "No orders yet." : `No ${filter} orders.`}
             </p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-2">
             {visible.map((order) => {
               const action = NEXT_ACTION[order.status];
               const totalItems = order.items.reduce((s, i) => s + i.qty, 0);
               const orderTotal = order.items.reduce((s, i) => s + i.unitPrice * i.qty, 0);
               const canCancel = order.status !== "completed" && order.status !== "cancelled";
               const canEdit = order.status !== "completed" && order.status !== "cancelled";
+              const isOpen = expanded.has(order.id);
+              const isDone = order.status === "completed" || order.status === "cancelled";
 
               return (
-                <div key={order.id} className="bg-surface-container-lowest rounded-xl border border-outline-variant/20 overflow-hidden">
-                  {/* Top row */}
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 lg:p-5 border-b border-outline-variant/10 bg-surface-container-low">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-bold text-primary font-mono text-sm">#{order.id}</p>
-                        <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${statusStyle(order.status)}`}>
-                          {statusLabel(order.status, order.fulfillmentType)}
+                <div
+                  key={order.id}
+                  className={`rounded-xl border overflow-hidden transition-all ${isDone ? "border-outline-variant/10 bg-surface-container-lowest/50 opacity-70" : "border-outline-variant/20 bg-surface-container-lowest shadow-sm"}`}
+                >
+                  {/* Compact header row — always visible */}
+                  <div
+                    className={`flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-surface-container/40 transition-colors ${isOpen && !isDone ? "border-b border-outline-variant/10" : ""}`}
+                    onClick={() => toggleExpand(order.id)}
+                  >
+                    {/* Status badge */}
+                    <span className={`shrink-0 text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full ${statusStyle(order.status)}`}>
+                      {statusLabel(order.status, order.fulfillmentType)}
+                    </span>
+
+                    {/* Order ID */}
+                    <span className="font-bold text-primary font-mono text-sm shrink-0">#{order.id}</span>
+
+                    {/* Customer name */}
+                    <span className="text-sm text-on-surface-variant truncate flex-1">{order.customerName}</span>
+
+                    {/* Items summary */}
+                    <span className="hidden sm:block text-xs text-on-surface-variant shrink-0">
+                      {order.items.map((i) => `${i.name} ×${i.qty}`).join(", ")}
+                    </span>
+
+                    {/* Total */}
+                    <span className="font-bold text-primary font-mono text-sm shrink-0">{peso(orderTotal)}</span>
+
+                    {/* Fulfillment badge */}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); if (!isDone) toggleFulfillment(order); }}
+                      disabled={isDone}
+                      className={`shrink-0 flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border transition-colors ${
+                        order.fulfillmentType === "delivery"
+                          ? "bg-tertiary-fixed border-on-tertiary-container/30 text-on-tertiary-fixed-variant"
+                          : "bg-surface-container-high border-outline-variant/30 text-on-surface-variant"
+                      } disabled:cursor-default`}
+                    >
+                      <Icon name={order.fulfillmentType === "delivery" ? "local_shipping" : "storefront"} size={10} />
+                      {order.fulfillmentType === "delivery" ? "Delivery" : "Pickup"}
+                    </button>
+
+                    {/* Primary action button — visible in collapsed state too */}
+                    {action && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); advance(order); }}
+                        disabled={updatingId === order.id}
+                        className="shrink-0 h-9 px-4 rounded-lg bg-primary text-on-primary text-xs font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-1.5"
+                      >
+                        <Icon name="check_circle" size={13} />
+                        {updatingId === order.id ? "…" : action.label}
+                      </button>
+                    )}
+
+                    {/* Expand chevron */}
+                    <Icon
+                      name={isOpen ? "expand_less" : "expand_more"}
+                      size={18}
+                      className="shrink-0 text-on-surface-variant transition-transform"
+                    />
+                  </div>
+
+                  {/* Expanded detail */}
+                  {isOpen && (
+                    <div className="p-4 space-y-4">
+                      {/* Meta row */}
+                      <div className="flex items-center gap-3 text-xs text-on-surface-variant flex-wrap">
+                        <span className="flex items-center gap-1">
+                          <Icon name="schedule" size={12} />
+                          {new Date(order.placedAt).toLocaleString("en-PH", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                         </span>
                         {order.status === "baking" && order.fulfilledQty > 0 && (
-                          <span className="text-[10px] font-semibold text-on-surface-variant bg-surface-container-high px-2 py-0.5 rounded-full">
+                          <span className="bg-surface-container-high px-2 py-0.5 rounded-full font-semibold">
                             {order.fulfilledQty}/{totalItems} baked
                           </span>
                         )}
-                        {/* Fulfillment type toggle — always visible, clickable on non-terminal orders */}
-                        <button
-                          onClick={() => order.status !== "completed" && order.status !== "cancelled" && toggleFulfillment(order)}
-                          disabled={order.status === "completed" || order.status === "cancelled"}
-                          className={`flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border transition-colors ${
-                            order.fulfillmentType === "delivery"
-                              ? "bg-tertiary-fixed border-on-tertiary-container/30 text-on-tertiary-fixed-variant hover:opacity-80"
-                              : "bg-surface-container-high border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-highest"
-                          } disabled:opacity-50 disabled:cursor-default`}
-                          title="Toggle pickup / delivery"
-                        >
-                          <Icon name={order.fulfillmentType === "delivery" ? "local_shipping" : "storefront"} size={11} />
-                          {order.fulfillmentType === "delivery" ? "Delivery" : "Pickup"}
-                        </button>
                       </div>
-                      <p className="text-xs text-on-surface-variant mt-1">
-                        {new Date(order.placedAt).toLocaleString("en-PH", {
-                          month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit",
-                        })}
-                        {" · "}{totalItems} item{totalItems !== 1 ? "s" : ""}
-                        {" · "}<span className="font-bold text-primary font-mono">{peso(orderTotal)}</span>
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
-                      {/* Fix C: Cancel button */}
-                      {canCancel && (
-                        <button
-                          onClick={() => setCancelModal(order)}
-                          className="h-10 px-4 rounded-lg border border-error/30 text-error text-sm font-semibold hover:bg-error-container/40 active:scale-95 transition-all flex items-center gap-2"
-                        >
-                          <Icon name="cancel" size={15} /> Cancel
-                        </button>
-                      )}
-                      {action && (
-                        <button
-                          onClick={() => advance(order)}
-                          disabled={updatingId === order.id}
-                          className="h-10 px-5 rounded-lg bg-primary text-on-primary text-sm font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                        >
-                          <Icon name="check_circle" size={15} />
-                          {updatingId === order.id ? "Saving…" : action.label}
-                        </button>
-                      )}
-                    </div>
-                  </div>
 
-                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 p-4 lg:p-5">
-                    {/* Customer */}
-                    <div className="lg:col-span-4 space-y-2">
-                      <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider">Customer</p>
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center shrink-0">
-                          <span className="text-xs font-bold text-on-primary">{order.customerName.slice(0, 2).toUpperCase()}</span>
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-primary truncate">{order.customerName}</p>
-                          {order.customerPhone && <p className="text-xs text-on-surface-variant truncate">{order.customerPhone}</p>}
-                        </div>
-                      </div>
-                      {order.customerAddress && (
-                        <p className="text-xs text-on-surface-variant flex items-start gap-1.5">
-                          <Icon name="local_shipping" size={13} className="shrink-0 mt-0.5" /> {order.customerAddress}
-                        </p>
-                      )}
-                      {order.notes && (
-                        <div className="text-xs text-on-surface-variant bg-surface-container rounded-lg px-3 py-2 mt-2">
-                          <span className="font-semibold">Note:</span> {order.notes}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Items */}
-                    <div className="lg:col-span-8 space-y-2">
-                      <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider">Items</p>
-                      <div className="space-y-2">
-                        {order.items.map((item, i) => {
-                          // Fix A: show Start Baking for confirmed, AND for partially-baked baking orders
-                          const canBake =
-                            !!item.recipeId &&
-                            (order.status === "confirmed" ||
-                              (order.status === "baking" && order.fulfilledQty < totalItems));
-
-                          return (
-                            <div key={i} className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 bg-surface-container">
-                                {item.img && <img src={item.img} alt={item.name} className="w-full h-full object-cover" />}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold text-primary truncate">{item.name}</p>
-                                <p className="text-xs text-on-surface-variant">Pickup: {item.pickupDate || "—"}</p>
-                              </div>
-                              <div className="text-right shrink-0">
-                                <span className="block text-sm font-bold text-primary font-mono">x{item.qty}</span>
-                                <span className="block text-xs text-on-surface-variant font-mono">{peso(item.unitPrice * item.qty)}</span>
-                              </div>
-                              {/* Fix D: Edit qty button */}
-                              {canEdit && (
-                                <button
-                                  onClick={() => openEditModal(order, item)}
-                                  className="shrink-0 h-8 px-2.5 rounded-lg border border-outline-variant/30 text-on-surface-variant text-xs font-semibold hover:bg-surface-container transition-colors flex items-center gap-1"
-                                  title="Edit order quantity"
-                                >
-                                  <Icon name="edit" size={12} /> Qty
-                                </button>
-                              )}
-                              {canBake && (
-                                <button
-                                  onClick={() => onStartBake(item.recipeId, order.id, item.qty)}
-                                  className="shrink-0 h-8 px-3 rounded-lg bg-secondary-container text-on-secondary-container text-xs font-bold hover:opacity-80 active:scale-95 transition-all flex items-center gap-1.5"
-                                  title="Start a production bake for this item"
-                                >
-                                  <Icon name="oven_gen" size={13} /> Start Baking
-                                </button>
-                              )}
+                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                        {/* Customer */}
+                        <div className="lg:col-span-4 space-y-2">
+                          <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider">Customer</p>
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0">
+                              <span className="text-[11px] font-bold text-on-primary">{order.customerName.slice(0, 2).toUpperCase()}</span>
                             </div>
-                          );
-                        })}
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-primary truncate">{order.customerName}</p>
+                              {order.customerPhone && <p className="text-xs text-on-surface-variant">{order.customerPhone}</p>}
+                            </div>
+                          </div>
+                          {order.customerAddress && (
+                            <p className="text-xs text-on-surface-variant flex items-start gap-1.5">
+                              <Icon name="location_on" size={12} className="shrink-0 mt-0.5" /> {order.customerAddress}
+                            </p>
+                          )}
+                          {order.notes && (
+                            <div className="text-xs text-on-surface-variant bg-surface-container rounded-lg px-3 py-2">
+                              <span className="font-semibold">Note:</span> {order.notes}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Items */}
+                        <div className="lg:col-span-8 space-y-2">
+                          <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider">Items</p>
+                          <div className="space-y-2">
+                            {order.items.map((item, i) => {
+                              const canBake =
+                                !!item.recipeId &&
+                                (order.status === "confirmed" ||
+                                  (order.status === "baking" && order.fulfilledQty < totalItems));
+                              return (
+                                <div key={i} className="flex items-center gap-3 py-1">
+                                  <div className="w-9 h-9 rounded-lg overflow-hidden shrink-0 bg-surface-container">
+                                    {item.img && <img src={item.img} alt={item.name} className="w-full h-full object-cover" />}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-semibold text-primary truncate">{item.name}</p>
+                                    <p className="text-xs text-on-surface-variant">Pickup: {item.pickupDate || "—"}</p>
+                                  </div>
+                                  <span className="text-sm font-bold text-primary font-mono shrink-0">×{item.qty}</span>
+                                  <span className="text-xs text-on-surface-variant font-mono shrink-0">{peso(item.unitPrice * item.qty)}</span>
+                                  {canEdit && (
+                                    <button
+                                      onClick={() => openEditModal(order, item)}
+                                      className="shrink-0 h-7 px-2 rounded-lg border border-outline-variant/30 text-on-surface-variant text-xs font-semibold hover:bg-surface-container transition-colors flex items-center gap-1"
+                                    >
+                                      <Icon name="edit" size={11} /> Qty
+                                    </button>
+                                  )}
+                                  {canBake && (
+                                    <button
+                                      onClick={() => onStartBake(item.recipeId, order.id, item.qty)}
+                                      className="shrink-0 h-7 px-3 rounded-lg bg-secondary-container text-on-secondary-container text-xs font-bold hover:opacity-80 active:scale-95 transition-all flex items-center gap-1.5"
+                                    >
+                                      <Icon name="oven_gen" size={12} /> Start Baking
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
                       </div>
+
+                      {/* Bottom action bar */}
+                      {(canCancel || action) && (
+                        <div className="flex items-center justify-between pt-3 border-t border-outline-variant/10">
+                          <div>
+                            {canCancel && (
+                              <button
+                                onClick={() => setCancelModal(order)}
+                                className="h-9 px-4 rounded-lg border border-error/30 text-error text-sm font-semibold hover:bg-error-container/30 active:scale-95 transition-all flex items-center gap-1.5"
+                              >
+                                <Icon name="cancel" size={14} /> Cancel Order
+                              </button>
+                            )}
+                          </div>
+                          <div>
+                            {action && (
+                              <button
+                                onClick={() => advance(order)}
+                                disabled={updatingId === order.id}
+                                className="h-10 px-6 rounded-lg bg-primary text-on-primary text-sm font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-2"
+                              >
+                                <Icon name="check_circle" size={15} />
+                                {updatingId === order.id ? "Saving…" : action.label}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
+                  )}
                 </div>
               );
             })}

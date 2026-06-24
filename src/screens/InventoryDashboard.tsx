@@ -80,11 +80,11 @@ interface ShelfItem {
   shelfLifeDays: number | null;
 }
 
-const DISPOSITION_OPTS: { value: DispositionReason; label: string }[] = [
-  { value: "cash_sale",         label: "Cash Sale"          },
-  { value: "personal_use",      label: "Personal Use"       },
-  { value: "donated_comped",    label: "Donated / Comped"   },
-  { value: "spoiled_discarded", label: "Spoiled / Discarded"},
+const DISPOSITION_OPTS: { value: DispositionReason; label: string; sub: string }[] = [
+  { value: "cash_sale",         label: "Sold — Walk-in",    sub: "Customer paid on the spot"   },
+  { value: "personal_use",      label: "Staff / Personal",  sub: "Consumed in-house"            },
+  { value: "donated_comped",    label: "Given / Comped",    sub: "Free to customer or donated"  },
+  { value: "spoiled_discarded", label: "Thrown Away",       sub: "Spoiled or can't be sold"     },
 ];
 
 const emptyForm: NewIngForm = { name: "", sku: "", stockValue: "", cost: "", unit: "kg", status: "optimal", icon: "wheat" };
@@ -382,7 +382,7 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
                             onClick={() => openDispModal(item)}
                             className="h-7 px-3 rounded-lg bg-primary-container text-on-primary-fixed text-xs font-bold hover:opacity-80 active:scale-95 transition-all flex items-center gap-1.5 whitespace-nowrap"
                           >
-                            <Icon name="sell" size={11} /> Tag Disposition
+                            <Icon name="sell" size={11} /> Mark as Sold / Given
                           </button>
                         </td>
                       </tr>
@@ -532,27 +532,28 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
             <div className="w-12 h-12 rounded-full bg-primary-container flex items-center justify-center mb-4">
               <Icon name="sell" size={22} className="text-on-primary-fixed" />
             </div>
-            <h3 className="font-bold text-primary text-lg" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>Tag Disposition</h3>
+            <h3 className="font-bold text-primary text-lg" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>What happened to it?</h3>
             <p className="text-sm text-on-surface-variant mt-1">
-              {dispModal.name} · <span className="font-bold text-primary">{dispModal.quantity} {dispModal.unit}</span> available
+              <span className="font-semibold text-primary">{dispModal.name}</span> · {dispModal.quantity} {dispModal.unit} on shelf
             </p>
 
             <div className="mt-4 space-y-4">
               {/* Reason */}
               <div>
-                <label className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Reason</label>
-                <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+                <label className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">What happened?</label>
+                <div className="mt-1.5 grid grid-cols-1 gap-1.5">
                   {DISPOSITION_OPTS.map((opt) => (
                     <button
                       key={opt.value}
                       onClick={() => setDispReason(opt.value)}
-                      className={`py-2 px-3 rounded-lg text-xs font-semibold text-left border transition-all ${
+                      className={`py-2.5 px-3 rounded-lg text-left border transition-all ${
                         dispReason === opt.value
-                          ? "bg-primary/10 border-primary text-primary"
-                          : "bg-surface-container border-outline-variant/20 text-on-surface-variant hover:bg-surface-container-high"
+                          ? "bg-primary/10 border-primary"
+                          : "bg-surface-container border-outline-variant/20 hover:bg-surface-container-high"
                       }`}
                     >
-                      {opt.label}
+                      <p className={`text-sm font-bold leading-tight ${dispReason === opt.value ? "text-primary" : "text-on-surface-variant"}`}>{opt.label}</p>
+                      <p className="text-[11px] text-on-surface-variant/70 mt-0.5">{opt.sub}</p>
                     </button>
                   ))}
                 </div>
@@ -561,7 +562,7 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
               {/* Qty */}
               <div className="flex items-center gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Quantity</label>
+                  <label className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">How many pieces?</label>
                   <input
                     type="text"
                     inputMode="decimal"
@@ -576,7 +577,7 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
               {/* Unit price — cash sale only */}
               {dispReason === "cash_sale" && (
                 <div>
-                  <label className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Unit Price</label>
+                  <label className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Selling Price per piece</label>
                   <div className="mt-1.5 flex items-center gap-1 bg-surface-container border border-outline-variant/40 rounded-lg px-3 w-36">
                     <span className="text-sm font-bold text-on-surface-variant">₱</span>
                     <input
@@ -590,7 +591,7 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
                   </div>
                   {dispUnitPrice && parseFloat(dispQty) > 0 && (
                     <p className="text-xs text-on-surface-variant mt-1">
-                      Total collected: <span className="font-bold text-secondary font-mono">{peso((parseFloat(dispUnitPrice) || 0) * (parseFloat(dispQty) || 0))}</span>
+                      Total cash collected: <span className="font-bold text-secondary font-mono">{peso((parseFloat(dispUnitPrice) || 0) * (parseFloat(dispQty) || 0))}</span>
                     </p>
                   )}
                 </div>
@@ -599,7 +600,7 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
               {/* Write-off preview */}
               {dispReason !== "cash_sale" && dispModal.costPerUnit > 0 && parseFloat(dispQty) > 0 && (
                 <p className="text-xs text-on-surface-variant bg-surface-container rounded-lg px-3 py-2">
-                  Write-off value: <span className="font-bold text-error font-mono">{peso(dispModal.costPerUnit * (parseFloat(dispQty) || 0))}</span> (at cost)
+                  Loss recorded: <span className="font-bold text-error font-mono">{peso(dispModal.costPerUnit * (parseFloat(dispQty) || 0))}</span> (at cost — logged as expense)
                 </p>
               )}
 
@@ -635,7 +636,7 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
                 disabled={dispSaving}
                 className="px-5 h-10 rounded-lg bg-primary text-on-primary text-sm font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-40"
               >
-                {dispSaving ? "Saving…" : "Confirm"}
+                {dispSaving ? "Saving…" : "Save"}
               </button>
             </div>
           </div>
