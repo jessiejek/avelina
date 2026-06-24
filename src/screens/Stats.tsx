@@ -18,7 +18,7 @@ const PERIODS: { key: Period; label: string; days: number }[] = [
 
 export default function Stats() {
   const navigate = useNavigate();
-  const [period, setPeriod] = useState<Period>("week");
+  const [period, setPeriod] = useState<Period>("today");
   const [barData, setBarData] = useState<BarDay[]>([]);
   const [topRecipes, setTopRecipes] = useState<TopRecipe[]>([]);
   const [stockHealth, setStockHealth] = useState<StockRow[]>([]);

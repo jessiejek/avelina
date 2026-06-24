@@ -47,7 +47,7 @@ function periodSince(p: FinancePeriod): Date | null {
 }
 
 export default function FinanceDashboard() {
-  const [finPeriod, setFinPeriod] = useState<FinancePeriod>("all");
+  const [finPeriod, setFinPeriod] = useState<FinancePeriod>("today");
   const [loading, setLoading] = useState(true);
   const [revenue, setRevenue] = useState(0);
   const [pipeline, setPipeline] = useState(0);

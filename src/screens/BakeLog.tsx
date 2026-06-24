@@ -54,7 +54,7 @@ export default function BakeLog({ entries, onUpdateEntry }: Props) {
   const [localEntries, setLocalEntries] = useState<BakeEntry[]>(entries);
   const [pendingComplete, setPendingComplete] = useState<{ id: string; actualQty: string } | null>(null);
   const [search, setSearch] = useState("");
-  const [dateFilter, setDateFilter] = useState<DateFilter>("all");
+  const [dateFilter, setDateFilter] = useState<DateFilter>("today");
   const actualQtyRef = useRef<HTMLInputElement>(null);
 
   React.useEffect(() => { setLocalEntries(entries); }, [entries]);
