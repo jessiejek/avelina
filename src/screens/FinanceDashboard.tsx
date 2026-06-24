@@ -30,7 +30,24 @@ const DISP_LABEL: Record<string, string> = {
   spoiled_discarded: "Thrown Away",
 };
 
+type FinancePeriod = "today" | "week" | "month" | "all";
+const FIN_PERIODS: { key: FinancePeriod; label: string }[] = [
+  { key: "today", label: "Today" },
+  { key: "week",  label: "This Week" },
+  { key: "month", label: "This Month" },
+  { key: "all",   label: "All Time" },
+];
+
+function periodSince(p: FinancePeriod): Date | null {
+  if (p === "all") return null;
+  const d = new Date();
+  if (p === "today") { d.setHours(0, 0, 0, 0); return d; }
+  if (p === "week")  { d.setDate(d.getDate() - 6); d.setHours(0, 0, 0, 0); return d; }
+  d.setDate(1); d.setHours(0, 0, 0, 0); return d;
+}
+
 export default function FinanceDashboard() {
+  const [finPeriod, setFinPeriod] = useState<FinancePeriod>("all");
   const [loading, setLoading] = useState(true);
   const [revenue, setRevenue] = useState(0);
   const [pipeline, setPipeline] = useState(0);
@@ -46,9 +63,7 @@ export default function FinanceDashboard() {
 
   useEffect(() => {
     const load = () => {
-    const since = new Date();
-    since.setDate(since.getDate() - 6);
-    since.setHours(0, 0, 0, 0);
+    const since = periodSince(finPeriod);
 
     Promise.all([
       // Orders with items + recipe info (needed for revenue and COGS)
@@ -74,40 +89,42 @@ export default function FinanceDashboard() {
 
       for (const o of orders) {
         const total = orderTotal(o);
-        if (o.status === "completed") {
+        const completedAt = o.completed_at || o.placed_at;
+        const completedDate = new Date(completedAt);
+        const inPeriod = !since || completedDate >= since;
+        if (o.status === "completed" && inPeriod) {
           rev += total;
-          const completedAt = o.completed_at || o.placed_at;
-          const completedDate = new Date(completedAt);
-          if (completedDate >= since) {
-            const key = toDateKey(completedAt);
-            revByDay[key] = (revByDay[key] || 0) + total;
-          }
+          const key = toDateKey(completedAt);
+          revByDay[key] = (revByDay[key] || 0) + total;
           for (const it of (o.order_items || []) as any[]) {
             const id = it.recipes?.id || "?";
             if (!prodAgg[id]) prodAgg[id] = { name: it.recipes?.name || "—", units: 0, revenue: 0, totalCogs: 0 };
             prodAgg[id].units += it.qty ?? 0;
             prodAgg[id].revenue += (it.unit_price ?? 0) * (it.qty ?? 0);
           }
-        } else {
+        } else if (o.status !== "completed") {
           pipe += total;
         }
       }
       // Fix E: add cash sales from finished-goods dispositions to revenue
       for (const d of (dispRes.data ?? []) as any[]) {
         if (d.reason !== "cash_sale" || !(d.amount_collected > 0)) continue;
-        rev += d.amount_collected;
         const disposed = new Date(d.tagged_at);
-        if (disposed >= since) {
-          const key = toDateKey(d.tagged_at);
-          revByDay[key] = (revByDay[key] || 0) + d.amount_collected;
-        }
+        if (since && disposed < since) continue;
+        rev += d.amount_collected;
+        const key = toDateKey(d.tagged_at);
+        revByDay[key] = (revByDay[key] || 0) + d.amount_collected;
       }
 
       const recipeNameById: Record<string, string> = {};
       for (const r of (recRes.data ?? []) as any[]) recipeNameById[r.id] = r.name;
 
+      const filteredDisp = since
+        ? (dispRes.data ?? []).filter((d: any) => new Date(d.tagged_at) >= since)
+        : (dispRes.data ?? []);
+
       setDispositions(
-        (dispRes.data ?? []).map((d: any) => ({
+        (filteredDisp as any[]).map((d: any) => ({
           productName: recipeNameById[d.recipe_id] || "—",
           qty: d.quantity ?? 0,
           unit: "units",
@@ -121,20 +138,22 @@ export default function FinanceDashboard() {
 
       setRevenue(rev);
       setPipeline(pipe);
-      setCompletedOrders(orders.filter((o: any) => o.status === "completed").length);
+      setCompletedOrders(orders.filter((o: any) => {
+        if (o.status !== "completed") return false;
+        if (!since) return true;
+        return new Date(o.completed_at || o.placed_at) >= since;
+      }).length);
 
       // ── Expenses ───────────────────────────────────────────────────────────
       const expenses = expRes.data ?? [];
-      setPurchases(expenses.reduce((s: number, e: any) => s + (e.amount ?? 0), 0));
-      setRecentExpenses(expenses.slice(0, 6) as ExpenseRow[]);
+      const filteredExpenses = since ? expenses.filter((e: any) => new Date(e.created_at) >= since) : expenses;
+      setPurchases(filteredExpenses.reduce((s: number, e: any) => s + (e.amount ?? 0), 0));
+      setRecentExpenses(filteredExpenses.slice(0, 6) as ExpenseRow[]);
 
       const expByDay: Record<string, number> = {};
-      for (const e of expenses) {
-        const d = new Date(e.created_at);
-        if (d >= since) {
-          const key = toDateKey(e.created_at);
-          expByDay[key] = (expByDay[key] || 0) + (e.amount ?? 0);
-        }
+      for (const e of filteredExpenses) {
+        const key = toDateKey(e.created_at);
+        expByDay[key] = (expByDay[key] || 0) + (e.amount ?? 0);
       }
 
       // ── Bake entries: build order→recipe→unitCost lookup ──────────────────
@@ -172,7 +191,11 @@ export default function FinanceDashboard() {
       // falls back to the recipe's current computed unit cost otherwise
       // (covers orders fulfilled from finished-goods stock).
       let totalCogs = 0;
-      for (const o of orders.filter((o: any) => o.status === "completed")) {
+      for (const o of orders.filter((o: any) => {
+        if (o.status !== "completed") return false;
+        if (!since) return true;
+        return new Date(o.completed_at || o.placed_at) >= since;
+      })) {
         for (const it of (o.order_items || []) as any[]) {
           const recipeId = it.recipes?.id;
           const qtySold = it.qty ?? 0;
@@ -225,7 +248,7 @@ export default function FinanceDashboard() {
       .subscribe();
 
     return () => { supabase.removeChannel(ch); };
-  }, []);
+  }, [finPeriod]);
 
   const grossProfit = revenue - cogs;
   const maxBar = Math.max(...bars.map((b) => Math.max(b.revenue, b.expense)), 1);
@@ -255,6 +278,19 @@ export default function FinanceDashboard() {
         <div className="flex-1 flex items-center justify-center text-on-surface-variant text-sm">Loading finances…</div>
       ) : (
         <div className="p-4 lg:p-10 max-w-7xl mx-auto w-full space-y-6">
+          {/* Period filter */}
+          <div className="flex gap-2 flex-wrap">
+            {FIN_PERIODS.map((p) => (
+              <button
+                key={p.key}
+                onClick={() => { setFinPeriod(p.key); setLoading(true); }}
+                className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${finPeriod === p.key ? "bg-primary text-on-primary" : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high"}`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+
           {/* KPI cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {kpi.map((k) => (

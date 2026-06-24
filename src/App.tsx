@@ -70,7 +70,9 @@ function mapBakeEntry(d: any): BakeEntry {
     batchId: d.batch_id,
     baker: d.baker,
     time: new Date(d.started_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }),
+    startedAt: d.started_at,
     qty: d.qty,
+    actualQty: d.actual_qty ?? null,
     status: d.status,
     order_id: d.order_id ?? null,
   };

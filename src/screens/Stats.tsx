@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Icon from "../components/Icon.tsx";
 import { supabase } from "../lib/supabase.ts";
 
@@ -8,7 +9,16 @@ interface StockRow { id: string; name: string; stock: string; status: "optimal" 
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+type Period = "today" | "week" | "month";
+const PERIODS: { key: Period; label: string; days: number }[] = [
+  { key: "today", label: "Today",      days: 0 },
+  { key: "week",  label: "This Week",  days: 6 },
+  { key: "month", label: "This Month", days: 29 },
+];
+
 export default function Stats() {
+  const navigate = useNavigate();
+  const [period, setPeriod] = useState<Period>("week");
   const [barData, setBarData] = useState<BarDay[]>([]);
   const [topRecipes, setTopRecipes] = useState<TopRecipe[]>([]);
   const [stockHealth, setStockHealth] = useState<StockRow[]>([]);
@@ -19,9 +29,10 @@ export default function Stats() {
 
   useEffect(() => {
     const load = () => {
+    const cfg = PERIODS.find((p) => p.key === period)!;
     const since = new Date();
-    since.setDate(since.getDate() - 6);
-    since.setHours(0, 0, 0, 0);
+    if (cfg.key === "today") since.setHours(0, 0, 0, 0);
+    else { since.setDate(since.getDate() - cfg.days); since.setHours(0, 0, 0, 0); }
 
     Promise.all([
       // Bake entries last 7 days (for bar chart + top recipes + completed count)
@@ -100,7 +111,7 @@ export default function Stats() {
       .subscribe();
 
     return () => { supabase.removeChannel(ch); };
-  }, []);
+  }, [period]);
 
   const maxBar = Math.max(...barData.map((d) => d.count), 1);
 
@@ -126,13 +137,26 @@ export default function Stats() {
         <div className="flex-1 flex items-center justify-center text-on-surface-variant text-sm">Loading stats…</div>
       ) : (
         <div className="p-6 lg:p-10 max-w-7xl mx-auto w-full space-y-6">
+          {/* Period filter */}
+          <div className="flex gap-2">
+            {PERIODS.map((p) => (
+              <button
+                key={p.key}
+                onClick={() => { setPeriod(p.key); setLoading(true); }}
+                className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${period === p.key ? "bg-primary text-on-primary" : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high"}`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+
           {/* Chart + Top Recipes */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
             <div className="lg:col-span-7 bg-surface-container-lowest rounded-xl border border-primary/10 p-6" style={{ boxShadow: "0 2px 8px -2px rgba(38,23,12,0.05)" }}>
               <div className="flex items-center justify-between mb-5">
                 <div>
                   <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider">Bake Activity</p>
-                  <p className="font-bold text-primary" style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 20 }}>7-Day Overview</p>
+                  <p className="font-bold text-primary" style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 20 }}>{PERIODS.find(p => p.key === period)?.label} Overview</p>
                 </div>
                 <span className="text-xs font-semibold text-on-surface-variant bg-surface-container px-3 py-1 rounded-full border border-outline-variant/20">This Week</span>
               </div>
@@ -191,10 +215,10 @@ export default function Stats() {
               <p className="font-bold text-on-secondary-container font-mono" style={{ fontSize: 48, lineHeight: 1 }}>
                 {completedBakes}<span className="text-2xl"> batches</span>
               </p>
-              <p className="text-xs text-on-secondary-container/70 mt-2">In the last 7 days</p>
+              <p className="text-xs text-on-secondary-container/70 mt-2">{PERIODS.find(p => p.key === period)?.label}</p>
             </div>
 
-            <div className="bg-tertiary-fixed rounded-xl p-6 border border-on-tertiary-container/20">
+            <button onClick={() => navigate("/admin/orders")} className="bg-tertiary-fixed rounded-xl p-6 border border-on-tertiary-container/20 text-left hover:opacity-90 transition-all active:scale-95">
               <div className="flex items-center gap-2 mb-2">
                 <Icon name="assignment" size={18} className="text-on-tertiary-fixed-variant" />
                 <span className="text-xs font-semibold text-on-tertiary-fixed-variant uppercase tracking-wider">Pending Orders</span>
@@ -202,8 +226,8 @@ export default function Stats() {
               <p className="font-bold text-on-tertiary-fixed-variant font-mono" style={{ fontSize: 48, lineHeight: 1 }}>
                 {pendingOrders}<span className="text-2xl"> orders</span>
               </p>
-              <p className="text-xs text-on-tertiary-fixed-variant/70 mt-2">Awaiting fulfillment</p>
-            </div>
+              <p className="text-xs text-on-tertiary-fixed-variant/70 mt-2">Tap to view orders →</p>
+            </button>
 
             <div className="bg-surface-container-lowest rounded-xl p-6 border border-primary/10" style={{ boxShadow: "0 2px 8px -2px rgba(38,23,12,0.05)" }}>
               <div className="flex items-center gap-2 mb-2">
