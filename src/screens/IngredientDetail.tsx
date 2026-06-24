@@ -189,8 +189,8 @@ export default function IngredientDetail({ onBack }: Props) {
               <div className="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant/20">
                 <h2 className="font-semibold text-primary mb-4 pb-2 border-b border-outline-variant/10 text-base">Core Specifications</h2>
                 <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="col-span-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="col-span-1 sm:col-span-2">
                       <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">Ingredient Name</label>
                       <input
                         disabled={!editing}
@@ -404,22 +404,22 @@ export default function IngredientDetail({ onBack }: Props) {
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div className="bg-surface-container p-4 rounded-xl border border-outline-variant/20">
+                <div className="bg-surface-container p-4 rounded-xl border border-outline-variant/20 min-w-0">
                   <Icon name="inventory_2" size={18} className="text-primary mb-2" />
                   <span className="block text-[10px] font-semibold text-outline uppercase tracking-wider">Unit</span>
                   <span className="font-bold text-primary text-base font-mono">{unit}</span>
                 </div>
-                <div className="bg-surface-container p-4 rounded-xl border border-outline-variant/20">
+                <div className="bg-surface-container p-4 rounded-xl border border-outline-variant/20 min-w-0">
                   <Icon name="qr_code" size={18} className="text-primary mb-2" />
                   <span className="block text-[10px] font-semibold text-outline uppercase tracking-wider">SKU</span>
                   <span className="font-bold text-primary text-base font-mono truncate block">{sku || "—"}</span>
                 </div>
-                <div className="col-span-2 bg-surface-container-high p-4 rounded-xl border border-outline-variant/30 flex items-center justify-between">
-                  <div>
+                <div className="col-span-2 bg-surface-container-high p-4 rounded-xl border border-outline-variant/30 flex items-center justify-between min-w-0">
+                  <div className="min-w-0 flex-1">
                     <span className="block text-[10px] font-semibold text-outline uppercase tracking-wider">Ingredient ID</span>
-                    <span className="font-bold text-primary text-sm font-mono truncate block max-w-[200px]">{id}</span>
+                    <span className="font-bold text-primary text-sm font-mono truncate block">{id}</span>
                   </div>
-                  <Icon name="tag" size={20} className="text-primary shrink-0" />
+                  <Icon name="tag" size={20} className="text-primary shrink-0 ml-2" />
                 </div>
               </div>
             </div>

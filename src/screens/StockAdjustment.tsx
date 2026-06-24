@@ -221,20 +221,20 @@ export default function StockAdjustment({ onBack }: Props) {
             </div>
 
             {/* Preview */}
-            <div className="mt-6 p-5 bg-surface-bright rounded-xl border-2 border-dashed border-outline-variant/30 grid grid-cols-3 items-center">
-              <div className="text-center">
+            <div className="mt-6 p-4 bg-surface-bright rounded-xl border-2 border-dashed border-outline-variant/30 grid grid-cols-3 items-center gap-1">
+              <div className="text-center min-w-0">
                 <p className="text-[10px] font-semibold text-outline mb-2 uppercase tracking-wider">Before</p>
-                <p className="text-primary/40 font-bold font-mono" style={{ fontSize: 28 }}>{base.toFixed(2)} <span className="text-sm">{ingredient?.unit ?? "kg"}</span></p>
+                <p className="text-primary/40 font-bold font-mono text-xl truncate">{base.toFixed(2)} <span className="text-xs">{ingredient?.unit ?? "kg"}</span></p>
               </div>
-              <div className="flex flex-col items-center">
-                <Icon name="trending_flat" size={28} className="text-primary" />
-                <span className={`text-xs font-bold px-3 py-1 rounded-full mt-2 font-mono ${mode === "add" ? "bg-secondary text-white" : "bg-error text-white"}`}>
+              <div className="flex flex-col items-center min-w-0">
+                <Icon name="trending_flat" size={22} className="text-primary" />
+                <span className={`text-[10px] font-bold px-2 py-1 rounded-full mt-2 font-mono text-center ${mode === "add" ? "bg-secondary text-white" : "bg-error text-white"}`}>
                   {mode === "add" ? "+" : "-"}{adjKg.toFixed(2)} {ingredient?.unit ?? "kg"}
                 </span>
               </div>
-              <div className="text-center">
-                <p className="text-[10px] font-bold text-outline mb-2 uppercase tracking-wider">Projected After</p>
-                <p className="text-primary font-bold font-mono" style={{ fontSize: 36 }}>{projected.toFixed(2)} <span className="text-lg">{ingredient?.unit ?? "kg"}</span></p>
+              <div className="text-center min-w-0">
+                <p className="text-[10px] font-bold text-outline mb-2 uppercase tracking-wider">After</p>
+                <p className="text-primary font-bold font-mono text-2xl truncate">{projected.toFixed(2)} <span className="text-sm">{ingredient?.unit ?? "kg"}</span></p>
               </div>
             </div>
 
