@@ -326,7 +326,7 @@ export default function AdminOrders({ onStartBake }: Props) {
 
       <div className="p-4 lg:p-8 max-w-5xl mx-auto w-full space-y-5">
         {/* Status summary cards — clickable filter */}
-        <div className="grid grid-cols-3 lg:grid-cols-6 gap-2">
+        <div className="grid grid-cols-4 lg:grid-cols-7 gap-2">
           <button
             onClick={() => setFilter("all")}
             className={`text-left rounded-xl border p-3 transition-all ${filter === "all" ? "border-primary bg-surface-container-low ring-1 ring-primary/20" : "border-outline-variant/20 bg-surface-container-lowest hover:border-outline-variant/40"}`}
