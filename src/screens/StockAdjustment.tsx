@@ -184,7 +184,8 @@ export default function StockAdjustment({ onBack }: Props) {
                   <input
                     className="flex-1 h-full px-4 rounded-l-lg border border-outline-variant/40 focus:border-primary focus:outline-none text-base font-mono"
                     type="number" step={0.01} min={0}
-                    value={amount}
+                    value={amount || ""}
+                    placeholder="0"
                     onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
                   />
                   <div className="relative w-20">
