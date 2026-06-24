@@ -146,7 +146,7 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
   };
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-y-auto bg-surface">
+    <div className="flex-1 flex flex-col min-h-0 overflow-y-auto overflow-x-hidden bg-surface">
       <header className="sticky top-0 z-50 flex justify-between items-center px-6 h-14 w-full bg-surface-bright border-b border-outline-variant/20">
         <nav className="flex items-center gap-1 text-sm text-on-surface-variant">
           <button onClick={onBack} className="hover:text-primary transition-colors px-2 py-1 flex items-center gap-1">
