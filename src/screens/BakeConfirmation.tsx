@@ -192,7 +192,8 @@ export default function BakeConfirmation({ onBack, onLogBake, recipe, inventory,
         baker: baker || "Unknown",
         started_at: now.toISOString(),
         qty: recipe.yield,
-        status: "in_progress",
+        status: "completed",
+        actual_qty: yieldNum,
         img: recipe.img,
         order_id: orderId ?? null,
         cost: thisBatchCost,
@@ -239,7 +240,7 @@ export default function BakeConfirmation({ onBack, onLogBake, recipe, inventory,
       successfulBatches++;
     }
 
-    // Persist fulfilled_qty accumulation on order; keep in "baking" status
+    // Advance order status based on how much was fulfilled
     let cumulativeFulfilled = totalConsumed;
     if (orderId && orderQty != null) {
       const { data: orderData } = await supabase
@@ -249,8 +250,9 @@ export default function BakeConfirmation({ onBack, onLogBake, recipe, inventory,
         .maybeSingle();
       const prevFulfilled = orderData?.fulfilled_qty ?? 0;
       cumulativeFulfilled = prevFulfilled + totalConsumed;
+      const newStatus = cumulativeFulfilled >= orderQty ? "ready" : "baking";
       await supabase.from("orders").update({
-        status: "baking",
+        status: newStatus,
         fulfilled_qty: cumulativeFulfilled,
       }).eq("id", orderId);
     }
@@ -315,7 +317,7 @@ export default function BakeConfirmation({ onBack, onLogBake, recipe, inventory,
                   )}
                   {isFullyFulfilled && (
                     <p className="text-on-secondary-container/80 text-xs mt-1">
-                      Mark the batch done in Bake Log to advance the order to Ready for Pickup.
+                      Order is now Ready for Pickup.
                     </p>
                   )}
                 </>
