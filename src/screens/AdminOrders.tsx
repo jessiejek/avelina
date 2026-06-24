@@ -38,8 +38,8 @@ const STATUS_FLOW: OrderStatus[] = ["pending", "confirmed", "baking", "ready", "
 const NEXT_ACTION: Record<OrderStatus, { next: OrderStatus; label: string } | null> = {
   pending: { next: "confirmed", label: "Confirm" },
   confirmed: null,
-  baking: { next: "ready", label: "Mark Ready for Pickup" },
-  ready: { next: "completed", label: "Picked Up" },
+  baking: { next: "completed", label: "Picked Up ✓" },
+  ready: { next: "completed", label: "Picked Up ✓" },
   completed: null,
   cancelled: null,
 };
