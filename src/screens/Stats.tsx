@@ -82,7 +82,7 @@ export default function Stats() {
       setStockHealth(ings.map((i) => ({
         id: i.id,
         name: i.name,
-        stock: `${i.quantity} ${i.unit}`,
+        stock: `${parseFloat(Number(i.quantity).toFixed(3))} ${i.unit}`,
         status: i.status as "optimal" | "low" | "critical",
       })));
 
