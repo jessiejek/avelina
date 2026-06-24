@@ -113,6 +113,15 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
   const [dispUnitPrice, setDispUnitPrice] = useState("");
   const [dispSaving, setDispSaving] = useState(false);
   const [dispError, setDispError] = useState("");
+  const [currentUser, setCurrentUser] = useState("Avelina");
+
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return;
+      const { data } = await supabase.from("users").select("name").eq("id", user.id).maybeSingle();
+      if (data?.name) setCurrentUser(data.name);
+    });
+  }, []);
 
   useEffect(() => {
     supabase
@@ -253,7 +262,7 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
     if (val > 0) {
       await supabase.from("inventory_adjustments").insert({
         ingredient_id: newIng.id, delta: val, unit: newIng.unit,
-        reason: "Opening balance", adjusted_by: "Avelina",
+        reason: "Opening balance", adjusted_by: currentUser,
       });
       const costPerUnit = form.cost === "" ? 0 : parseFloat(form.cost) || 0;
       if (costPerUnit > 0) {
@@ -264,7 +273,7 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
           qty: val,
           unit: newIng.unit,
           note: form.name.trim() + " opening stock",
-          created_by: "Avelina",
+          created_by: currentUser,
         });
       }
     }

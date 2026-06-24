@@ -43,6 +43,7 @@ function mapRecipe(r: any): Recipe {
     yield: r.yield, time: r.time, img: r.img,
     description: r.description ?? "", prep_time: r.prep_time ?? "", difficulty: r.difficulty ?? "",
     price: r.price ?? 0, is_available: r.is_available ?? true,
+    finished_shelf_life_days: r.finished_shelf_life_days ?? null,
     ingredients: (r.recipe_ingredients || []).map((ri: any) => ({
       ingredientId: ri.ingredients?.id || "",
       name: ri.ingredients?.name || "",
