@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+html, body, #root {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
 @theme {
   /* Colors */
   --color-surface: #fff8f5;

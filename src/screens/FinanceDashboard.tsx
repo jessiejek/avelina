@@ -198,7 +198,7 @@ export default function FinanceDashboard() {
   ];
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-y-auto overflow-x-hidden bg-surface">
+    <div className="flex-1 flex flex-col min-h-0 overflow-y-auto bg-surface">
       <header className="sticky top-0 z-50 flex justify-between items-center px-6 h-14 w-full bg-surface-bright border-b border-outline-variant/20">
         <h1 className="font-bold text-primary" style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 22 }}>Finance</h1>
         <div className="flex items-center gap-3">

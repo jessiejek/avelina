@@ -124,7 +124,7 @@ export default function IngredientDetail({ onBack }: Props) {
   }
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-y-auto overflow-x-hidden bg-surface">
+    <div className="flex-1 flex flex-col min-h-0 overflow-y-auto bg-surface">
       <header className="sticky top-0 z-50 flex justify-between items-center px-6 h-14 w-full bg-surface-bright border-b border-outline-variant/20">
         <div className="flex items-center gap-4">
           <button onClick={onBack} className="lg:hidden p-2 text-on-surface-variant">

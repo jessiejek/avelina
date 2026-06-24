@@ -274,7 +274,7 @@ export default function BakeConfirmation({ onBack, onLogBake, recipe, inventory,
     const isFullyFulfilled = orderQty == null || cumulativeFulfilled >= orderQty;
     const shortfall = orderQty != null ? Math.max(0, orderQty - cumulativeFulfilled) : 0;
     return (
-      <div className="flex-1 flex flex-col min-h-0 overflow-y-auto overflow-x-hidden bg-surface">
+      <div className="flex-1 flex flex-col min-h-0 overflow-y-auto bg-surface">
         <header className="sticky top-0 z-50 flex justify-between items-center px-6 h-14 w-full bg-surface-bright border-b border-outline-variant/20">
           <span className="font-bold text-primary" style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 18 }}>
             Bake Session Complete
@@ -346,7 +346,7 @@ export default function BakeConfirmation({ onBack, onLogBake, recipe, inventory,
 
   // ── Main bake confirmation UI ────────────────────────────────────────────────
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-y-auto overflow-x-hidden bg-surface">
+    <div className="flex-1 flex flex-col min-h-0 overflow-y-auto bg-surface">
       <header className="sticky top-0 z-50 flex justify-between items-center px-6 h-14 w-full bg-surface-bright border-b border-outline-variant/20">
         <nav className="flex items-center gap-1 text-sm text-on-surface-variant">
           <button onClick={onBack} className="hover:text-primary transition-colors px-2 py-1 flex items-center gap-1">
