@@ -26,11 +26,16 @@ import { Recipe } from "./data/recipes.ts";
 
 // ── DB → app type mappers ─────────────────────────────────────
 
+function fmtStock(q: number): number {
+  return parseFloat(Number(q).toFixed(3));
+}
+
 function mapIngredient(d: any): Ingredient {
+  const qty = fmtStock(d.quantity ?? 0);
   return {
     id: d.id, name: d.name, sku: d.sku,
-    stock: `${d.quantity} ${d.unit}`,
-    quantity: d.quantity,
+    stock: `${qty} ${d.unit}`,
+    quantity: qty,
     unit: d.unit, status: d.status, icon: d.icon, img: d.img,
     costPerUnit: d.cost_per_unit ?? 0,
     lowThreshold: d.low_threshold ?? undefined,
