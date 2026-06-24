@@ -59,7 +59,7 @@ export default function FinanceDashboard() {
       supabase.from("recipes").select("id, name, price, yield, recipe_ingredients(qty, unit, ingredients(cost_per_unit, unit))"),
       // Fix E: cash sales from finished-goods dispositions
       supabase.from("finished_goods_dispositions")
-        .select("qty, unit, reason, amount_collected, writeoff_value, notes, disposed_at, recipes(name)")
+        .select("recipe_id, qty, unit, reason, amount_collected, writeoff_value, notes, disposed_at")
         .order("disposed_at", { ascending: false }),
     ]).then(([ordRes, expRes, bakeRes, ingRes, recRes, dispRes]) => {
       const orders = ordRes.data ?? [];
@@ -102,9 +102,12 @@ export default function FinanceDashboard() {
         }
       }
 
+      const recipeNameById: Record<string, string> = {};
+      for (const r of (recRes.data ?? []) as any[]) recipeNameById[r.id] = r.name;
+
       setDispositions(
         (dispRes.data ?? []).map((d: any) => ({
-          productName: d.recipes?.name || "—",
+          productName: recipeNameById[d.recipe_id] || "—",
           qty: d.qty ?? 0,
           unit: d.unit || "units",
           reason: d.reason || "",
