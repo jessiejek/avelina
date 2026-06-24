@@ -120,7 +120,7 @@ export default function StockAdjustment({ onBack }: Props) {
     setCost("");
     setSaving(false);
     setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    setTimeout(() => onBack(), 1500);
   };
 
   return (
@@ -277,8 +277,13 @@ export default function StockAdjustment({ onBack }: Props) {
           </div>
 
           <div className="px-5 py-4 bg-surface-container border-t border-outline-variant/10 flex flex-col gap-2">
-            {error && <p className="text-xs text-error">{error}</p>}
-            {saved && <p className="text-xs text-secondary font-semibold flex items-center gap-1"><Icon name="check_circle" size={14} /> Adjustment saved!</p>}
+            {error && <p className="text-sm text-error font-semibold flex items-center gap-1"><Icon name="error" size={14} /> {error}</p>}
+            {saved && (
+              <div className="flex items-center gap-2 px-4 py-2.5 bg-secondary-container text-on-secondary-container rounded-lg">
+                <Icon name="check_circle" size={18} />
+                <span className="font-semibold text-sm">Adjustment saved! Going back…</span>
+              </div>
+            )}
             <div className="flex gap-3">
               <button onClick={onBack} className="flex-1 sm:flex-none px-5 h-10 rounded-lg border border-outline text-primary font-semibold hover:bg-surface-variant transition-colors text-sm">Cancel</button>
               <button
