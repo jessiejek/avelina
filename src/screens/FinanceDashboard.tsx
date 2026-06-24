@@ -59,8 +59,8 @@ export default function FinanceDashboard() {
       supabase.from("recipes").select("id, name, price, yield, recipe_ingredients(qty, unit, ingredients(cost_per_unit, unit))"),
       // Fix E: cash sales from finished-goods dispositions
       supabase.from("finished_goods_dispositions")
-        .select("recipe_id, qty, unit, reason, amount_collected, writeoff_value, notes, disposed_at")
-        .order("disposed_at", { ascending: false }),
+        .select("recipe_id, quantity, reason, unit_price, amount_collected, writeoff_value, notes, tagged_at, tagged_by")
+        .order("tagged_at", { ascending: false }),
     ]).then(([ordRes, expRes, bakeRes, ingRes, recRes, dispRes]) => {
       const orders = ordRes.data ?? [];
       const orderTotal = (o: any) =>
@@ -95,9 +95,9 @@ export default function FinanceDashboard() {
       for (const d of (dispRes.data ?? []) as any[]) {
         if (d.reason !== "cash_sale" || !(d.amount_collected > 0)) continue;
         rev += d.amount_collected;
-        const disposed = new Date(d.disposed_at);
+        const disposed = new Date(d.tagged_at);
         if (disposed >= since) {
-          const key = toDateKey(d.disposed_at);
+          const key = toDateKey(d.tagged_at);
           revByDay[key] = (revByDay[key] || 0) + d.amount_collected;
         }
       }
@@ -108,13 +108,13 @@ export default function FinanceDashboard() {
       setDispositions(
         (dispRes.data ?? []).map((d: any) => ({
           productName: recipeNameById[d.recipe_id] || "—",
-          qty: d.qty ?? 0,
-          unit: d.unit || "units",
+          qty: d.quantity ?? 0,
+          unit: "units",
           reason: d.reason || "",
           amountCollected: d.amount_collected ?? 0,
           writeoffValue: d.writeoff_value ?? 0,
           notes: d.notes ?? null,
-          disposedAt: d.disposed_at,
+          disposedAt: d.tagged_at,
         }))
       );
 

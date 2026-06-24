@@ -178,13 +178,14 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
 
     await supabase.from("finished_goods_dispositions").insert({
       recipe_id: dispModal.recipeId,
-      qty,
+      quantity: qty,
       reason: dispReason,
+      unit_price: dispReason === "cash_sale" ? (parseFloat(dispUnitPrice) || 0) : null,
       amount_collected: amountCollected,
       writeoff_value: writeoffValue,
       notes: dispNotes || null,
-      disposed_at: now,
-      unit: dispModal.unit,
+      tagged_at: now,
+      tagged_by: currentUser,
     });
 
     if (dispReason !== "cash_sale" && writeoffValue && writeoffValue > 0) {
