@@ -226,11 +226,12 @@ function AdminShell() {
   };
 
   const mobileNavItems = [
-    { id: "inventory", path: "/admin/inventory", icon: "inventory_2", label: "Inventory" },
-    { id: "recipes", path: "/admin/recipes", icon: "menu_book", label: "Recipes" },
-    { id: "orders", path: "/admin/orders", icon: "assignment", label: "Orders" },
-    { id: "bakelog", path: "/admin/bakelog", icon: "history_edu", label: "Log" },
-    { id: "finance", path: "/admin/finance", icon: "wallet", label: "Finance" },
+    { id: "inventory", path: "/admin/inventory", icon: "inventory_2", label: "Stock" },
+    { id: "recipes",   path: "/admin/recipes",   icon: "menu_book",  label: "Recipes" },
+    { id: "orders",    path: "/admin/orders",    icon: "assignment", label: "Orders" },
+    { id: "bakelog",   path: "/admin/bakelog",   icon: "history_edu",label: "Log" },
+    { id: "finance",   path: "/admin/finance",   icon: "wallet",     label: "Finance" },
+    { id: "stats",     path: "/admin/stats",     icon: "query_stats",label: "Stats" },
   ];
 
   return (
@@ -286,22 +287,22 @@ function AdminShell() {
         </Routes>
       </main>
 
-      <nav className="lg:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-1 py-2 bg-surface-bright border-t border-outline-variant/10 shadow-sm">
+      <nav className="lg:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-0.5 py-1.5 bg-surface-bright border-t border-outline-variant/10 shadow-sm">
         {mobileNavItems.map((item) => {
           const isActive = currentTab === item.id;
           return (
-            <button key={item.id} onClick={() => navigate(item.path)} className={`flex flex-col items-center justify-center gap-0.5 px-1.5 py-1 rounded-xl transition-all ${isActive ? "bg-secondary-container text-on-secondary-container" : "text-on-surface-variant"}`}>
-              <Icon name={item.icon} size={20} />
-              <span className="text-[9px] font-semibold uppercase tracking-wide">{item.label}</span>
+            <button key={item.id} onClick={() => navigate(item.path)} className={`flex flex-col items-center justify-center gap-0.5 px-1 py-1 rounded-xl transition-all min-w-0 ${isActive ? "bg-secondary-container text-on-secondary-container" : "text-on-surface-variant"}`}>
+              <Icon name={item.icon} size={18} />
+              <span className="text-[8px] font-semibold uppercase tracking-wide leading-none">{item.label}</span>
             </button>
           );
         })}
         <button
           onClick={async () => { await supabase.auth.signOut(); navigate("/"); }}
-          className="flex flex-col items-center justify-center gap-0.5 px-1.5 py-1 rounded-xl transition-all text-on-surface-variant hover:text-error"
+          className="flex flex-col items-center justify-center gap-0.5 px-1 py-1 rounded-xl transition-all text-on-surface-variant hover:text-error min-w-0"
         >
-          <Icon name="logout" size={20} />
-          <span className="text-[9px] font-semibold uppercase tracking-wide">Exit</span>
+          <Icon name="logout" size={18} />
+          <span className="text-[8px] font-semibold uppercase tracking-wide leading-none">Exit</span>
         </button>
       </nav>
 
