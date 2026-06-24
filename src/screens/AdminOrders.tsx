@@ -24,6 +24,7 @@ interface AdminOrder {
   id: string;
   placedAt: string;
   status: OrderStatus;
+  fulfillmentType: "pickup" | "delivery";
   notes: string | null;
   customerName: string;
   customerPhone: string;
@@ -52,9 +53,9 @@ const statusStyle = (s: OrderStatus) => {
   return "bg-surface-container-high text-on-surface-variant";
 };
 
-const statusLabel = (s: OrderStatus) => {
+const statusLabel = (s: OrderStatus, fulfillmentType?: "pickup" | "delivery") => {
   if (s === "completed") return "Completed";
-  if (s === "ready") return "Ready for Pickup";
+  if (s === "ready") return fulfillmentType === "delivery" ? "Ready for Delivery" : "Ready for Pickup";
   if (s === "baking") return "Baking";
   if (s === "confirmed") return "Confirmed";
   if (s === "cancelled") return "Cancelled";
@@ -66,6 +67,7 @@ function mapOrder(o: any): AdminOrder {
     id: o.id,
     placedAt: o.placed_at,
     status: o.status,
+    fulfillmentType: o.fulfillment_type === "delivery" ? "delivery" : "pickup",
     notes: o.notes ?? null,
     customerName: o.users?.name || "Unknown customer",
     customerPhone: o.users?.phone || "",
@@ -156,7 +158,7 @@ export default function AdminOrders({ onStartBake }: Props) {
         setOrders((prev) =>
           prev.map((o) =>
             o.id === row.id
-              ? { ...o, status: row.status as OrderStatus, fulfilledQty: row.fulfilled_qty ?? o.fulfilledQty }
+              ? { ...o, status: row.status as OrderStatus, fulfilledQty: row.fulfilled_qty ?? o.fulfilledQty, fulfillmentType: row.fulfillment_type === "delivery" ? "delivery" : "pickup" }
               : o
           )
         );
@@ -189,6 +191,12 @@ export default function AdminOrders({ onStartBake }: Props) {
     const { error } = await supabase.from("orders").update(update).eq("id", order.id);
     if (error) setOrders((prev) => prev.map((o) => o.id === order.id ? { ...o, status: order.status } : o));
     setUpdatingId(null);
+  };
+
+  const toggleFulfillment = async (order: AdminOrder) => {
+    const next: "pickup" | "delivery" = order.fulfillmentType === "pickup" ? "delivery" : "pickup";
+    setOrders((prev) => prev.map((o) => o.id === order.id ? { ...o, fulfillmentType: next } : o));
+    await supabase.from("orders").update({ fulfillment_type: next }).eq("id", order.id);
   };
 
   // Fix C — cancel order
@@ -326,7 +334,7 @@ export default function AdminOrders({ onStartBake }: Props) {
                 filter === s ? "border-primary bg-surface-container-low" : "border-outline-variant/20 bg-surface-container-lowest hover:border-outline-variant/50"
               }`}
             >
-              <span className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider">{statusLabel(s)}</span>
+              <span className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider">{s === "ready" ? "Ready" : statusLabel(s)}</span>
               <p className="font-bold text-primary font-mono mt-1" style={{ fontSize: 28, lineHeight: 1 }}>{counts[s]}</p>
             </button>
           ))}
@@ -348,7 +356,7 @@ export default function AdminOrders({ onStartBake }: Props) {
                 filter === s ? "bg-primary text-on-primary" : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high"
               }`}
             >
-              {statusLabel(s)} {counts[s] > 0 ? `(${counts[s]})` : ""}
+              {s === "ready" ? "Ready" : statusLabel(s)} {counts[s] > 0 ? `(${counts[s]})` : ""}
             </button>
           ))}
         </div>
@@ -396,13 +404,27 @@ export default function AdminOrders({ onStartBake }: Props) {
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-bold text-primary font-mono text-sm">#{order.id}</p>
                         <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${statusStyle(order.status)}`}>
-                          {statusLabel(order.status)}
+                          {statusLabel(order.status, order.fulfillmentType)}
                         </span>
                         {order.status === "baking" && order.fulfilledQty > 0 && (
                           <span className="text-[10px] font-semibold text-on-surface-variant bg-surface-container-high px-2 py-0.5 rounded-full">
                             {order.fulfilledQty}/{totalItems} baked
                           </span>
                         )}
+                        {/* Fulfillment type toggle — always visible, clickable on non-terminal orders */}
+                        <button
+                          onClick={() => order.status !== "completed" && order.status !== "cancelled" && toggleFulfillment(order)}
+                          disabled={order.status === "completed" || order.status === "cancelled"}
+                          className={`flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border transition-colors ${
+                            order.fulfillmentType === "delivery"
+                              ? "bg-tertiary-fixed border-on-tertiary-container/30 text-on-tertiary-fixed-variant hover:opacity-80"
+                              : "bg-surface-container-high border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-highest"
+                          } disabled:opacity-50 disabled:cursor-default`}
+                          title="Toggle pickup / delivery"
+                        >
+                          <Icon name={order.fulfillmentType === "delivery" ? "local_shipping" : "storefront"} size={11} />
+                          {order.fulfillmentType === "delivery" ? "Delivery" : "Pickup"}
+                        </button>
                       </div>
                       <p className="text-xs text-on-surface-variant mt-1">
                         {new Date(order.placedAt).toLocaleString("en-PH", {
