@@ -330,6 +330,7 @@ export default function IngredientDetail({ onBack }: Props) {
                           <p className="text-sm font-semibold text-primary truncate">{m.reason}</p>
                           <p className="text-[11px] text-on-surface-variant">
                             {new Date(m.created_at).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })}
+                            {" · "}{new Date(m.created_at).toLocaleTimeString("en-PH", { hour: "numeric", minute: "2-digit", hour12: true })}
                             {m.notes ? ` · ${m.notes}` : ""}
                           </p>
                         </div>
