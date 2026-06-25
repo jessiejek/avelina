@@ -241,7 +241,7 @@ function AdminShell() {
     <div className="flex min-h-screen bg-surface text-on-surface" style={{ fontFamily: "'Work Sans', sans-serif" }}>
       <Sidebar currentTab={currentTab} setCurrentTab={(tab) => navigate(`/admin/${tab}`)} onNewProduction={() => setShowPicker(true)} />
 
-      <main className="flex-1 flex flex-col min-w-0 pb-16 lg:pb-0">
+      <main className="flex-1 flex flex-col min-w-0 pb-16 lg:pb-0" style={{ paddingBottom: 'max(4rem, env(safe-area-inset-bottom, 0px) + 4rem)' }}>
         <Routes>
           <Route index element={<Navigate to="inventory" replace />} />
 
@@ -291,8 +291,8 @@ function AdminShell() {
       </main>
 
       {/* Mobile bottom nav */}
-      <nav className="lg:hidden fixed bottom-0 left-0 w-full z-50 bg-surface-bright border-t border-outline-variant/10 shadow-sm">
-        <div className="flex justify-around items-center px-2 py-1.5">
+      <nav className="lg:hidden fixed bottom-0 left-0 w-full z-50 bg-surface-bright border-t border-outline-variant/10 shadow-sm" style={{ height: 64 }}>
+        <div className="flex justify-around items-center px-2 h-full">
           {mobileNavMain.map((item) => {
             const isActive = currentTab === item.id;
             return (
@@ -316,7 +316,7 @@ function AdminShell() {
       {showMore && (
         <>
           <div className="lg:hidden fixed inset-0 z-[60]" onClick={() => setShowMore(false)} />
-          <div className="lg:hidden fixed bottom-14 left-0 w-full z-[70] bg-surface-container-lowest border-t border-outline-variant/20 rounded-t-2xl shadow-2xl pb-2 animate-[slideUp_0.18s_ease-out]">
+          <div className="lg:hidden fixed bottom-16 left-0 w-full z-[70] bg-surface-container-lowest border-t border-outline-variant/20 rounded-t-2xl shadow-2xl pb-2 animate-[slideUp_0.18s_ease-out]">
             <div className="w-10 h-1 bg-outline-variant/40 rounded-full mx-auto mt-3 mb-3" />
             <div className="px-4 pb-2 space-y-1">
               {/* New Production */}
