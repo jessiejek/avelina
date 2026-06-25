@@ -107,9 +107,10 @@ export default function AdminOrders({ onStartBake }: Props) {
   const [cancelModal, setCancelModal] = useState<AdminOrder | null>(null);
   const [cancelling, setCancelling] = useState(false);
 
-  // Fix D — edit qty modal state
+  // Fix D — edit qty + pickup date modal state
   const [editModal, setEditModal] = useState<{ order: AdminOrder; item: AdminOrderItem } | null>(null);
   const [editQty, setEditQty] = useState("");
+  const [editPickupDate, setEditPickupDate] = useState("");
   const [editError, setEditError] = useState("");
   const [editSaving, setEditSaving] = useState(false);
 
@@ -248,6 +249,7 @@ export default function AdminOrders({ onStartBake }: Props) {
   const openEditModal = (order: AdminOrder, item: AdminOrderItem) => {
     setEditModal({ order, item });
     setEditQty(String(item.qty));
+    setEditPickupDate(item.pickupDate || "");
     setEditError("");
   };
 
@@ -265,8 +267,10 @@ export default function AdminOrders({ onStartBake }: Props) {
     setEditSaving(true);
     const editedAt = new Date().toISOString();
 
-    // Update the order_items row
-    await supabase.from("order_items").update({ qty: newQty }).eq("id", item.id);
+    // Update the order_items row (qty + pickup date)
+    const itemUpdate: Record<string, any> = { qty: newQty };
+    if (editPickupDate && editPickupDate !== item.pickupDate) itemUpdate.pickup_date = editPickupDate;
+    await supabase.from("order_items").update(itemUpdate).eq("id", item.id);
 
     // Log to order_edit_log
     await supabase.from("order_edit_log").insert({
@@ -288,7 +292,7 @@ export default function AdminOrders({ onStartBake }: Props) {
           ? {
               ...o,
               status: newStatus ?? o.status,
-              items: o.items.map((i) => (i.id === item.id ? { ...i, qty: newQty } : i)),
+              items: o.items.map((i) => (i.id === item.id ? { ...i, qty: newQty, pickupDate: editPickupDate || i.pickupDate } : i)),
             }
           : o
       )
@@ -633,7 +637,7 @@ export default function AdminOrders({ onStartBake }: Props) {
               <Icon name="edit" size={22} className="text-on-primary-fixed" />
             </div>
             <h3 className="font-bold text-primary text-lg" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>
-              Edit Quantity
+              Edit Order Item
             </h3>
             <p className="text-sm text-on-surface-variant mt-1">
               {editModal.item.name} · Order #{editModal.order.id}
@@ -672,6 +676,15 @@ export default function AdminOrders({ onStartBake }: Props) {
                         <Icon name="error" size={12} /> {editError}
                       </p>
                     )}
+                  </div>
+                  <div className="mt-4 space-y-2">
+                    <label className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Pickup / Delivery Date</label>
+                    <input
+                      type="date"
+                      value={editPickupDate}
+                      onChange={(e) => setEditPickupDate(e.target.value)}
+                      className="w-full h-10 px-3 text-sm font-semibold text-primary bg-surface-container border border-outline-variant/40 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
                   </div>
                 </>
               );
