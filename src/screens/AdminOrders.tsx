@@ -326,24 +326,24 @@ export default function AdminOrders({ onStartBake }: Props) {
 
       <div className="p-4 lg:p-8 max-w-5xl mx-auto w-full space-y-5">
         {/* Status summary cards — clickable filter */}
-        <div className="grid grid-cols-4 lg:grid-cols-7 gap-2">
+        <div className="grid grid-cols-7 gap-1.5">
           <button
             onClick={() => setFilter("all")}
-            className={`text-left rounded-xl border p-3 transition-all ${filter === "all" ? "border-primary bg-surface-container-low ring-1 ring-primary/20" : "border-outline-variant/20 bg-surface-container-lowest hover:border-outline-variant/40"}`}
+            className={`text-left rounded-xl border p-2 lg:p-3 transition-all ${filter === "all" ? "border-primary bg-surface-container-low ring-1 ring-primary/20" : "border-outline-variant/20 bg-surface-container-lowest hover:border-outline-variant/40"}`}
           >
             <span className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">All</span>
-            <p className="font-bold text-primary font-mono" style={{ fontSize: 26, lineHeight: 1.1 }}>{orders.length}</p>
+            <p className="font-bold text-primary font-mono" style={{ fontSize: 20, lineHeight: 1.1 }}>{orders.length}</p>
           </button>
           {allStatuses.map((s) => (
             <button
               key={s}
               onClick={() => setFilter(filter === s ? "all" : s)}
-              className={`text-left rounded-xl border p-3 transition-all ${filter === s ? "border-primary bg-surface-container-low ring-1 ring-primary/20" : "border-outline-variant/20 bg-surface-container-lowest hover:border-outline-variant/40"}`}
+              className={`text-left rounded-xl border p-2 lg:p-3 transition-all ${filter === s ? "border-primary bg-surface-container-low ring-1 ring-primary/20" : "border-outline-variant/20 bg-surface-container-lowest hover:border-outline-variant/40"}`}
             >
               <span className="text-[9px] font-bold text-on-surface-variant uppercase tracking-wider">
                 {s === "ready" ? "Ready" : s.charAt(0).toUpperCase() + s.slice(1)}
               </span>
-              <p className={`font-bold font-mono ${counts[s] > 0 && (s === "pending" || s === "confirmed" || s === "baking") ? "text-primary" : "text-on-surface-variant"}`} style={{ fontSize: 26, lineHeight: 1.1 }}>
+              <p className={`font-bold font-mono ${counts[s] > 0 && (s === "pending" || s === "confirmed" || s === "baking") ? "text-primary" : "text-on-surface-variant"}`} style={{ fontSize: 20, lineHeight: 1.1 }}>
                 {counts[s]}
               </p>
             </button>
