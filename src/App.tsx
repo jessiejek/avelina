@@ -225,10 +225,12 @@ function AdminShell() {
     navigate("/admin/bakelog");
   };
 
-  const mobileNavItems = [
+  const mobileNavLeft = [
     { id: "inventory", path: "/admin/inventory", icon: "inventory_2", label: "Stock" },
     { id: "recipes",   path: "/admin/recipes",   icon: "menu_book",  label: "Recipes" },
     { id: "orders",    path: "/admin/orders",    icon: "assignment", label: "Orders" },
+  ];
+  const mobileNavRight = [
     { id: "bakelog",   path: "/admin/bakelog",   icon: "history_edu",label: "Log" },
     { id: "finance",   path: "/admin/finance",   icon: "wallet",     label: "Finance" },
     { id: "stats",     path: "/admin/stats",     icon: "query_stats",label: "Stats" },
@@ -287,23 +289,47 @@ function AdminShell() {
         </Routes>
       </main>
 
-      <nav className="lg:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-0.5 py-1.5 bg-surface-bright border-t border-outline-variant/10 shadow-sm">
-        {mobileNavItems.map((item) => {
-          const isActive = currentTab === item.id;
-          return (
-            <button key={item.id} onClick={() => navigate(item.path)} className={`flex flex-col items-center justify-center gap-0.5 px-1 py-1 rounded-xl transition-all min-w-0 ${isActive ? "bg-secondary-container text-on-secondary-container" : "text-on-surface-variant"}`}>
-              <Icon name={item.icon} size={18} />
-              <span className="text-[8px] font-semibold uppercase tracking-wide leading-none">{item.label}</span>
-            </button>
-          );
-        })}
+      <nav className="lg:hidden fixed bottom-0 left-0 w-full z-50 bg-surface-bright border-t border-outline-variant/10 shadow-sm">
+        {/* Raised center + button */}
         <button
-          onClick={async () => { await supabase.auth.signOut(); navigate("/"); }}
-          className="flex flex-col items-center justify-center gap-0.5 px-1 py-1 rounded-xl transition-all text-on-surface-variant hover:text-error min-w-0"
+          onClick={() => setShowPicker(true)}
+          className="absolute -top-5 left-1/2 -translate-x-1/2 w-12 h-12 rounded-full bg-primary text-on-primary shadow-lg flex items-center justify-center active:scale-95 transition-all"
         >
-          <Icon name="logout" size={18} />
-          <span className="text-[8px] font-semibold uppercase tracking-wide leading-none">Exit</span>
+          <Icon name="add" size={22} strokeWidth={2.5} />
         </button>
+
+        <div className="flex justify-around items-center px-1 py-1.5">
+          {mobileNavLeft.map((item) => {
+            const isActive = currentTab === item.id;
+            return (
+              <button key={item.id} onClick={() => navigate(item.path)} className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1 rounded-xl transition-all min-w-0 ${isActive ? "bg-secondary-container text-on-secondary-container" : "text-on-surface-variant"}`}>
+                <Icon name={item.icon} size={18} />
+                <span className="text-[8px] font-semibold uppercase tracking-wide leading-none">{item.label}</span>
+              </button>
+            );
+          })}
+
+          {/* Spacer for center button */}
+          <div className="w-14 shrink-0" />
+
+          {mobileNavRight.map((item) => {
+            const isActive = currentTab === item.id;
+            return (
+              <button key={item.id} onClick={() => navigate(item.path)} className={`flex flex-col items-center justify-center gap-0.5 px-2 py-1 rounded-xl transition-all min-w-0 ${isActive ? "bg-secondary-container text-on-secondary-container" : "text-on-surface-variant"}`}>
+                <Icon name={item.icon} size={18} />
+                <span className="text-[8px] font-semibold uppercase tracking-wide leading-none">{item.label}</span>
+              </button>
+            );
+          })}
+
+          <button
+            onClick={async () => { await supabase.auth.signOut(); navigate("/"); }}
+            className="flex flex-col items-center justify-center gap-0.5 px-2 py-1 rounded-xl transition-all text-on-surface-variant hover:text-error min-w-0"
+          >
+            <Icon name="logout" size={18} />
+            <span className="text-[8px] font-semibold uppercase tracking-wide leading-none">Exit</span>
+          </button>
+        </div>
       </nav>
 
 
