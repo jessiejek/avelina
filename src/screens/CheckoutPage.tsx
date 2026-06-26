@@ -129,45 +129,26 @@ export default function CheckoutPage({ cart, profile, userId, onUpdateQty, onUpd
             </div>
           </div>
 
-          {/* Address — editable */}
-          <div className="border-t border-[#26170c]/8 pt-3">
-            <div className="flex items-center justify-between mb-1.5">
+          {/* Address — always editable */}
+          <div className="border-t border-[#26170c]/8 pt-3 space-y-2">
+            <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-[#26170c]/50 uppercase tracking-wider">Delivery / Pickup Address</span>
-              {!editingAddress ? (
-                <button onClick={() => setEditingAddress(true)} className="flex items-center gap-1 text-xs font-semibold text-[#26170c]/60 hover:text-[#26170c] transition-colors">
-                  <Icon name="edit" size={12} /> Edit
-                </button>
-              ) : (
-                <button onClick={locateMe} disabled={locating} className="flex items-center gap-1 text-xs font-semibold text-[#26170c] bg-[#26170c]/8 hover:bg-[#26170c]/15 px-2.5 py-0.5 rounded-full transition-all disabled:opacity-50">
-                  <Icon name={locating ? "progress_activity" : "my_location"} size={12} />
-                  {locating ? "Locating…" : "Locate Me"}
-                </button>
-              )}
+              <button onClick={locateMe} disabled={locating} className="flex items-center gap-1 text-xs font-semibold text-[#26170c] bg-[#26170c]/8 hover:bg-[#26170c]/15 px-2.5 py-1 rounded-full transition-all disabled:opacity-50">
+                <Icon name={locating ? "progress_activity" : "my_location"} size={12} />
+                {locating ? "Locating…" : "Locate Me"}
+              </button>
             </div>
-
-            {editingAddress ? (
-              <div className="space-y-2">
-                <textarea
-                  className="w-full px-3 py-2.5 rounded-xl border border-[#26170c]/20 bg-[#fff8f5] text-sm text-[#26170c] focus:outline-none focus:border-[#26170c]/40 resize-none"
-                  rows={3}
-                  value={localAddress}
-                  onChange={(e) => setLocalAddress(e.target.value)}
-                  placeholder="Enter your full address"
-                  autoFocus
-                />
-                <div className="flex gap-2">
-                  <button onClick={() => { setLocalAddress(profile.address); setEditingAddress(false); }} className="flex-1 h-9 rounded-lg border border-[#26170c]/15 text-xs font-semibold text-[#26170c]/60 hover:bg-[#26170c]/5 transition-colors">
-                    Cancel
-                  </button>
-                  <button onClick={saveAddress} disabled={savingAddress || !localAddress.trim()} className="flex-1 h-9 rounded-lg bg-[#26170c] text-white text-xs font-bold hover:opacity-90 transition-all disabled:opacity-40">
-                    {savingAddress ? "Saving…" : "Save Address"}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <p className="text-sm text-[#26170c]/70 leading-relaxed">
-                {localAddress || <span className="text-[#26170c]/30 italic">No address saved — tap Edit to add one</span>}
-              </p>
+            <textarea
+              className="w-full px-3 py-2.5 rounded-xl border border-[#26170c]/15 bg-[#fff8f5] text-sm text-[#26170c] focus:outline-none focus:border-[#26170c]/30 resize-none"
+              rows={3}
+              value={localAddress}
+              onChange={(e) => setLocalAddress(e.target.value)}
+              placeholder="Your pickup / delivery address"
+            />
+            {localAddress !== profile.address && localAddress.trim() && (
+              <button onClick={saveAddress} disabled={savingAddress} className="w-full h-9 rounded-lg bg-[#26170c] text-white text-xs font-bold hover:opacity-90 transition-all disabled:opacity-40">
+                {savingAddress ? "Saving…" : "Save Address"}
+              </button>
             )}
           </div>
         </div>
