@@ -22,6 +22,42 @@ export default function ProfileSetup({ user, onSave }: Props) {
   const [address, setAddress] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [locating, setLocating] = useState(false);
+  const [locateError, setLocateError] = useState("");
+
+  const locateMe = () => {
+    if (!navigator.geolocation) { setLocateError("Geolocation not supported by your browser."); return; }
+    setLocating(true);
+    setLocateError("");
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords }) => {
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${coords.latitude}&lon=${coords.longitude}&format=json`,
+            { headers: { "Accept-Language": "en" } }
+          );
+          const data = await res.json();
+          const { road, house_number, suburb, city, town, municipality, province, state, country } = data.address || {};
+          const parts = [
+            house_number && road ? `${house_number} ${road}` : road,
+            suburb,
+            city || town || municipality,
+            province || state,
+            country,
+          ].filter(Boolean);
+          setAddress(parts.join(", "));
+        } catch {
+          setLocateError("Could not fetch address. Paste coordinates manually.");
+        }
+        setLocating(false);
+      },
+      (err) => {
+        setLocateError(err.code === 1 ? "Location access denied. Please allow it in your browser." : "Could not get location.");
+        setLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,7 +115,18 @@ export default function ProfileSetup({ user, onSave }: Props) {
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-[#26170c]/60 uppercase tracking-wider mb-1.5">Address</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-semibold text-[#26170c]/60 uppercase tracking-wider">Address</label>
+                <button
+                  type="button"
+                  onClick={locateMe}
+                  disabled={locating}
+                  className="flex items-center gap-1 text-xs font-semibold text-[#26170c] bg-[#26170c]/8 hover:bg-[#26170c]/15 px-3 py-1 rounded-full transition-all disabled:opacity-50"
+                >
+                  <Icon name={locating ? "progress_activity" : "my_location"} size={13} />
+                  {locating ? "Locating…" : "Locate Me"}
+                </button>
+              </div>
               <textarea
                 className="w-full px-4 py-3 rounded-xl border border-[#26170c]/15 bg-white text-sm text-[#26170c] focus:outline-none focus:border-[#26170c]/40 resize-none"
                 rows={3}
@@ -87,6 +134,7 @@ export default function ProfileSetup({ user, onSave }: Props) {
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
               />
+              {locateError && <p className="text-xs text-red-500 mt-1">{locateError}</p>}
             </div>
             {error && <p className="text-xs text-red-500">{error}</p>}
             <button
