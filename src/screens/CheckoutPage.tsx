@@ -30,6 +30,37 @@ export default function CheckoutPage({ cart, profile, userId, onUpdateQty, onUpd
   const [gcashRef, setGcashRef] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [editingAddress, setEditingAddress] = useState(false);
+  const [localAddress, setLocalAddress] = useState(profile.address);
+  const [savingAddress, setSavingAddress] = useState(false);
+  const [locating, setLocating] = useState(false);
+
+  const locateMe = () => {
+    if (!navigator.geolocation) return;
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords }) => {
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${coords.latitude}&lon=${coords.longitude}&format=json`, { headers: { "Accept-Language": "en" } });
+          const data = await res.json();
+          const { road, house_number, suburb, city, town, municipality, province, state, country } = data.address || {};
+          const parts = [house_number && road ? `${house_number} ${road}` : road, suburb, city || town || municipality, province || state, country].filter(Boolean);
+          setLocalAddress(parts.join(", "));
+        } catch { /* keep existing */ }
+        setLocating(false);
+      },
+      () => setLocating(false),
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  const saveAddress = async () => {
+    if (!localAddress.trim()) return;
+    setSavingAddress(true);
+    await supabase.from("users").update({ address: localAddress.trim() }).eq("id", userId);
+    setSavingAddress(false);
+    setEditingAddress(false);
+  };
 
   // Fix 14: auth gate — redirect to /login if no authenticated user
   useEffect(() => {
@@ -86,19 +117,58 @@ export default function CheckoutPage({ cart, profile, userId, onUpdateQty, onUpd
 
       <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
         {/* Delivery to */}
-        <div className="bg-white rounded-2xl border border-[#26170c]/8 p-5">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-bold text-[#26170c] text-sm" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>Order For</h3>
-          </div>
+        <div className="bg-white rounded-2xl border border-[#26170c]/8 p-5 space-y-3">
+          <h3 className="font-bold text-[#26170c] text-sm" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>Order For</h3>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-[#26170c] flex items-center justify-center shrink-0">
               <span className="text-xs font-bold text-white">{profile.name.slice(0, 2).toUpperCase()}</span>
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-sm font-semibold text-[#26170c]">{profile.name}</p>
               <p className="text-xs text-[#26170c]/50">{profile.email} · {profile.phone}</p>
-              <p className="text-xs text-[#26170c]/50">{profile.address}</p>
             </div>
+          </div>
+
+          {/* Address — editable */}
+          <div className="border-t border-[#26170c]/8 pt-3">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-xs font-semibold text-[#26170c]/50 uppercase tracking-wider">Delivery / Pickup Address</span>
+              {!editingAddress ? (
+                <button onClick={() => setEditingAddress(true)} className="flex items-center gap-1 text-xs font-semibold text-[#26170c]/60 hover:text-[#26170c] transition-colors">
+                  <Icon name="edit" size={12} /> Edit
+                </button>
+              ) : (
+                <button onClick={locateMe} disabled={locating} className="flex items-center gap-1 text-xs font-semibold text-[#26170c] bg-[#26170c]/8 hover:bg-[#26170c]/15 px-2.5 py-0.5 rounded-full transition-all disabled:opacity-50">
+                  <Icon name={locating ? "progress_activity" : "my_location"} size={12} />
+                  {locating ? "Locating…" : "Locate Me"}
+                </button>
+              )}
+            </div>
+
+            {editingAddress ? (
+              <div className="space-y-2">
+                <textarea
+                  className="w-full px-3 py-2.5 rounded-xl border border-[#26170c]/20 bg-[#fff8f5] text-sm text-[#26170c] focus:outline-none focus:border-[#26170c]/40 resize-none"
+                  rows={3}
+                  value={localAddress}
+                  onChange={(e) => setLocalAddress(e.target.value)}
+                  placeholder="Enter your full address"
+                  autoFocus
+                />
+                <div className="flex gap-2">
+                  <button onClick={() => { setLocalAddress(profile.address); setEditingAddress(false); }} className="flex-1 h-9 rounded-lg border border-[#26170c]/15 text-xs font-semibold text-[#26170c]/60 hover:bg-[#26170c]/5 transition-colors">
+                    Cancel
+                  </button>
+                  <button onClick={saveAddress} disabled={savingAddress || !localAddress.trim()} className="flex-1 h-9 rounded-lg bg-[#26170c] text-white text-xs font-bold hover:opacity-90 transition-all disabled:opacity-40">
+                    {savingAddress ? "Saving…" : "Save Address"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-[#26170c]/70 leading-relaxed">
+                {localAddress || <span className="text-[#26170c]/30 italic">No address saved — tap Edit to add one</span>}
+              </p>
+            )}
           </div>
         </div>
 
