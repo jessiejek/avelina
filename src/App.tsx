@@ -375,6 +375,7 @@ function PublicShell() {
   });
   const [pendingRecipe, setPendingRecipe] = useState<Recipe | null>(null);
   const [lastOrder, setLastOrder] = useState<Order | null>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
 
   const currentUser = session
     ? {
@@ -417,7 +418,8 @@ function PublicShell() {
 
   // Load profile whenever session changes
   useEffect(() => {
-    if (!session) { setProfile(null); return; }
+    if (!session) { setProfile(null); setProfileLoading(false); return; }
+    setProfileLoading(true);
     supabase
       .from("users")
       .select("*")
@@ -425,6 +427,7 @@ function PublicShell() {
       .single()
       .then(({ data }) => {
         if (data) setProfile({ name: data.name, email: session.user.email || "", phone: data.phone, address: data.address });
+        setProfileLoading(false);
       });
   }, [session]);
 
@@ -498,28 +501,38 @@ function PublicShell() {
           : <Navigate to="/login" replace />
       } />
       <Route path="/cart" element={
-        profile
-          ? <CartPage
-              cart={cart}
-              profile={profile}
-              onUpdateQty={(i, qty) => setCart((prev) => prev.map((item, idx) => idx === i ? { ...item, qty } : item))}
-              onUpdateDate={(i, date) => setCart((prev) => prev.map((item, idx) => idx === i ? { ...item, date } : item))}
-              onRemove={(i) => setCart((prev) => prev.filter((_, idx) => idx !== i))}
-              onCheckout={() => navigate("/checkout")}
-            />
-          : <Navigate to="/login" replace />
+        profileLoading
+          ? <div className="min-h-screen bg-[#fff8f5] flex items-center justify-center"><p className="text-sm text-[#26170c]/40">Loading…</p></div>
+          : !session
+            ? <Navigate to="/login" replace />
+            : !profile
+              ? <Navigate to="/profile/setup" replace />
+              : <CartPage
+                  cart={cart}
+                  profile={profile}
+                  onUpdateQty={(i, qty) => setCart((prev) => prev.map((item, idx) => idx === i ? { ...item, qty } : item))}
+                  onUpdateDate={(i, date) => setCart((prev) => prev.map((item, idx) => idx === i ? { ...item, date } : item))}
+                  onRemove={(i) => setCart((prev) => prev.filter((_, idx) => idx !== i))}
+                  onCheckout={() => navigate("/checkout")}
+                />
       } />
       <Route path="/checkout" element={
-        profile && cart.length > 0
-          ? <CheckoutPage
-              cart={cart}
-              profile={profile}
-              userId={session?.user.id ?? ""}
-              onUpdateQty={(i, qty) => setCart((prev) => prev.map((item, idx) => idx === i ? { ...item, qty } : item))}
-              onUpdateDate={(i, date) => setCart((prev) => prev.map((item, idx) => idx === i ? { ...item, date } : item))}
-              onPlaceOrder={handlePlaceOrder}
-            />
-          : <Navigate to="/cart" replace />
+        profileLoading
+          ? <div className="min-h-screen bg-[#fff8f5] flex items-center justify-center"><p className="text-sm text-[#26170c]/40">Loading…</p></div>
+          : !session
+            ? <Navigate to="/login" replace />
+            : !profile
+              ? <Navigate to="/profile/setup" replace />
+              : cart.length === 0
+                ? <Navigate to="/cart" replace />
+                : <CheckoutPage
+                    cart={cart}
+                    profile={profile}
+                    userId={session.user.id}
+                    onUpdateQty={(i, qty) => setCart((prev) => prev.map((item, idx) => idx === i ? { ...item, qty } : item))}
+                    onUpdateDate={(i, date) => setCart((prev) => prev.map((item, idx) => idx === i ? { ...item, date } : item))}
+                    onPlaceOrder={handlePlaceOrder}
+                  />
       } />
       <Route path="/order-confirmed" element={<OrderConfirmed order={lastOrder} />} />
       <Route path="/orders" element={<OrdersPage profile={profile} />} />
