@@ -71,7 +71,10 @@ export default function Sidebar({ currentTab, setCurrentTab, onNewProduction }: 
 
       {/* Settings + User + Logout */}
       <div className="px-3 pb-4 space-y-1">
-        <button className="w-full flex items-center gap-3 px-4 h-11 rounded-xl text-on-surface-variant hover:bg-surface-container-high transition-colors text-sm">
+        <button
+          onClick={() => setCurrentTab("settings")}
+          className={`w-full flex items-center gap-3 px-4 h-11 rounded-xl transition-colors text-sm ${currentTab === "settings" ? "bg-secondary-container text-on-secondary-container font-semibold" : "text-on-surface-variant hover:bg-surface-container-high"}`}
+        >
           <Icon name="settings" size={18} />
           <span style={{ fontFamily: "'Work Sans', sans-serif" }}>Settings</span>
         </button>
