@@ -42,6 +42,10 @@ export default function AvailableDatePicker({ value, onChange, placeholder = "Se
     fetchAvailableDates().then((dates) => {
       setAvailableDates(dates);
       setLoading(false);
+      // Auto-clear any stored date that is no longer available
+      if (value && !dates.has(value)) {
+        onChange("");
+      }
       // Jump to the earliest upcoming available month
       const future = [...dates].filter((d) => d >= todayStr).sort();
       if (future.length > 0) {
