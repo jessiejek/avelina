@@ -202,6 +202,30 @@ export default function SettingsPage() {
           </div>
         </div>
 
+        {/* Upcoming available dates — right below the calendar */}
+        {availableDates.size > 0 && (() => {
+          const upcoming = [...availableDates].filter((d) => d >= todayStr).sort();
+          if (upcoming.length === 0) return null;
+          return (
+            <div className="mt-4 bg-surface-container-lowest rounded-2xl border border-outline-variant/20 p-5">
+              <h3 className="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-3">Upcoming Baking Days</h3>
+              <div className="flex flex-wrap gap-2">
+                {upcoming.slice(0, 8).map((d) => {
+                  const label = new Date(d + "T00:00:00").toLocaleDateString("en-PH", { month: "short", day: "numeric", weekday: "short" });
+                  return (
+                    <span key={d} className="text-xs font-semibold bg-secondary-container text-on-secondary-container px-3 py-1.5 rounded-full">
+                      {label}
+                    </span>
+                  );
+                })}
+                {upcoming.length > 8 && (
+                  <span className="text-xs text-on-surface-variant self-center">+{upcoming.length - 8} more</span>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Recipe Categories */}
         <div className="mt-4 bg-surface-container-lowest rounded-2xl border border-outline-variant/20 overflow-hidden">
           <div className="px-6 py-5 border-b border-outline-variant/10 flex items-start gap-4">
@@ -220,18 +244,16 @@ export default function SettingsPage() {
               <p className="text-sm text-on-surface-variant text-center py-3">No categories yet.</p>
             )}
             {categories.map((cat) => (
-              <div key={cat.id} className="flex items-center justify-between gap-3 px-4 h-11 rounded-xl bg-surface-container group">
+              <div key={cat.id} className="flex items-center justify-between gap-3 px-4 h-11 rounded-xl bg-surface-container">
                 <span className="text-sm font-semibold text-primary">{cat.name}</span>
                 <button
                   onClick={() => deleteCategory(cat.id)}
-                  className="opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-error-container text-error transition-all"
+                  className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-error-container text-on-surface-variant hover:text-error transition-all"
                 >
                   <Icon name="delete" size={15} />
                 </button>
               </div>
             ))}
-
-            {/* Add new category */}
             <div className="flex gap-2 pt-2 border-t border-outline-variant/10 mt-2">
               <input
                 className="flex-1 h-10 px-3 rounded-xl border border-outline-variant/40 bg-surface-container text-sm text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 placeholder:text-on-surface-variant/40"
@@ -251,34 +273,6 @@ export default function SettingsPage() {
             {catError && <p className="text-xs text-error font-semibold">{catError}</p>}
           </div>
         </div>
-
-        {/* Upcoming available dates list */}
-        {availableDates.size > 0 && (() => {
-          const upcoming = [...availableDates]
-            .filter((d) => d >= todayStr)
-            .sort()
-            .slice(0, 8);
-          if (upcoming.length === 0) return null;
-          return (
-            <div className="mt-4 bg-surface-container-lowest rounded-2xl border border-outline-variant/20 p-5">
-              <h3 className="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-3">Upcoming Baking Days</h3>
-              <div className="flex flex-wrap gap-2">
-                {upcoming.map((d) => {
-                  const label = new Date(d + "T00:00:00").toLocaleDateString("en-PH", { month: "short", day: "numeric", weekday: "short" });
-                  return (
-                    <span key={d} className="inline-flex items-center gap-1.5 text-xs font-semibold bg-secondary-container text-on-secondary-container px-3 py-1.5 rounded-full">
-                      <Icon name="event_available" size={12} />
-                      {label}
-                    </span>
-                  );
-                })}
-                {[...availableDates].filter((d) => d >= todayStr).length > 8 && (
-                  <span className="text-xs text-on-surface-variant self-center">+{[...availableDates].filter((d) => d >= todayStr).length - 8} more</span>
-                )}
-              </div>
-            </div>
-          );
-        })()}
 
         {/* Database Setup — collapsed by default */}
         {(() => {
