@@ -5,6 +5,7 @@ import { CartItem } from "./CartPage.tsx";
 import { UserProfile } from "./ProfileSetup.tsx";
 import { supabase } from "../lib/supabase.ts";
 import { peso } from "../lib/money.ts";
+import AvailableDatePicker from "../components/AvailableDatePicker.tsx";
 
 export interface Order {
   id: string;
@@ -182,13 +183,7 @@ export default function CheckoutPage({ cart, profile, userId, onUpdateQty, onUpd
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-[#26170c]/50 uppercase tracking-wider mb-1.5">Pickup Date</label>
-                  <input
-                    type="date"
-                    min={new Date().toISOString().split("T")[0]}
-                    className="w-full h-9 px-3 rounded-lg border border-[#26170c]/15 bg-[#fff8f5] text-sm text-[#26170c] focus:outline-none focus:border-[#26170c]/40 font-mono"
-                    value={item.date}
-                    onChange={(e) => onUpdateDate(i, e.target.value)}
-                  />
+                  <AvailableDatePicker value={item.date} onChange={(date) => onUpdateDate(i, date)} />
                 </div>
               </div>
             </div>
