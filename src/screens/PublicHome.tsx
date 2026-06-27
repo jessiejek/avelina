@@ -5,7 +5,6 @@ import Icon from "../components/Icon.tsx";
 import { supabase } from "../lib/supabase.ts";
 import { peso } from "../lib/money.ts";
 
-const CATEGORIES = ["All", "Sourdough", "Viennoiserie", "Cakes", "Pastry", "Bread", "Other"];
 
 interface FlyingDot {
   id: number;
@@ -24,6 +23,7 @@ export default function PublicHome({ onPreOrder, currentUser, cartCount }: Props
   const navigate = useNavigate();
   const cartBtnRef = useRef<HTMLButtonElement>(null);
   const [activeCategory, setActiveCategory] = useState("All");
+  const [categories, setCategories] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [flyingDots, setFlyingDots] = useState<FlyingDot[]>([]);
   const [cartBump, setCartBump] = useState(false);
@@ -31,6 +31,10 @@ export default function PublicHome({ onPreOrder, currentUser, cartCount }: Props
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    supabase.from("recipe_categories").select("name").order("created_at").then(({ data }) => {
+      if (data) setCategories(data.map((d: any) => d.name));
+    });
+
     supabase.from("recipes").select("*").then(({ data }) => {
       if (data) setRecipes(data.map((r) => ({ ...r, ingredients: [], steps: [] })));
       setLoading(false);
@@ -178,7 +182,7 @@ export default function PublicHome({ onPreOrder, currentUser, cartCount }: Props
 
       {/* Category Filter */}
       <div className="max-w-7xl mx-auto px-6 pb-6 flex gap-2 flex-wrap justify-center">
-        {CATEGORIES.map((cat) => (
+        {["All", ...categories].map((cat) => (
           <button
             key={cat}
             onClick={() => setActiveCategory(cat)}

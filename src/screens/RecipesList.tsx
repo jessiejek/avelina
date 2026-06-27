@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Icon from "../components/Icon.tsx";
 import { Recipe, RecipeIngredient, RecipeStep } from "../data/recipes.ts";
 import { Ingredient } from "../data/inventory.ts";
@@ -8,7 +8,6 @@ import { peso } from "../lib/money.ts";
 export type { Recipe };
 
 const PLACEHOLDER_IMG = "https://lh3.googleusercontent.com/aida-public/AB6AXuCZEA9Bb0E92ttiNPKygaTFeC4dzXBznNOXNamZP3o7bVGUwv6Hzf4GvcLSLSKZaHSEF3WxskKkxdKPSd_UpV32ZH-EcJT0uepYb2E7k70ffBDdz1mpaIjvaXKtezW-QbHZYtSSphohNe2_MDahWfWGmhNIjR2Ax8tQrOW0W190tn8Xz7E_Y9ub1lA0KNjOJPeiilJF4d6ef2YjqGkwBr9QIYmpcyzX5E1ShDsdKblhprVsIrizOMrkIEP0sEWCHaO8zlS_AEyfbhtm";
-const CATEGORIES = ["Sourdough", "Viennoiserie", "Cakes", "Pastry", "Bread", "Other"];
 
 interface Props {
   recipes: Recipe[];
@@ -18,12 +17,12 @@ interface Props {
   onDeleteRecipe: (id: string) => void;
 }
 
-function NewRecipeModal({ inventory, onSave, onClose }: { inventory: Ingredient[]; onSave: (r: Recipe) => void; onClose: () => void }) {
+function NewRecipeModal({ inventory, categories, onSave, onClose }: { inventory: Ingredient[]; categories: string[]; onSave: (r: Recipe) => void; onClose: () => void }) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [name, setName] = useState("");
-  const [category, setCategory] = useState("Sourdough");
+  const [category, setCategory] = useState(() => categories[0] ?? "");
   const [yieldAmt, setYieldAmt] = useState("");
   const [time, setTime] = useState("");
   const [price, setPrice] = useState("");
@@ -174,7 +173,7 @@ function NewRecipeModal({ inventory, onSave, onClose }: { inventory: Ingredient[
               <div>
                 <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">Category</label>
                 <select className="w-full bg-surface-bright border border-outline-variant px-4 py-2.5 rounded-lg text-sm text-primary focus:outline-none" value={category} onChange={(e) => setCategory(e.target.value)}>
-                  {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+                  {categories.map((c) => <option key={c}>{c}</option>)}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -363,8 +362,24 @@ function NewRecipeModal({ inventory, onSave, onClose }: { inventory: Ingredient[
 
 export default function RecipesList({ recipes, inventory, onAddRecipe, onViewRecipe, onDeleteRecipe }: Props) {
   const [activeCategory, setActiveCategory] = useState("All");
+  const [categories, setCategories] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
+
+  useEffect(() => {
+    supabase.from("recipe_categories").select("name").order("created_at").then(({ data }) => {
+      if (data) setCategories(data.map((d: any) => d.name));
+    });
+
+    const ch = supabase.channel("rt-recipe-categories")
+      .on("postgres_changes", { event: "*", schema: "public", table: "recipe_categories" }, () => {
+        supabase.from("recipe_categories").select("name").order("created_at").then(({ data }) => {
+          if (data) setCategories(data.map((d: any) => d.name));
+        });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, []);
 
   const [deleteTarget, setDeleteTarget] = useState<Recipe | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -417,7 +432,7 @@ export default function RecipesList({ recipes, inventory, onAddRecipe, onViewRec
       <div className="p-6 lg:p-10 max-w-7xl mx-auto w-full space-y-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex gap-2 flex-wrap">
-            {["All", ...CATEGORIES].map((cat) => (
+            {["All", ...categories].map((cat) => (
               <button key={cat} onClick={() => setActiveCategory(cat)} className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${activeCategory === cat ? "bg-primary text-on-primary" : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high"}`}>
                 {cat}
               </button>
@@ -534,6 +549,7 @@ export default function RecipesList({ recipes, inventory, onAddRecipe, onViewRec
       {showModal && (
         <NewRecipeModal
           inventory={inventory}
+          categories={categories}
           onSave={(r) => { onAddRecipe(r); setShowModal(false); }}
           onClose={() => setShowModal(false)}
         />

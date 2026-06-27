@@ -4,6 +4,8 @@ import { supabase } from "../lib/supabase.ts";
 
 const DOW = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
+type Category = { id: string; name: string };
+
 export default function SettingsPage() {
   const today = new Date();
   const todayStr = today.toISOString().split("T")[0];
@@ -14,10 +16,20 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [toggling, setToggling] = useState<string | null>(null);
 
+  // Categories state
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [newCatName, setNewCatName] = useState("");
+  const [savingCat, setSavingCat] = useState(false);
+  const [catError, setCatError] = useState("");
+
   useEffect(() => {
     supabase.from("bake_available_dates").select("date").then(({ data }) => {
       if (data) setAvailableDates(new Set(data.map((d: any) => d.date)));
       setLoading(false);
+    });
+
+    supabase.from("recipe_categories").select("id, name").order("created_at").then(({ data }) => {
+      if (data) setCategories(data as Category[]);
     });
   }, []);
 
@@ -41,6 +53,27 @@ export default function SettingsPage() {
   const nextMonth = () => {
     if (viewMonth === 11) { setViewMonth(0); setViewYear((y) => y + 1); }
     else setViewMonth((m) => m + 1);
+  };
+
+  const addCategory = async () => {
+    const name = newCatName.trim();
+    if (!name) return;
+    if (categories.some((c) => c.name.toLowerCase() === name.toLowerCase())) {
+      setCatError("Category already exists.");
+      return;
+    }
+    setSavingCat(true);
+    setCatError("");
+    const { data, error } = await supabase.from("recipe_categories").insert({ name }).select("id, name").single();
+    setSavingCat(false);
+    if (error) { setCatError(error.message); return; }
+    setCategories((prev) => [...prev, data as Category]);
+    setNewCatName("");
+  };
+
+  const deleteCategory = async (id: string) => {
+    await supabase.from("recipe_categories").delete().eq("id", id);
+    setCategories((prev) => prev.filter((c) => c.id !== id));
   };
 
   const firstDay = new Date(viewYear, viewMonth, 1);
@@ -157,6 +190,56 @@ export default function SettingsPage() {
                 </span>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Recipe Categories */}
+        <div className="mt-4 bg-surface-container-lowest rounded-2xl border border-outline-variant/20 overflow-hidden">
+          <div className="px-6 py-5 border-b border-outline-variant/10 flex items-start gap-4">
+            <div className="w-10 h-10 rounded-xl bg-tertiary-container flex items-center justify-center shrink-0">
+              <Icon name="category" size={20} className="text-on-tertiary-container" />
+            </div>
+            <div>
+              <h2 className="font-bold text-primary text-base" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>Recipe Categories</h2>
+              <p className="text-xs text-on-surface-variant mt-0.5 leading-relaxed">
+                These appear as filter pills on the menu and in the recipe builder dropdown.
+              </p>
+            </div>
+          </div>
+          <div className="p-5 space-y-2">
+            {categories.length === 0 && (
+              <p className="text-sm text-on-surface-variant text-center py-3">No categories yet.</p>
+            )}
+            {categories.map((cat) => (
+              <div key={cat.id} className="flex items-center justify-between gap-3 px-4 h-11 rounded-xl bg-surface-container group">
+                <span className="text-sm font-semibold text-primary">{cat.name}</span>
+                <button
+                  onClick={() => deleteCategory(cat.id)}
+                  className="opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-error-container text-error transition-all"
+                >
+                  <Icon name="delete" size={15} />
+                </button>
+              </div>
+            ))}
+
+            {/* Add new category */}
+            <div className="flex gap-2 pt-2 border-t border-outline-variant/10 mt-2">
+              <input
+                className="flex-1 h-10 px-3 rounded-xl border border-outline-variant/40 bg-surface-container text-sm text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 placeholder:text-on-surface-variant/40"
+                placeholder="New category name…"
+                value={newCatName}
+                onChange={(e) => { setNewCatName(e.target.value); setCatError(""); }}
+                onKeyDown={(e) => e.key === "Enter" && addCategory()}
+              />
+              <button
+                onClick={addCategory}
+                disabled={savingCat || !newCatName.trim()}
+                className="h-10 px-4 rounded-xl bg-primary text-on-primary text-sm font-semibold hover:opacity-90 disabled:opacity-40 transition-all"
+              >
+                {savingCat ? "…" : "Add"}
+              </button>
+            </div>
+            {catError && <p className="text-xs text-error font-semibold">{catError}</p>}
           </div>
         </div>
 
