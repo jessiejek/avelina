@@ -19,6 +19,7 @@ export default function SettingsPage() {
   // Categories state
   const [categories, setCategories] = useState<Category[]>([]);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [showDevTools, setShowDevTools] = useState(false);
   const [newCatName, setNewCatName] = useState("");
   const [savingCat, setSavingCat] = useState(false);
   const [catError, setCatError] = useState("");
@@ -279,7 +280,7 @@ export default function SettingsPage() {
           );
         })()}
 
-        {/* Database Setup */}
+        {/* Database Setup — collapsed by default */}
         {(() => {
           const migrations = [
             {
@@ -332,37 +333,44 @@ CREATE POLICY "Admins manage categories"
           ];
 
           return (
-            <div className="mt-4 bg-surface-container-lowest rounded-2xl border border-outline-variant/20 overflow-hidden">
-              <div className="px-6 py-5 border-b border-outline-variant/10 flex items-start gap-4">
-                <div className="w-10 h-10 rounded-xl bg-surface-container-high flex items-center justify-center shrink-0">
-                  <Icon name="database" size={20} className="text-on-surface-variant" />
-                </div>
-                <div>
-                  <h2 className="font-bold text-primary text-base" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>Database Setup</h2>
-                  <p className="text-xs text-on-surface-variant mt-0.5 leading-relaxed">
-                    Run these in <span className="font-semibold">Supabase → SQL Editor</span> once when setting up a new environment.
-                  </p>
-                </div>
-              </div>
-              <div className="p-5 space-y-4">
-                {migrations.map((m) => (
-                  <div key={m.key} className="rounded-xl border border-outline-variant/30 overflow-hidden">
-                    <div className="flex items-center justify-between px-4 py-2.5 bg-surface-container border-b border-outline-variant/20">
-                      <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">{m.label}</span>
-                      <button
-                        onClick={() => copySQL(m.key, m.sql)}
-                        className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:opacity-70 transition-opacity"
-                      >
-                        <Icon name={copiedKey === m.key ? "check" : "content_copy"} size={13} />
-                        {copiedKey === m.key ? "Copied!" : "Copy SQL"}
-                      </button>
-                    </div>
-                    <pre className="text-[11px] font-mono text-on-surface-variant/80 px-4 py-3 overflow-x-auto leading-relaxed bg-surface-container/30">
-                      {m.sql}
-                    </pre>
+            <div className="mt-4">
+              <button
+                onClick={() => setShowDevTools((v) => !v)}
+                className="flex items-center gap-2 text-xs text-on-surface-variant/40 hover:text-on-surface-variant/70 transition-colors mx-auto"
+              >
+                <Icon name={showDevTools ? "expand_less" : "expand_more"} size={14} />
+                Developer Tools
+              </button>
+
+              {showDevTools && (
+                <div className="mt-3 bg-surface-container-lowest rounded-2xl border border-outline-variant/20 overflow-hidden">
+                  <div className="px-6 py-4 border-b border-outline-variant/10">
+                    <h2 className="font-bold text-primary text-sm" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>Database Setup</h2>
+                    <p className="text-xs text-on-surface-variant mt-0.5">
+                      Run once in <span className="font-semibold">Supabase → SQL Editor</span> when setting up a new environment.
+                    </p>
                   </div>
-                ))}
-              </div>
+                  <div className="p-4 space-y-3">
+                    {migrations.map((m) => (
+                      <div key={m.key} className="rounded-xl border border-outline-variant/30 overflow-hidden">
+                        <div className="flex items-center justify-between px-3 py-2 bg-surface-container border-b border-outline-variant/20">
+                          <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">{m.label}</span>
+                          <button
+                            onClick={() => copySQL(m.key, m.sql)}
+                            className="flex items-center gap-1 text-[11px] font-semibold text-primary hover:opacity-70 transition-opacity"
+                          >
+                            <Icon name={copiedKey === m.key ? "check" : "content_copy"} size={12} />
+                            {copiedKey === m.key ? "Copied!" : "Copy"}
+                          </button>
+                        </div>
+                        <pre className="text-[10px] font-mono text-on-surface-variant/70 px-3 py-2.5 overflow-x-auto leading-relaxed bg-surface-container/20">
+                          {m.sql}
+                        </pre>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           );
         })()}
