@@ -18,6 +18,7 @@ export default function SettingsPage() {
 
   // Categories state
   const [categories, setCategories] = useState<Category[]>([]);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [newCatName, setNewCatName] = useState("");
   const [savingCat, setSavingCat] = useState(false);
   const [catError, setCatError] = useState("");
@@ -53,6 +54,13 @@ export default function SettingsPage() {
   const nextMonth = () => {
     if (viewMonth === 11) { setViewMonth(0); setViewYear((y) => y + 1); }
     else setViewMonth((m) => m + 1);
+  };
+
+  const copySQL = (key: string, sql: string) => {
+    navigator.clipboard.writeText(sql).then(() => {
+      setCopiedKey(key);
+      setTimeout(() => setCopiedKey(null), 2000);
+    });
   };
 
   const addCategory = async () => {
@@ -266,6 +274,94 @@ export default function SettingsPage() {
                 {[...availableDates].filter((d) => d >= todayStr).length > 8 && (
                   <span className="text-xs text-on-surface-variant self-center">+{[...availableDates].filter((d) => d >= todayStr).length - 8} more</span>
                 )}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Database Setup */}
+        {(() => {
+          const migrations = [
+            {
+              key: "bake_available_dates",
+              label: "Baking Availability Dates",
+              sql: `CREATE TABLE IF NOT EXISTS bake_available_dates (
+  date text PRIMARY KEY
+);
+
+ALTER TABLE bake_available_dates ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Public read available dates"
+  ON bake_available_dates FOR SELECT USING (true);
+
+CREATE POLICY "Admins manage available dates"
+  ON bake_available_dates FOR ALL
+  USING (EXISTS (
+    SELECT 1 FROM users
+    WHERE users.id = auth.uid() AND users.role = 'admin'
+  ));
+
+ALTER PUBLICATION supabase_realtime ADD TABLE bake_available_dates;`,
+            },
+            {
+              key: "recipe_categories",
+              label: "Recipe Categories",
+              sql: `CREATE TABLE IF NOT EXISTS recipe_categories (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text UNIQUE NOT NULL,
+  created_at timestamptz DEFAULT now()
+);
+
+INSERT INTO recipe_categories (name) VALUES
+  ('Sourdough'), ('Viennoiserie'), ('Cakes'),
+  ('Pastry'), ('Bread'), ('Other')
+ON CONFLICT (name) DO NOTHING;
+
+ALTER TABLE recipe_categories ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Public read categories"
+  ON recipe_categories FOR SELECT USING (true);
+
+CREATE POLICY "Admins manage categories"
+  ON recipe_categories FOR ALL
+  USING (EXISTS (
+    SELECT 1 FROM users
+    WHERE users.id = auth.uid() AND users.role = 'admin'
+  ));`,
+            },
+          ];
+
+          return (
+            <div className="mt-4 bg-surface-container-lowest rounded-2xl border border-outline-variant/20 overflow-hidden">
+              <div className="px-6 py-5 border-b border-outline-variant/10 flex items-start gap-4">
+                <div className="w-10 h-10 rounded-xl bg-surface-container-high flex items-center justify-center shrink-0">
+                  <Icon name="database" size={20} className="text-on-surface-variant" />
+                </div>
+                <div>
+                  <h2 className="font-bold text-primary text-base" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>Database Setup</h2>
+                  <p className="text-xs text-on-surface-variant mt-0.5 leading-relaxed">
+                    Run these in <span className="font-semibold">Supabase → SQL Editor</span> once when setting up a new environment.
+                  </p>
+                </div>
+              </div>
+              <div className="p-5 space-y-4">
+                {migrations.map((m) => (
+                  <div key={m.key} className="rounded-xl border border-outline-variant/30 overflow-hidden">
+                    <div className="flex items-center justify-between px-4 py-2.5 bg-surface-container border-b border-outline-variant/20">
+                      <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">{m.label}</span>
+                      <button
+                        onClick={() => copySQL(m.key, m.sql)}
+                        className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:opacity-70 transition-opacity"
+                      >
+                        <Icon name={copiedKey === m.key ? "check" : "content_copy"} size={13} />
+                        {copiedKey === m.key ? "Copied!" : "Copy SQL"}
+                      </button>
+                    </div>
+                    <pre className="text-[11px] font-mono text-on-surface-variant/80 px-4 py-3 overflow-x-auto leading-relaxed bg-surface-container/30">
+                      {m.sql}
+                    </pre>
+                  </div>
+                ))}
               </div>
             </div>
           );
