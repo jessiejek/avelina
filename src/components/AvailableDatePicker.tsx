@@ -8,16 +8,14 @@ const DOW = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 let _cache: Set<string> | null = null;
 let _promise: Promise<Set<string>> | null = null;
 
-function fetchAvailableDates(): Promise<Set<string>> {
-  if (_cache) return Promise.resolve(_cache);
+async function fetchAvailableDates(): Promise<Set<string>> {
+  if (_cache) return _cache;
   if (!_promise) {
-    _promise = supabase
-      .from("bake_available_dates")
-      .select("date")
-      .then(({ data }) => {
-        _cache = new Set((data || []).map((d: any) => d.date));
-        return _cache;
-      });
+    _promise = (async () => {
+      const { data } = await supabase.from("bake_available_dates").select("date");
+      _cache = new Set((data || []).map((d: any) => d.date));
+      return _cache;
+    })();
   }
   return _promise;
 }
