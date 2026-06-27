@@ -500,9 +500,13 @@ function PublicShell() {
       <Route path="/" element={<PublicHome onPreOrder={handlePreOrder} currentUser={currentUser} cartCount={cart.length} />} />
       <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
       <Route path="/profile/setup" element={
-        currentUser
-          ? <ProfileSetup user={currentUser} onSave={handleProfileSave} />
-          : <Navigate to="/login" replace />
+        profileLoading
+          ? <div className="min-h-screen bg-[#fff8f5] flex items-center justify-center"><p className="text-sm text-[#26170c]/40">Loading…</p></div>
+          : !currentUser
+            ? <Navigate to="/login" replace />
+            : profile
+              ? <Navigate to="/" replace />
+              : <ProfileSetup user={currentUser} onSave={handleProfileSave} />
       } />
       <Route path="/cart" element={
         profileLoading

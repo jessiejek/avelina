@@ -278,6 +278,21 @@ export default function SettingsPage() {
         {(() => {
           const migrations = [
             {
+              key: "users_rls",
+              label: "Users Table — Row Level Security",
+              sql: `-- Run this if customers keep getting redirected to profile setup on every refresh.
+-- It grants each user read/write access to their own row only.
+
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users manage own row" ON users;
+
+CREATE POLICY "Users manage own row"
+  ON users FOR ALL
+  USING (auth.uid() = id)
+  WITH CHECK (auth.uid() = id);`,
+            },
+            {
               key: "bake_available_dates",
               label: "Baking Availability Dates",
               sql: `CREATE TABLE IF NOT EXISTS bake_available_dates (

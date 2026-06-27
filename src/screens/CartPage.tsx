@@ -60,7 +60,7 @@ export default function CartPage({ cart, profile, onUpdateQty, onUpdateDate, onR
           <>
             <div className="space-y-3">
               {cart.map((item, i) => (
-                <div key={i} className="bg-white rounded-2xl border border-[#26170c]/8 overflow-hidden flex gap-4 p-4">
+                <div key={i} className="bg-white rounded-2xl border border-[#26170c]/8 flex gap-4 p-4">
                   <div className="w-20 h-20 rounded-xl overflow-hidden shrink-0">
                     <img src={item.recipe.img} alt={item.recipe.name} className="w-full h-full object-cover" />
                   </div>
