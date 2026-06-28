@@ -34,6 +34,7 @@ const ICON_MAP: Record<string, React.FC<{ size?: number; strokeWidth?: number }>
 
 interface NewIngForm {
   name: string;
+  description: string;
   sku: string;
   stockValue: string;
   cost: string;
@@ -61,7 +62,7 @@ const DISPOSITION_OPTS: { value: DispositionReason; label: string; sub: string }
   { value: "spoiled_discarded", label: "Thrown Away",       sub: "Spoiled or can't be sold"     },
 ];
 
-const emptyForm: NewIngForm = { name: "", sku: "", stockValue: "", cost: "", unit: "kg", status: "optimal" };
+const emptyForm: NewIngForm = { name: "", description: "", sku: "", stockValue: "", cost: "", unit: "kg", status: "optimal" };
 
 export default function InventoryDashboard({ ingredients, onAddIngredient, onViewIngredient, onDeleteIngredient }: Props) {
   const [filter, setFilter] = useState("all");
@@ -246,6 +247,7 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
       quantity: newIng.quantity, unit: newIng.unit,
       status: newIng.status, icon: "wheat", img: newIng.img,
       cost_per_unit: form.cost === "" ? 0 : parseFloat(form.cost) || 0,
+      description: form.description.trim() || null,
     });
     if (error) { setAddError(error.message); setAdding(false); return; }
     if (!isUntracked && val && val > 0) {
@@ -678,6 +680,16 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
                 />
               </div>
               <div>
+                <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">Description <span className="normal-case font-normal">(optional)</span></label>
+                <textarea
+                  className="w-full bg-surface-bright border border-outline-variant px-4 py-2.5 rounded-lg text-sm text-primary focus:outline-none focus:border-primary/50 resize-none"
+                  placeholder="e.g. Unbleached, stone-ground whole wheat"
+                  rows={2}
+                  value={form.description}
+                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                />
+              </div>
+              <div>
                 <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">SKU / Reference</label>
                 <input
                   className="w-full bg-surface-bright border border-outline-variant px-4 py-2.5 rounded-lg text-sm text-on-surface-variant focus:outline-none focus:border-primary/50 font-mono"
@@ -687,29 +699,37 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
                 />
               </div>
               {/* Stock tracking toggle */}
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setTracked(true)}
-                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all border ${
-                    tracked
-                      ? "bg-primary text-on-primary border-primary"
-                      : "bg-surface-container text-on-surface-variant border-outline-variant/20 hover:bg-surface-container-high"
-                  }`}
-                >
-                  Track Stock
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTracked(false)}
-                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all border ${
-                    !tracked
-                      ? "bg-surface-container-high text-on-surface border-outline"
-                      : "bg-surface-container text-on-surface-variant border-outline-variant/20 hover:bg-surface-container-high"
-                  }`}
-                >
-                  No Tracking
-                </button>
+              <div>
+                <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">Stock Tracking</label>
+                <div className="flex gap-2 mb-2">
+                  <button
+                    type="button"
+                    onClick={() => setTracked(true)}
+                    className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all border ${
+                      tracked
+                        ? "bg-primary text-on-primary border-primary"
+                        : "bg-surface-container text-on-surface-variant border-outline-variant/20 hover:bg-surface-container-high"
+                    }`}
+                  >
+                    Track Stock
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTracked(false)}
+                    className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all border ${
+                      !tracked
+                        ? "bg-surface-container-high text-on-surface border-outline"
+                        : "bg-surface-container text-on-surface-variant border-outline-variant/20 hover:bg-surface-container-high"
+                    }`}
+                  >
+                    No Tracking
+                  </button>
+                </div>
+                <p className="text-xs text-on-surface-variant leading-relaxed">
+                  {tracked
+                    ? "Monitors quantity on hand. You'll set an initial stock and the app will deduct automatically when used in a bake."
+                    : "No quantity is recorded. The ingredient still appears in recipes and its usage is logged, but stock levels won't be tracked."}
+                </p>
               </div>
 
               {tracked && (
