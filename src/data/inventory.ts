@@ -3,9 +3,9 @@ export interface Ingredient {
   name: string;
   sku: string;
   stock: string;
-  quantity: number;
+  quantity: number | null;
   unit: string;
-  status: "optimal" | "low" | "critical";
+  status: "optimal" | "low" | "critical" | "untracked";
   icon: string;
   img: string;
   costPerUnit?: number;

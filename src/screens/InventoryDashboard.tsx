@@ -18,9 +18,10 @@ interface Props {
 }
 
 const statusConfig: Record<string, { label: string; bg: string; text: string; dot: string }> = {
-  optimal: { label: "Optimal", bg: "bg-secondary-container", text: "text-on-secondary-container", dot: "bg-secondary" },
-  low: { label: "Low Stock", bg: "bg-tertiary-fixed", text: "text-on-tertiary-fixed-variant", dot: "bg-on-tertiary-container" },
-  critical: { label: "Out of Stock", bg: "bg-error-container", text: "text-on-error-container", dot: "bg-error" },
+  optimal:   { label: "Optimal",      bg: "bg-secondary-container", text: "text-on-secondary-container",    dot: "bg-secondary" },
+  low:       { label: "Low Stock",    bg: "bg-tertiary-fixed",      text: "text-on-tertiary-fixed-variant", dot: "bg-on-tertiary-container" },
+  critical:  { label: "Out of Stock", bg: "bg-error-container",     text: "text-on-error-container",        dot: "bg-error" },
+  untracked: { label: "Not Tracked",  bg: "bg-surface-container",   text: "text-on-surface-variant",        dot: "bg-outline" },
 };
 
 const ICON_MAP: Record<string, React.FC<{ size?: number; strokeWidth?: number }>> = {
@@ -37,7 +38,7 @@ interface NewIngForm {
   stockValue: string;
   cost: string;
   unit: string;
-  status: "optimal" | "low" | "critical";
+  status: "optimal" | "low" | "critical" | "untracked";
 }
 
 // Fix E — shelf stock
@@ -225,15 +226,17 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
       try { finalImg = await uploadImage("ingredient-images", imgFile); }
       catch (e: any) { setAddError("Photo upload failed: " + e.message); setAdding(false); return; }
     }
-    const val = parseFloat(form.stockValue) || 0;
+    const isUntracked = form.stockValue.trim() === "";
+    const val = isUntracked ? null : (parseFloat(form.stockValue) || 0);
+    const status = isUntracked ? "untracked" : form.status;
     const newIng: Ingredient = {
       id: `ing-${Date.now()}`,
       name: form.name.trim(),
       sku: form.sku.trim() || `ING-${Date.now()}`,
-      stock: `${val} ${form.unit}`,
+      stock: isUntracked ? "—" : `${val} ${form.unit}`,
       quantity: val,
       unit: form.unit,
-      status: form.status,
+      status,
       icon: "wheat",
       img: finalImg,
     };
@@ -244,7 +247,7 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
       cost_per_unit: form.cost === "" ? 0 : parseFloat(form.cost) || 0,
     });
     if (error) { setAddError(error.message); setAdding(false); return; }
-    if (val > 0) {
+    if (!isUntracked && val && val > 0) {
       await supabase.from("inventory_adjustments").insert({
         ingredient_id: newIng.id, delta: val, unit: newIng.unit,
         reason: "Opening balance", adjusted_by: currentUser,
@@ -434,7 +437,7 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
                     </span>
                   </div>
                   <div className="flex items-center justify-between pt-3 border-t border-outline-variant/10">
-                    <span className="text-sm font-bold text-primary font-mono">{item.stock}</span>
+                    <span className="text-sm font-bold text-primary font-mono">{item.quantity == null ? "—" : item.stock}</span>
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => setDeleteTarget(item)}
@@ -714,26 +717,28 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
                   />
                 </div>
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-2">Stock Status</label>
-                <div className="flex gap-2">
-                  {(["optimal", "low", "critical"] as const).map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => setForm((f) => ({ ...f, status: s }))}
-                      className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition-all border ${
-                        form.status === s
-                          ? s === "optimal" ? "bg-secondary-container text-on-secondary-container border-secondary/30"
-                            : s === "low" ? "bg-tertiary-fixed text-on-tertiary-fixed-variant border-on-tertiary-container/30"
-                            : "bg-error-container text-on-error-container border-error/30"
-                          : "bg-surface-container text-on-surface-variant border-outline-variant/20 hover:bg-surface-container-high"
-                      }`}
-                    >
-                      {s === "optimal" ? "Optimal" : s === "low" ? "Low" : "Out"}
-                    </button>
-                  ))}
+              {form.stockValue.trim() !== "" && (
+                <div>
+                  <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-2">Stock Status</label>
+                  <div className="flex gap-2">
+                    {(["optimal", "low", "critical"] as const).map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => setForm((f) => ({ ...f, status: s }))}
+                        className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition-all border ${
+                          form.status === s
+                            ? s === "optimal" ? "bg-secondary-container text-on-secondary-container border-secondary/30"
+                              : s === "low" ? "bg-tertiary-fixed text-on-tertiary-fixed-variant border-on-tertiary-container/30"
+                              : "bg-error-container text-on-error-container border-error/30"
+                            : "bg-surface-container text-on-surface-variant border-outline-variant/20 hover:bg-surface-container-high"
+                        }`}
+                      >
+                        {s === "optimal" ? "Optimal" : s === "low" ? "Low" : "Out"}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
               <div>
                 <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">Photo (optional)</label>
                 <input ref={imgInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => {

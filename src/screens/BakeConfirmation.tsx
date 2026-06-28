@@ -164,8 +164,9 @@ export default function BakeConfirmation({ onBack, onLogBake, recipe, inventory,
       for (const ri of recipe.ingredients) {
         const inv = inventorySnapshot.find((i) => i.id === ri.ingredientId);
         if (!inv) { canProceed = false; shortIngredient = ri.name; break; }
+        if (inv.quantity === null) continue; // untracked — skip sufficiency check
         const needed = normalizeQty(parseFloat(ri.qty) || 0, ri.unit, inv.unit);
-        if (needed > (inv.quantity ?? 0)) {
+        if (needed > inv.quantity) {
           canProceed = false;
           shortIngredient = inv.name;
           break;
@@ -204,6 +205,7 @@ export default function BakeConfirmation({ onBack, onLogBake, recipe, inventory,
       for (const ri of recipe.ingredients) {
         const inv = inventorySnapshot.find((i) => i.id === ri.ingredientId);
         if (!inv) continue;
+        if (inv.quantity === null) continue; // untracked — no stock to deduct
         const consumed = normalizeQty(parseFloat(ri.qty) || 0, ri.unit, inv.unit);
         if (consumed <= 0) continue;
         const newQty = Math.max(0, (inv.quantity ?? 0) - consumed);
