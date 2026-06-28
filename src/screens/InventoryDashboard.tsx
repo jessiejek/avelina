@@ -72,6 +72,7 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
   const [imgPreview, setImgPreview] = useState<string>("");
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState("");
+  const [tracked, setTracked] = useState(true);
   const imgInputRef = React.useRef<HTMLInputElement>(null);
 
   const [deleteTarget, setDeleteTarget] = useState<Ingredient | null>(null);
@@ -226,7 +227,7 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
       try { finalImg = await uploadImage("ingredient-images", imgFile); }
       catch (e: any) { setAddError("Photo upload failed: " + e.message); setAdding(false); return; }
     }
-    const isUntracked = form.stockValue.trim() === "";
+    const isUntracked = !tracked;
     const val = isUntracked ? null : (parseFloat(form.stockValue) || 0);
     const status = isUntracked ? "untracked" : form.status;
     const newIng: Ingredient = {
@@ -267,6 +268,7 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
     }
     onAddIngredient(newIng);
     setForm(emptyForm);
+    setTracked(true);
     setImgFile(null);
     setImgPreview("");
     setAdding(false);
@@ -648,7 +650,7 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
         <div
           className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4"
           style={{ backgroundColor: "rgba(29,27,26,0.5)" }}
-          onClick={() => { setShowModal(false); setForm(emptyForm); }}
+          onClick={() => { setShowModal(false); setForm(emptyForm); setTracked(true); }}
         >
           <div
             className="bg-surface-container-lowest rounded-t-2xl sm:rounded-2xl border border-outline-variant/20 w-full sm:max-w-md shadow-2xl flex flex-col"
@@ -684,29 +686,82 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
                   onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">Initial Stock</label>
-                  <input
-                    className="w-full bg-surface-bright border border-outline-variant px-4 py-2.5 rounded-lg text-sm font-bold text-primary focus:outline-none focus:border-primary/50 font-mono"
-                    type="number" min={0} step={0.1} placeholder="0.0"
-                    value={form.stockValue}
-                    onChange={(e) => setForm((f) => ({ ...f, stockValue: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">Unit</label>
-                  <select
-                    className="w-full bg-surface-bright border border-outline-variant px-4 py-2.5 rounded-lg text-sm text-primary font-bold focus:outline-none font-mono"
-                    value={form.unit}
-                    onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value }))}
-                  >
-                    <option>kg</option><option>g</option><option>L</option><option>ml</option><option>units</option><option>bags</option>
-                  </select>
-                </div>
+              {/* Stock tracking toggle */}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setTracked(true)}
+                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all border ${
+                    tracked
+                      ? "bg-primary text-on-primary border-primary"
+                      : "bg-surface-container text-on-surface-variant border-outline-variant/20 hover:bg-surface-container-high"
+                  }`}
+                >
+                  Track Stock
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTracked(false)}
+                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all border ${
+                    !tracked
+                      ? "bg-surface-container-high text-on-surface border-outline"
+                      : "bg-surface-container text-on-surface-variant border-outline-variant/20 hover:bg-surface-container-high"
+                  }`}
+                >
+                  No Tracking
+                </button>
               </div>
+
+              {tracked && (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">Initial Stock</label>
+                      <input
+                        className="w-full bg-surface-bright border border-outline-variant px-4 py-2.5 rounded-lg text-sm font-bold text-primary focus:outline-none focus:border-primary/50 font-mono"
+                        type="number" min={0} step={0.1} placeholder="0.0"
+                        value={form.stockValue}
+                        onChange={(e) => setForm((f) => ({ ...f, stockValue: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">Unit</label>
+                      <select
+                        className="w-full bg-surface-bright border border-outline-variant px-4 py-2.5 rounded-lg text-sm text-primary font-bold focus:outline-none font-mono"
+                        value={form.unit}
+                        onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value }))}
+                      >
+                        <option>kg</option><option>g</option><option>L</option><option>ml</option><option>units</option><option>bags</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-2">Stock Status</label>
+                    <div className="flex gap-2">
+                      {(["optimal", "low", "critical"] as const).map((s) => (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => setForm((f) => ({ ...f, status: s }))}
+                          className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition-all border ${
+                            form.status === s
+                              ? s === "optimal" ? "bg-secondary-container text-on-secondary-container border-secondary/30"
+                                : s === "low" ? "bg-tertiary-fixed text-on-tertiary-fixed-variant border-on-tertiary-container/30"
+                                : "bg-error-container text-on-error-container border-error/30"
+                              : "bg-surface-container text-on-surface-variant border-outline-variant/20 hover:bg-surface-container-high"
+                          }`}
+                        >
+                          {s === "optimal" ? "Optimal" : s === "low" ? "Low" : "Out"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
               <div>
-                <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">Purchase Cost (₱ per {form.unit})</label>
+                <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">
+                  Purchase Cost {tracked ? `(₱ per ${form.unit})` : "(₱ per unit — optional)"}
+                </label>
                 <div className="flex items-center gap-1 bg-surface-bright border border-outline-variant rounded-lg px-3">
                   <span className="text-sm font-bold text-on-surface-variant">₱</span>
                   <input
@@ -717,28 +772,6 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
                   />
                 </div>
               </div>
-              {form.stockValue.trim() !== "" && (
-                <div>
-                  <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-2">Stock Status</label>
-                  <div className="flex gap-2">
-                    {(["optimal", "low", "critical"] as const).map((s) => (
-                      <button
-                        key={s}
-                        onClick={() => setForm((f) => ({ ...f, status: s }))}
-                        className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase transition-all border ${
-                          form.status === s
-                            ? s === "optimal" ? "bg-secondary-container text-on-secondary-container border-secondary/30"
-                              : s === "low" ? "bg-tertiary-fixed text-on-tertiary-fixed-variant border-on-tertiary-container/30"
-                              : "bg-error-container text-on-error-container border-error/30"
-                            : "bg-surface-container text-on-surface-variant border-outline-variant/20 hover:bg-surface-container-high"
-                        }`}
-                      >
-                        {s === "optimal" ? "Optimal" : s === "low" ? "Low" : "Out"}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
               <div>
                 <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">Photo (optional)</label>
                 <input ref={imgInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
@@ -764,7 +797,7 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
               {addError && <p className="text-xs text-error">{addError}</p>}
               <div className="flex justify-end gap-3">
                 <button
-                  onClick={() => { setShowModal(false); setForm(emptyForm); setImgFile(null); setImgPreview(""); setAddError(""); }}
+                  onClick={() => { setShowModal(false); setForm(emptyForm); setTracked(true); setImgFile(null); setImgPreview(""); setAddError(""); }}
                   className="px-5 h-10 rounded-lg border border-outline text-primary text-sm font-semibold hover:bg-surface-container transition-colors"
                 >
                   Cancel
