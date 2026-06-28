@@ -205,15 +205,20 @@ export default function BakeConfirmation({ onBack, onLogBake, recipe, inventory,
       for (const ri of recipe.ingredients) {
         const inv = inventorySnapshot.find((i) => i.id === ri.ingredientId);
         if (!inv) continue;
-        if (inv.quantity === null) continue; // untracked — no stock to deduct
         const consumed = normalizeQty(parseFloat(ri.qty) || 0, ri.unit, inv.unit);
         if (consumed <= 0) continue;
-        const newQty = Math.max(0, (inv.quantity ?? 0) - consumed);
-        const threshold = inv.lowThreshold ?? 5;
-        await supabase.from("ingredients").update({
-          quantity: newQty,
-          status: newQty <= 0 ? "critical" : newQty < threshold ? "low" : "optimal",
-        }).eq("id", inv.id);
+        if (inv.quantity !== null) {
+          const newQty = Math.max(0, inv.quantity - consumed);
+          const threshold = inv.lowThreshold ?? 5;
+          await supabase.from("ingredients").update({
+            quantity: newQty,
+            status: newQty <= 0 ? "critical" : newQty < threshold ? "low" : "optimal",
+          }).eq("id", inv.id);
+          inventorySnapshot = inventorySnapshot.map((i) =>
+            i.id === inv.id ? { ...i, quantity: newQty } : i
+          );
+        }
+        // Always log usage for record — untracked ingredients still show consumption history
         await supabase.from("inventory_adjustments").insert({
           ingredient_id: inv.id,
           delta: -consumed,
@@ -222,9 +227,6 @@ export default function BakeConfirmation({ onBack, onLogBake, recipe, inventory,
           notes: `Bake ${thisBatchId} · ${recipe.name}`,
           adjusted_by: baker || "Unknown",
         });
-        inventorySnapshot = inventorySnapshot.map((i) =>
-          i.id === inv.id ? { ...i, quantity: newQty } : i
-        );
       }
 
       // Add yield to finished goods shelf
