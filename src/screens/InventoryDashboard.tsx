@@ -713,11 +713,18 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
                     No Tracking
                   </button>
                 </div>
-                <p className="text-xs text-on-surface-variant leading-relaxed">
-                  {tracked
-                    ? "Monitors quantity on hand. You'll set an initial stock and the app will deduct automatically when used in a bake."
-                    : "No quantity is recorded. The ingredient still appears in recipes and its usage is logged, but stock levels won't be tracked."}
-                </p>
+                <div className={`flex items-start gap-2.5 px-3 py-2.5 rounded-lg text-xs leading-relaxed font-medium ${
+                  tracked
+                    ? "bg-secondary-container text-on-secondary-container"
+                    : "bg-surface-container text-on-surface-variant"
+                }`}>
+                  <Icon name={tracked ? "inventory_2" : "visibility_off"} size={15} className="shrink-0 mt-0.5" />
+                  <span>
+                    {tracked
+                      ? "Monitors quantity on hand. Stock is deducted automatically each time this ingredient is used in a bake."
+                      : "No quantity recorded. Still appears in recipes and usage is logged — just no stock level to watch."}
+                  </span>
+                </div>
               </div>
 
               {tracked && (
