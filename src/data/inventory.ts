@@ -10,7 +10,6 @@ export interface Ingredient {
   img: string;
   costPerUnit?: number;
   lowThreshold?: number;
-  description?: string;
 }
 
 export const DEFAULT_INGREDIENTS: Ingredient[] = [

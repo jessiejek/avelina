@@ -34,7 +34,6 @@ const ICON_MAP: Record<string, React.FC<{ size?: number; strokeWidth?: number }>
 
 interface NewIngForm {
   name: string;
-  description: string;
   sku: string;
   stockValue: string;
   cost: string;
@@ -62,7 +61,7 @@ const DISPOSITION_OPTS: { value: DispositionReason; label: string; sub: string }
   { value: "spoiled_discarded", label: "Thrown Away",       sub: "Spoiled or can't be sold"     },
 ];
 
-const emptyForm: NewIngForm = { name: "", description: "", sku: "", stockValue: "", cost: "", unit: "kg", status: "optimal" };
+const emptyForm: NewIngForm = { name: "", sku: "", stockValue: "", cost: "", unit: "kg", status: "optimal" };
 
 export default function InventoryDashboard({ ingredients, onAddIngredient, onViewIngredient, onDeleteIngredient }: Props) {
   const [filter, setFilter] = useState("all");
@@ -247,7 +246,6 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
       quantity: newIng.quantity, unit: newIng.unit,
       status: newIng.status, icon: "wheat", img: newIng.img,
       cost_per_unit: form.cost === "" ? 0 : parseFloat(form.cost) || 0,
-      description: form.description.trim() || null,
     });
     if (error) { setAddError(error.message); setAdding(false); return; }
     if (!isUntracked && val && val > 0) {
@@ -677,16 +675,6 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
                   value={form.name}
                   onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                   autoFocus
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">Description <span className="normal-case font-normal">(optional)</span></label>
-                <textarea
-                  className="w-full bg-surface-bright border border-outline-variant px-4 py-2.5 rounded-lg text-sm text-primary focus:outline-none focus:border-primary/50 resize-none"
-                  placeholder="e.g. Unbleached, stone-ground whole wheat"
-                  rows={2}
-                  value={form.description}
-                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                 />
               </div>
               <div>
