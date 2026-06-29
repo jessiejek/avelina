@@ -407,67 +407,51 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
           </button>
         </div>
 
-        {/* Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map((item) => {
+        {/* List */}
+        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/20 overflow-hidden">
+          {filtered.map((item, idx) => {
             const s = statusConfig[item.status];
+            const rowBg = item.status === "low" ? "bg-tertiary-fixed/20" : item.status === "critical" ? "bg-error-container/20" : "";
             return (
               <div
                 key={item.id}
-                className="bg-surface-container-lowest rounded-xl border border-outline-variant/20 overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all group"
+                className={`flex items-center gap-3 px-4 py-3 ${rowBg} ${idx !== 0 ? "border-t border-outline-variant/10" : ""}`}
               >
-                <div className="relative aspect-[16/9] overflow-hidden bg-surface-container cursor-pointer" onClick={() => onViewIngredient(item.id)}>
-                  {item.img
-                    ? <img src={item.img} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                    : <div className="w-full h-full flex items-center justify-center text-on-surface-variant/30"><Icon name="image" size={32} /></div>
-                  }
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                    <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 text-[#26170c] text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5">
-                      <Icon name="edit" size={12} /> Edit Ingredient
-                    </span>
-                  </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-primary text-sm leading-tight truncate" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>{item.name}</p>
+                  <p className="text-xs text-on-surface-variant mt-0.5 font-mono">{item.sku}</p>
                 </div>
-                <div className="p-4">
-                  <div className="flex justify-between items-start gap-2 mb-3">
-                    <div className="min-w-0">
-                      <p className="font-semibold text-primary text-sm leading-tight truncate" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>{item.name}</p>
-                      <p className="text-xs text-on-surface-variant mt-0.5 font-mono">{item.sku}</p>
-                    </div>
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide shrink-0 ${s.bg} ${s.text}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full inline-block ${s.dot}`} />
-                      {s.label}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between pt-3 border-t border-outline-variant/10">
-                    <span className="text-sm font-bold text-primary font-mono">{item.quantity == null ? "—" : item.stock}</span>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setDeleteTarget(item)}
-                        className="flex items-center justify-center w-7 h-7 rounded-lg border border-outline text-on-surface-variant hover:text-error hover:border-error/40 hover:bg-error-container/20 active:scale-95 transition-all"
-                        title="Delete ingredient"
-                      >
-                        <Icon name="delete" size={13} />
-                      </button>
-                      <button
-                        onClick={() => onViewIngredient(item.id)}
-                        className="flex items-center gap-1 px-3 h-7 rounded-lg border border-outline text-primary text-[11px] font-semibold hover:bg-surface-container active:scale-95 transition-all"
-                      >
-                        <Icon name="edit" size={12} /> Edit
-                      </button>
-                      <button
-                        onClick={() => onViewIngredient(item.id)}
-                        className="flex items-center gap-1 px-3 h-7 rounded-lg bg-primary text-on-primary text-[11px] font-bold hover:opacity-90 active:scale-95 transition-all"
-                      >
-                        <Icon name="scale" size={12} /> Adjust
-                      </button>
-                    </div>
-                  </div>
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide shrink-0 ${s.bg} ${s.text}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full inline-block ${s.dot}`} />
+                  {s.label}
+                </span>
+                <span className="text-sm font-bold text-primary font-mono shrink-0 w-16 text-right">{item.quantity == null ? "—" : item.stock}</span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => setDeleteTarget(item)}
+                    className="flex items-center justify-center w-7 h-7 rounded-lg border border-outline text-on-surface-variant hover:text-error hover:border-error/40 hover:bg-error-container/20 active:scale-95 transition-all"
+                    title="Delete"
+                  >
+                    <Icon name="delete" size={13} />
+                  </button>
+                  <button
+                    onClick={() => onViewIngredient(item.id)}
+                    className="flex items-center gap-1 px-3 h-7 rounded-lg border border-outline text-primary text-[11px] font-semibold hover:bg-surface-container active:scale-95 transition-all"
+                  >
+                    <Icon name="edit" size={12} /> Edit
+                  </button>
+                  <button
+                    onClick={() => onViewIngredient(item.id)}
+                    className="flex items-center gap-1 px-3 h-7 rounded-lg bg-primary text-on-primary text-[11px] font-bold hover:opacity-90 active:scale-95 transition-all"
+                  >
+                    <Icon name="scale" size={12} /> Adjust
+                  </button>
                 </div>
               </div>
             );
           })}
           {filtered.length === 0 && (
-            <div className="col-span-3 py-16 text-center text-on-surface-variant text-sm">No ingredients match your filter.</div>
+            <div className="py-16 text-center text-on-surface-variant text-sm">No ingredients match your filter.</div>
           )}
         </div>
       </div>
