@@ -415,37 +415,33 @@ export default function InventoryDashboard({ ingredients, onAddIngredient, onVie
             return (
               <div
                 key={item.id}
-                className={`flex items-center gap-3 px-4 py-3 ${rowBg} ${idx !== 0 ? "border-t border-outline-variant/10" : ""}`}
+                onClick={() => onViewIngredient(item.id)}
+                className={`flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3 px-4 py-3 cursor-pointer hover:bg-surface-container/40 active:bg-surface-container/60 transition-colors ${rowBg} ${idx !== 0 ? "border-t border-outline-variant/10" : ""}`}
               >
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-primary text-sm leading-tight truncate" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>{item.name}</p>
-                  <p className="text-xs text-on-surface-variant mt-0.5 font-mono">{item.sku}</p>
+                <div className="flex items-start justify-between gap-2 sm:flex-1 sm:min-w-0">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-primary text-sm leading-tight truncate" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>{item.name}</p>
+                    <p className="text-xs text-on-surface-variant mt-0.5 font-mono truncate">{item.sku}</p>
+                  </div>
+                  <span className={`hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide shrink-0 ${s.bg} ${s.text}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full inline-block ${s.dot}`} />
+                    {s.label}
+                  </span>
                 </div>
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide shrink-0 ${s.bg} ${s.text}`}>
-                  <span className={`w-1.5 h-1.5 rounded-full inline-block ${s.dot}`} />
-                  {s.label}
-                </span>
-                <span className="text-sm font-bold text-primary font-mono shrink-0 w-16 text-right">{item.quantity == null ? "—" : item.stock}</span>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center justify-between gap-2 shrink-0">
+                  <span className={`sm:hidden inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${s.bg} ${s.text}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full inline-block ${s.dot}`} />
+                    {s.label}
+                  </span>
+                  <span className="text-sm font-bold text-primary font-mono">{item.quantity == null ? "—" : item.stock}</span>
                   <button
-                    onClick={() => setDeleteTarget(item)}
-                    className="flex items-center justify-center w-7 h-7 rounded-lg border border-outline text-on-surface-variant hover:text-error hover:border-error/40 hover:bg-error-container/20 active:scale-95 transition-all"
+                    onClick={(e) => { e.stopPropagation(); setDeleteTarget(item); }}
+                    className="flex items-center justify-center w-7 h-7 rounded-lg border border-outline text-on-surface-variant hover:text-error hover:border-error/40 hover:bg-error-container/20 active:scale-95 transition-all shrink-0"
                     title="Delete"
                   >
                     <Icon name="delete" size={13} />
                   </button>
-                  <button
-                    onClick={() => onViewIngredient(item.id)}
-                    className="flex items-center gap-1 px-3 h-7 rounded-lg border border-outline text-primary text-[11px] font-semibold hover:bg-surface-container active:scale-95 transition-all"
-                  >
-                    <Icon name="edit" size={12} /> Edit
-                  </button>
-                  <button
-                    onClick={() => onViewIngredient(item.id)}
-                    className="flex items-center gap-1 px-3 h-7 rounded-lg bg-primary text-on-primary text-[11px] font-bold hover:opacity-90 active:scale-95 transition-all"
-                  >
-                    <Icon name="scale" size={12} /> Adjust
-                  </button>
+                  <Icon name="chevron_right" size={16} className="hidden sm:block text-on-surface-variant/30 shrink-0" />
                 </div>
               </div>
             );
