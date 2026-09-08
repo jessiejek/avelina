@@ -205,6 +205,69 @@ export default function AdminOrders() {
     { id: "all", label: "All" },
   ];
 
+  const fulfillmentToggle = (order: AdminOrder, done: boolean) => (
+    <button
+      onClick={() => toggleFulfillment(order)}
+      disabled={done}
+      className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border border-outline-variant/40 hover:bg-surface-container transition-colors disabled:opacity-50"
+    >
+      <Icon name={order.fulfillmentType === "delivery" ? "local_shipping" : "storefront"} size={11} />
+      {order.fulfillmentType === "delivery" ? "Delivery" : "Pickup"}
+    </button>
+  );
+
+  const socialLink = (order: AdminOrder) =>
+    order.customerSocial ? (
+      <div className="flex items-center gap-1.5 min-w-0">
+        {/^https?:\/\//i.test(order.customerSocial) ? (
+          <a href={order.customerSocial} target="_blank" rel="noreferrer" className="text-primary underline truncate" title={order.customerSocial}>
+            {order.customerSocial}
+          </a>
+        ) : (
+          <span className="text-on-surface-variant truncate" title={order.customerSocial}>{order.customerSocial}</span>
+        )}
+        <button
+          onClick={() => copyText(order.id + ":social", order.customerSocial)}
+          title="Copy"
+          className="shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-md border border-outline-variant/40 hover:bg-surface-container transition-colors"
+        >
+          <Icon name={copiedKey === order.id + ":social" ? "check" : "content_copy"} size={12} />
+        </button>
+      </div>
+    ) : (
+      <span className="text-on-surface-variant">—</span>
+    );
+
+  const orderActions = (order: AdminOrder, done: boolean) =>
+    done ? (
+      <span className="text-xs text-on-surface-variant">—</span>
+    ) : (
+      <>
+        <button
+          onClick={() => setCancelModal(order)}
+          className="h-8 px-2.5 rounded-lg border border-error/30 text-error text-xs font-semibold hover:bg-error-container/30 active:scale-95 transition-all"
+        >
+          Cancel
+        </button>
+        {order.status === "pending" && (
+          <button
+            onClick={() => markConfirmed(order)}
+            disabled={updatingId === order.id}
+            className="h-8 px-3 rounded-lg border border-blue-400 text-blue-700 text-xs font-bold hover:bg-blue-50 active:scale-95 transition-all disabled:opacity-50"
+          >
+            {updatingId === order.id ? "…" : "Confirm"}
+          </button>
+        )}
+        <button
+          onClick={() => markDone(order)}
+          disabled={updatingId === order.id}
+          className="h-8 px-3 rounded-lg bg-primary text-on-primary text-xs font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50"
+        >
+          {updatingId === order.id ? "…" : "Mark Done"}
+        </button>
+      </>
+    );
+
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-y-auto bg-surface">
       <header className="sticky top-0 z-50 flex justify-between items-center px-6 h-14 w-full bg-surface-bright border-b border-outline-variant/20">
@@ -251,7 +314,94 @@ export default function AdminOrders() {
             <p className="text-sm text-on-surface-variant">No {filter === "all" ? "" : filter + " "}orders.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto rounded-xl border border-outline-variant/20 bg-surface-container-lowest">
+          <>
+          {/* Mobile: one readable card per order */}
+          <div className="lg:hidden space-y-3">
+            {visible.map((order) => {
+              const total = order.items.reduce((s, i) => s + i.unitPrice * i.qty, 0);
+              const done = isDoneStatus(order.status);
+              return (
+                <div
+                  key={order.id}
+                  className={`rounded-xl border border-outline-variant/20 bg-surface-container-lowest p-4 space-y-3 ${done ? "opacity-60" : ""}`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full ${statusStyle(order.status)}`}>
+                      {statusLabel(order.status)}
+                    </span>
+                    <span className="text-xs text-on-surface-variant whitespace-nowrap">
+                      {new Date(order.placedAt).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  </div>
+
+                  <div>
+                    <p className="font-semibold text-primary">{order.customerName}</p>
+                    <p className="text-[11px] text-on-surface-variant font-mono">#{order.id}</p>
+                  </div>
+
+                  <div className="text-sm">
+                    {order.items.length === 0 ? (
+                      <span className="text-error">no items</span>
+                    ) : (
+                      <ul className="space-y-1">
+                        {order.items.map((it, i) => (
+                          <li key={i} className="flex justify-between gap-3">
+                            <span className="text-on-surface">{it.name} ×{it.qty}</span>
+                            <span className="font-mono text-on-surface-variant whitespace-nowrap">{peso(it.unitPrice * it.qty)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between border-t border-outline-variant/15 pt-2">
+                    <span className="text-[11px] uppercase tracking-wide text-on-surface-variant">Total</span>
+                    <span className="font-mono font-bold text-primary">{peso(total)}</span>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    {fulfillmentToggle(order, done)}
+                    {order.customerPhone && (
+                      <a
+                        href={`tel:${order.customerPhone}`}
+                        className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border border-outline-variant/40"
+                      >
+                        <Icon name="call" size={11} />
+                        {order.customerPhone}
+                      </a>
+                    )}
+                  </div>
+
+                  {order.customerSocial && <div className="text-xs">{socialLink(order)}</div>}
+
+                  {order.fulfillmentType === "delivery" && order.customerAddress && (
+                    <div className="flex items-start gap-1.5 text-xs text-on-surface-variant">
+                      <Icon name="location_on" size={13} className="shrink-0 mt-0.5" />
+                      <span className="flex-1 break-words">{order.customerAddress}</span>
+                      <button
+                        onClick={() => copyText(order.id + ":addr", order.customerAddress)}
+                        title="Copy address"
+                        className="shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-md border border-outline-variant/40 hover:bg-surface-container transition-colors"
+                      >
+                        <Icon name={copiedKey === order.id + ":addr" ? "check" : "content_copy"} size={12} />
+                      </button>
+                    </div>
+                  )}
+
+                  {order.notes && (
+                    <p className="text-xs text-on-surface-variant">
+                      <span className="uppercase tracking-wide">Notes:</span> {order.notes}
+                    </p>
+                  )}
+
+                  {!done && <div className="flex flex-wrap items-center gap-2 pt-1">{orderActions(order, done)}</div>}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop: full table */}
+          <div className="hidden lg:block overflow-x-auto rounded-xl border border-outline-variant/20 bg-surface-container-lowest">
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="bg-surface-container text-on-surface-variant text-[10px] uppercase tracking-wider">
@@ -377,6 +527,7 @@ export default function AdminOrders() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
 

@@ -81,6 +81,23 @@ export default function CheckoutPage({ cart, guest, userId, onSaveGuest, onUpdat
     const orderId = `MJ-${Date.now().toString().slice(-6)}`;
     const now = new Date().toISOString();
 
+    // Make sure a matching users row exists, otherwise orders.user_id FK fails.
+    // Profile setup is disabled, so signed-up customers may have no users row yet.
+    if (userId) {
+      const { error: userErr } = await supabase
+        .from("users")
+        .upsert(
+          { id: userId, name: name.trim(), phone: phone.trim(), address: address.trim() },
+          { onConflict: "id" }
+        );
+      if (userErr) {
+        console.error("user upsert failed:", userErr);
+        setError(`Could not save your profile: ${userErr.message}`);
+        setLoading(false);
+        return;
+      }
+    }
+
     const { error: orderErr } = await supabase.from("orders").insert({
       id: orderId,
       user_id: userId,
@@ -164,6 +181,15 @@ export default function CheckoutPage({ cart, guest, userId, onSaveGuest, onUpdat
           <div>
             <label className="block text-xs font-semibold text-[#26170c]/50 uppercase tracking-wider mb-1.5">Facebook / Instagram *</label>
             <input className={inputCls} placeholder="facebook.com/yourname or @yourhandle" value={social} onChange={(e) => setSocial(e.target.value)} />
+            <p className="text-xs text-[#26170c]/50 mt-1.5">So we can message you about your order.</p>
+            <details className="mt-1.5 text-xs text-[#26170c]/60">
+              <summary className="cursor-pointer font-semibold text-[#26170c]/70">How do I find my Facebook profile link?</summary>
+              <div className="mt-1.5 space-y-1.5 leading-relaxed">
+                <p><span className="font-semibold">Phone (Facebook app):</span> Tap your profile picture → tap the <span className="font-semibold">•••</span> (More) button under your name → <span className="font-semibold">Copy link to profile</span>. Paste it here.</p>
+                <p><span className="font-semibold">Computer (web):</span> Open <span className="font-semibold">facebook.com</span> and go to your profile. Copy the address from the browser's address bar (it looks like <span className="font-mono">facebook.com/yourname</span>).</p>
+                <p><span className="font-semibold">Instagram:</span> Open your profile → tap <span className="font-semibold">Share profile</span> (or <span className="font-semibold">Edit profile → ••• → Copy profile URL</span>). Or just type <span className="font-mono">@yourhandle</span>.</p>
+              </div>
+            </details>
           </div>
 
           <div>
@@ -297,8 +323,11 @@ export default function CheckoutPage({ cart, guest, userId, onSaveGuest, onUpdat
           disabled={cart.length === 0 || loading}
           className="w-full py-4 rounded-xl bg-[#26170c] text-white text-sm font-bold hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          <Icon name="check_circle" size={18} /> {loading ? "Placing order…" : "Place Order"}
+          <Icon name="check_circle" size={18} /> {loading ? "Sending order…" : "Place Order"}
         </button>
+        <p className="text-xs text-[#26170c]/50 text-center mt-2">
+          Your order is sent to the bakery and stays pending until we confirm it with you.
+        </p>
       </div>
     </div>
   );

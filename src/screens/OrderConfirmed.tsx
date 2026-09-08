@@ -21,20 +21,22 @@ export default function OrderConfirmed({ order }: Props) {
       <div className="w-20 h-20 rounded-full bg-[#d4e8ce] flex items-center justify-center mx-auto mb-6">
         <Icon name="check_circle" size={40} className="text-[#26170c]" />
       </div>
-      <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#26170c]/40 mb-2">Order Received</p>
+      <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#26170c]/40 mb-2">Order Sent</p>
       <h1 className="font-bold text-[#26170c] mb-2" style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 32 }}>
         Thank you, {order.profile.name.split(" ")[0]}!
       </h1>
       <p className="text-[#26170c]/60 text-sm max-w-xs mb-2">
-        Your order <span className="font-bold text-[#26170c]">#{order.id}</span> has been placed. We'll get it ready for you.
+        Your order <span className="font-bold text-[#26170c]">#{order.id}</span> has been sent to the bakery.
+        <span className="font-semibold text-[#26170c]"> Please wait for us to confirm it</span> — it isn't final until we do.
       </p>
 
       <div className="bg-[#fff3ec] border border-[#26170c]/10 rounded-2xl p-4 w-full max-w-sm mt-4 text-left flex gap-3">
-        <Icon name="sms" size={20} className="text-[#26170c]/50 shrink-0 mt-0.5" />
+        <Icon name="schedule" size={20} className="text-[#26170c]/50 shrink-0 mt-0.5" />
         <p className="text-xs text-[#26170c]/70 leading-relaxed">
-          There's no live order tracking here yet, so you won't get a status update in the app.
-          We'll <span className="font-semibold text-[#26170c]">text you at {order.profile.phone || "the number you provided"}</span> to
-          confirm we've received your order and again when it's ready for pickup.
+          There's no live order tracking here yet. We'll{" "}
+          <span className="font-semibold text-[#26170c]">message you at {order.profile.phone || "the contact you provided"}</span>{" "}
+          to confirm we've accepted your order, and again when it's ready for pickup.
+          Until you hear from us, your order is still <span className="font-semibold text-[#26170c]">pending confirmation</span>.
         </p>
       </div>
 
