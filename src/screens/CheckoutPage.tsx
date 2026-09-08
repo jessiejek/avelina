@@ -188,9 +188,9 @@ export default function CheckoutPage({ cart, guest, userId, onSaveGuest, onUpdat
             <details className="mt-1.5 text-xs text-[#26170c]/60">
               <summary className="cursor-pointer font-semibold text-[#26170c]/70">How do I find my Facebook profile link?</summary>
               <div className="mt-1.5 space-y-1.5 leading-relaxed">
-                <p><span className="font-semibold">Phone (Facebook app):</span> Tap your profile picture → tap the <span className="font-semibold">•••</span> (More) button under your name → <span className="font-semibold">Copy link to profile</span>. Paste it here.</p>
-                <p><span className="font-semibold">Computer (web):</span> Open <span className="font-semibold">facebook.com</span> and go to your profile. Copy the address from the browser's address bar (it looks like <span className="font-mono">facebook.com/yourname</span>).</p>
-                <p><span className="font-semibold">Instagram:</span> Open your profile → tap <span className="font-semibold">Share profile</span> (or <span className="font-semibold">Edit profile → ••• → Copy profile URL</span>). Or just type <span className="font-mono">@yourhandle</span>.</p>
+                <p><span className="font-semibold">Phone (Facebook app):</span> Open your profile → tap <span className="font-semibold">•••</span> (top right) → <span className="font-semibold">Profile settings</span> → under <span className="font-semibold">Sharing</span> tap <span className="font-semibold">Copy profile link</span>. Paste it here (looks like <span className="font-mono">facebook.com/yourname</span>).</p>
+                <p><span className="font-semibold">Computer (web):</span> Open <span className="font-semibold">facebook.com</span> and go to your profile. Copy the address from the browser's address bar.</p>
+                <p><span className="font-semibold">Instagram:</span> Open your profile → tap <span className="font-semibold">Share profile</span> → <span className="font-semibold">Copy link</span>. Or just type <span className="font-mono">@yourhandle</span>.</p>
               </div>
             </details>
           </div>
