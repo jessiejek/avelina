@@ -3,7 +3,6 @@ import Icon from "../components/Icon.tsx";
 import { Recipe } from "../data/recipes.ts";
 import { supabase, uploadImage, validateImageFile } from "../lib/supabase.ts";
 import { peso } from "../lib/money.ts";
-import EdgeFillImage from "../components/EdgeFillImage.tsx";
 
 const PLACEHOLDER_IMG =
   "https://lh3.googleusercontent.com/aida-public/AB6AXuCZEA9Bb0E92ttiNPKygaTFeC4dzXBznNOXNamZP3o7bVGUwv6Hzf4GvcLSLSKZaHSEF3WxskKkxdKPSd_UpV32ZH-EcJT0uepYb2E7k70ffBDdz1mpaIjvaXKtezW-QbHZYtSSphohNe2_MDahWfWGmhNIjR2Ax8tQrOW0W190tn8Xz7E_Y9ub1lA0KNjOJPeiilJF4d6ef2YjqGkwBr9QIYmpcyzX5E1ShDsdKblhprVsIrizOMrkIEP0sEWCHaO8zlS_AEyfbhtm";
@@ -307,13 +306,15 @@ export default function ProductsList({ products, loading, onChanged }: Props) {
               const selling = p.is_for_sale !== false;
               return (
                 <div key={p.id} className="bg-surface-container-lowest rounded-xl border border-outline-variant/20 overflow-hidden">
-                  <EdgeFillImage src={p.img} alt={p.name} imgClassName={selling ? "" : "grayscale opacity-60"}>
+                  <div className="relative overflow-hidden bg-surface-container" style={{ aspectRatio: "1/1" }}>
+                    <img src={p.img} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover scale-110 blur-md" />
+                    <img src={p.img} alt={p.name} className={`relative w-full h-full object-contain ${selling ? "" : "grayscale opacity-60"}`} />
                     {!selling && (
                       <span className="absolute top-2 left-2 inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant uppercase tracking-wide">
                         <Icon name="visibility_off" size={10} /> Hidden
                       </span>
                     )}
-                  </EdgeFillImage>
+                  </div>
                   <div className="p-4">
                     <div className="flex items-center gap-1.5 mb-1.5">
                       <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant uppercase tracking-wide">
