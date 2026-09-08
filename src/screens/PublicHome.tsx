@@ -4,6 +4,7 @@ import { Recipe } from "../data/recipes.ts";
 import Icon from "../components/Icon.tsx";
 import { supabase } from "../lib/supabase.ts";
 import { peso } from "../lib/money.ts";
+import PushToggle from "../components/PushToggle.tsx";
 
 
 interface FlyingDot {
@@ -15,7 +16,7 @@ interface FlyingDot {
 
 interface Props {
   onPreOrder: (recipe: Recipe) => void;
-  currentUser: { name: string; email: string } | null;
+  currentUser: { id: string; name: string; email: string } | null;
   cartCount: number;
 }
 
@@ -151,6 +152,7 @@ export default function PublicHome({ onPreOrder, currentUser, cartCount }: Props
                 <span className="hidden sm:inline text-xs font-semibold text-[#26170c]/70">
                   Hi, {currentUser.name.split(" ")[0]}
                 </span>
+                <PushToggle userId={currentUser.id} role="customer" variant="icon" className="text-[#26170c]" />
                 <button
                   onClick={async () => { await supabase.auth.signOut(); navigate("/"); }}
                   className="px-3 h-9 rounded-full border border-[#26170c]/20 text-xs font-semibold text-[#26170c]/60 hover:text-[#26170c] hover:bg-white transition-all"

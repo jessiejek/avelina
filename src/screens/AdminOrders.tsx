@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import Icon from "../components/Icon.tsx";
 import { supabase } from "../lib/supabase.ts";
 import { peso } from "../lib/money.ts";
+import PushToggle from "../components/PushToggle.tsx";
 
 type OrderStatus = "pending" | "confirmed" | "baking" | "ready" | "completed" | "cancelled";
 
@@ -76,6 +77,11 @@ export default function AdminOrders() {
   const [cancelModal, setCancelModal] = useState<AdminOrder | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [meId, setMeId] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setMeId(data.session?.user.id ?? null));
+  }, []);
 
   const copyText = async (key: string, text: string) => {
     if (!text) return;
@@ -203,8 +209,11 @@ export default function AdminOrders() {
     <div className="flex-1 flex flex-col min-h-0 overflow-y-auto bg-surface">
       <header className="sticky top-0 z-50 flex justify-between items-center px-6 h-14 w-full bg-surface-bright border-b border-outline-variant/20">
         <h1 className="font-bold text-primary" style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 22 }}>Orders</h1>
-        <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-          <span className="text-[11px] font-bold text-on-primary">MJ</span>
+        <div className="flex items-center gap-2 text-primary">
+          {meId && <PushToggle userId={meId} role="admin" variant="icon" />}
+          <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+            <span className="text-[11px] font-bold text-on-primary">MJ</span>
+          </div>
         </div>
       </header>
 

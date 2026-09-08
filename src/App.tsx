@@ -142,6 +142,7 @@ function PublicShell() {
 
   const currentUser = session
     ? {
+        id: session.user.id,
         name: session.user.user_metadata?.name || session.user.email?.split("@")[0] || "User",
         email: session.user.email || "",
       }
