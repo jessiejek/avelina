@@ -26,7 +26,7 @@ export default function Sidebar({ currentTab, setCurrentTab }: SidebarProps) {
       {/* Brand */}
       <div className="px-6 py-5 border-b border-outline-variant/20">
         <h1 className="text-primary font-bold" style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 20 }}>
-          Avelina's
+          Majaldita's
         </h1>
         <p className="text-[11px] text-on-surface-variant mt-0.5 uppercase tracking-widest">Artisan Bakery</p>
       </div>
@@ -63,11 +63,11 @@ export default function Sidebar({ currentTab, setCurrentTab }: SidebarProps) {
         </button>
         <div className="flex items-center gap-3 px-4 py-3 border-t border-outline-variant/20 mt-1">
           <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 bg-primary-fixed text-on-primary-fixed" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>
-            AV
+            MJ
           </div>
           <div className="flex flex-col min-w-0">
             <span className="text-[10px] font-semibold text-primary uppercase tracking-wider">Admin</span>
-            <span className="text-sm font-medium text-on-surface truncate">Avelina's Bakery</span>
+            <span className="text-sm font-medium text-on-surface truncate">Majaldita's Bakery</span>
           </div>
         </div>
       </div>

@@ -79,7 +79,7 @@ export default function ProfileSetup({ user, onSave }: Props) {
   return (
     <div className="min-h-screen bg-[#fff8f5] flex flex-col" style={{ fontFamily: "'Work Sans', sans-serif" }}>
       <header className="px-6 h-16 flex items-center border-b border-[#26170c]/10">
-        <span className="font-bold text-[#26170c] text-lg" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>Avelina's</span>
+        <span className="font-bold text-[#26170c] text-lg" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>Majaldita's</span>
       </header>
 
       <div className="flex-1 flex items-center justify-center p-6">

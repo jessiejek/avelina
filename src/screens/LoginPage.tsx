@@ -78,7 +78,7 @@ export default function LoginPage({ onLogin }: Props) {
     <div className="min-h-screen bg-[#fff8f5] flex flex-col" style={{ fontFamily: "'Work Sans', sans-serif" }}>
       <header className="px-6 h-16 flex items-center border-b border-[#26170c]/10">
         <button onClick={() => navigate("/")} className="flex items-center gap-2 text-[#26170c] font-bold text-lg" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>
-          <Icon name="arrow_back" size={18} /> Avelina's
+          <Icon name="arrow_back" size={18} /> Majaldita's
         </button>
       </header>
 
@@ -94,7 +94,7 @@ export default function LoginPage({ onLogin }: Props) {
               {tab === "signin" ? "Welcome back" : "Create your account"}
             </h1>
             <p className="text-sm text-[#26170c]/50 mt-1">
-              {tab === "signin" ? "Sign in to place your pre-order" : "Join to start ordering from Avelina's"}
+              {tab === "signin" ? "Sign in to place your pre-order" : "Join to start ordering from Majaldita's"}
             </p>
           </div>
 

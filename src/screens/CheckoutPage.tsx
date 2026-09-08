@@ -80,7 +80,7 @@ export default function CheckoutPage({ cart, profile, userId, onUpdateQty, onUpd
     }
     setLoading(true);
     setError("");
-    const orderId = `AV-${Date.now().toString().slice(-6)}`;
+    const orderId = `MJ-${Date.now().toString().slice(-6)}`;
     const now = new Date().toISOString();
 
     const { error: orderErr } = await supabase.from("orders").insert({

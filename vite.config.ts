@@ -13,9 +13,9 @@ export default defineConfig(() => {
         registerType: 'autoUpdate',
         includeAssets: ['icon.svg'],
         manifest: {
-          name: "Avelina's Artisan Bakery",
-          short_name: "Avelina's",
-          description: "Pre-order fresh artisan bread and pastries from Avelina's kitchen.",
+          name: "Majaldita's Artisan Bakery",
+          short_name: "Majaldita's",
+          description: "Pre-order fresh artisan bread and pastries from Majaldita's kitchen.",
           theme_color: '#26170c',
           background_color: '#fff8f5',
           display: 'standalone',

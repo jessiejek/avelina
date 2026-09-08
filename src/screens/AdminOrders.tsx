@@ -194,7 +194,7 @@ export default function AdminOrders() {
       <header className="sticky top-0 z-50 flex justify-between items-center px-6 h-14 w-full bg-surface-bright border-b border-outline-variant/20">
         <h1 className="font-bold text-primary" style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 22 }}>Orders</h1>
         <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-          <span className="text-[11px] font-bold text-on-primary">AV</span>
+          <span className="text-[11px] font-bold text-on-primary">MJ</span>
         </div>
       </header>
 

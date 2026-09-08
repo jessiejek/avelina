@@ -1,4 +1,4 @@
-# Avelina's Bakery — Project Intelligence
+# Majaldita's Bakery — Project Intelligence
 
 **Live URL:** https://avelinas.vercel.app  
 **Stack:** React 19 + TypeScript + Vite + Tailwind CSS v4 + Supabase (PostgreSQL + Auth + Storage + Realtime)  
@@ -9,7 +9,7 @@
 
 ## What This App Is
 
-A full-stack bakery management PWA for **Avelina's Artisan Bakery**. It has two completely separate sides:
+A full-stack bakery management PWA for **Majaldita's Artisan Bakery**. It has two completely separate sides:
 
 - **Public side** (`/`) — customer-facing storefront: browse menu, add to cart, pre-order with pickup date, track orders
 - **Admin side** (`/admin/*`) — baker/admin dashboard: manage inventory, recipes, orders, bake log, finished goods shelf, finance, stats
@@ -153,7 +153,7 @@ sort_order  integer
 
 ### `orders`
 ```sql
-id               text PRIMARY KEY   -- format: 'AV-XXXXXX'
+id               text PRIMARY KEY   -- format: 'MJ-XXXXXX' (legacy orders use 'AV-XXXXXX')
 user_id          uuid REFERENCES users(id)
 status           text               -- 'pending' | 'confirmed' | 'baking' | 'ready' | 'completed' | 'cancelled'
 fulfillment_type text DEFAULT 'pickup'  -- 'pickup' | 'delivery'

@@ -114,7 +114,7 @@ export default function PublicHome({ onPreOrder, currentUser, cartCount }: Props
       <header className="sticky top-0 z-50 bg-[#fff8f5]/90 backdrop-blur-md border-b border-[#26170c]/10">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <h1 className="font-bold text-[#26170c]">
-            <img src="/autograf-personal-use-only.png" alt="Avelina's" className="h-8 w-auto" />
+            <img src="/autograf-personal-use-only.png" alt="Majaldita's" className="h-8 w-auto" />
           </h1>
           <div className="flex items-center gap-3">
             <div className="hidden md:flex items-center gap-2 bg-white border border-[#26170c]/10 rounded-full px-4 py-2">
@@ -177,7 +177,7 @@ export default function PublicHome({ onPreOrder, currentUser, cartCount }: Props
           Baked fresh,<br />every day.
         </h2>
         <p className="text-[#26170c]/60 max-w-lg mx-auto text-base leading-relaxed">
-          Order your favourites from Avelina's kitchen. Pick a date and we'll have it ready for you.
+          Order your favourites from Majaldita's kitchen. Pick a date and we'll have it ready for you.
         </p>
       </section>
 
@@ -223,7 +223,7 @@ export default function PublicHome({ onPreOrder, currentUser, cartCount }: Props
 
       {/* Footer */}
       <footer className="border-t border-[#26170c]/10 py-8 text-center text-xs text-[#26170c]/40">
-        © {new Date().getFullYear()} Avelina's Bakery · Made with love
+        © {new Date().getFullYear()} Majaldita's Bakery · Made with love
       </footer>
     </div>
   );
