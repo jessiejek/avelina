@@ -121,6 +121,7 @@ function rememberOrderId(id: string) {
 function PublicShell() {
   const navigate = useNavigate();
   const [session, setSession] = useState<Session | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [cart, setCart] = useState<CartItem[]>(() => {
     try {
       const saved = localStorage.getItem("avelinas_cart_v1");
@@ -156,11 +157,13 @@ function PublicShell() {
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
+      setAuthLoading(false);
       checkAdmin(session);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
+      setAuthLoading(false);
       if (event === "SIGNED_IN") checkAdmin(session);
     });
 
@@ -189,7 +192,8 @@ function PublicShell() {
     const { data: { session: s } } = await supabase.auth.getSession();
     if (!s) { navigate("/"); return; }
     const { data } = await supabase.from("users").select("role").eq("id", s.user.id).single();
-    navigate(data?.role === "admin" ? "/admin" : "/");
+    if (data?.role === "admin") { navigate("/admin"); return; }
+    navigate(cart.length > 0 ? "/cart" : "/");
   };
 
   const handlePlaceOrder = (order: Order) => {
@@ -212,16 +216,20 @@ function PublicShell() {
           cart={cart}
           onUpdateQty={updateQty}
           onRemove={(i) => setCart((prev) => prev.filter((_, idx) => idx !== i))}
-          onCheckout={() => navigate("/checkout")}
+          onCheckout={() => navigate(session ? "/checkout" : "/login")}
         />
       } />
       <Route path="/checkout" element={
-        cart.length === 0
+        authLoading
+          ? null
+          : !session
+          ? <Navigate to="/login" replace />
+          : cart.length === 0
           ? <Navigate to="/cart" replace />
           : <CheckoutPage
               cart={cart}
               guest={guest}
-              userId={session?.user?.id ?? null}
+              userId={session.user.id}
               onSaveGuest={setGuest}
               onUpdateQty={updateQty}
               onPlaceOrder={handlePlaceOrder}
