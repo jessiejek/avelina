@@ -70,6 +70,7 @@ export default function CheckoutPage({ cart, guest, userId, onSaveGuest, onUpdat
     if (cart.length === 0) return;
     if (!name.trim()) { setError("Please enter your full name."); return; }
     if (!phone.trim()) { setError("Please enter your phone number."); return; }
+    if (!social.trim()) { setError("Please enter your Facebook or Instagram."); return; }
     if (fulfillment === "delivery" && !address.trim()) { setError("Please enter a delivery address."); return; }
     if (paymentMethod === "gcash" && !gcashRef.trim()) { setError("Please enter your GCash reference number."); return; }
 
@@ -161,7 +162,7 @@ export default function CheckoutPage({ cart, guest, userId, onSaveGuest, onUpdat
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-[#26170c]/50 uppercase tracking-wider mb-1.5">Facebook / Instagram (optional)</label>
+            <label className="block text-xs font-semibold text-[#26170c]/50 uppercase tracking-wider mb-1.5">Facebook / Instagram *</label>
             <input className={inputCls} placeholder="facebook.com/yourname or @yourhandle" value={social} onChange={(e) => setSocial(e.target.value)} />
           </div>
 

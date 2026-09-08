@@ -73,14 +73,6 @@ export default function AdminOrders() {
   const [loadError, setLoadError] = useState("");
   const [cancelModal, setCancelModal] = useState<AdminOrder | null>(null);
   const [cancelling, setCancelling] = useState(false);
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
-
-  const toggleExpand = (id: string) =>
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
 
   const fetchOrders = async () => {
     setLoadError("");
@@ -89,7 +81,6 @@ export default function AdminOrders() {
     if (!error && data) {
       const mapped = data.map(mapOrder);
       setOrders(mapped);
-      setExpanded(new Set(mapped.filter((o) => !isDoneStatus(o.status)).map((o) => o.id)));
       setLoading(false);
       return;
     }
@@ -114,7 +105,6 @@ export default function AdminOrders() {
     }
     const mapped = bare.map((o: any) => mapOrder({ ...o, users: usersById[o.user_id] }));
     setOrders(mapped);
-    setExpanded(new Set(mapped.filter((o) => !isDoneStatus(o.status)).map((o) => o.id)));
     setLoading(false);
   };
 
@@ -198,7 +188,7 @@ export default function AdminOrders() {
         </div>
       </header>
 
-      <div className="p-4 lg:p-8 max-w-4xl mx-auto w-full space-y-4">
+      <div className="p-4 lg:p-8 max-w-6xl mx-auto w-full space-y-4">
         {/* Filter chips */}
         <div className="flex gap-2 flex-wrap">
           {chips.map((c) => (
@@ -232,141 +222,94 @@ export default function AdminOrders() {
             <p className="text-sm text-on-surface-variant">No {filter === "all" ? "" : filter + " "}orders.</p>
           </div>
         ) : (
-          <div className="space-y-2">
-            {visible.map((order) => {
-              const total = order.items.reduce((s, i) => s + i.unitPrice * i.qty, 0);
-              const isOpen = expanded.has(order.id);
-              const done = isDoneStatus(order.status);
-
-              return (
-                <div
-                  key={order.id}
-                  className={`rounded-xl border overflow-hidden transition-all ${
-                    done ? "border-outline-variant/10 bg-surface-container-lowest/50 opacity-75" : "border-outline-variant/20 bg-surface-container-lowest shadow-sm"
-                  }`}
-                >
-                  {/* Header row */}
-                  <div
-                    className={`flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-surface-container/40 transition-colors ${isOpen ? "border-b border-outline-variant/10" : ""}`}
-                    onClick={() => toggleExpand(order.id)}
-                  >
-                    <span className={`shrink-0 text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full ${statusStyle(order.status)}`}>
-                      {statusLabel(order.status)}
-                    </span>
-                    <span className="font-bold text-primary font-mono text-sm shrink-0">#{order.id}</span>
-                    <span className="text-sm text-on-surface-variant truncate flex-1">{order.customerName}</span>
-                    <span className="font-bold text-primary font-mono text-sm shrink-0">{peso(total)}</span>
-                    <span className={`shrink-0 hidden sm:flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
-                      order.fulfillmentType === "delivery"
-                        ? "bg-tertiary-fixed border-on-tertiary-container/30 text-on-tertiary-fixed-variant"
-                        : "bg-surface-container-high border-outline-variant/30 text-on-surface-variant"
-                    }`}>
-                      <Icon name={order.fulfillmentType === "delivery" ? "local_shipping" : "storefront"} size={10} />
-                      {order.fulfillmentType === "delivery" ? "Delivery" : "Pickup"}
-                    </span>
-                    {!done && !isOpen && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); markDone(order); }}
-                        disabled={updatingId === order.id}
-                        className="shrink-0 h-9 px-4 rounded-lg bg-primary text-on-primary text-xs font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-1.5"
-                      >
-                        <Icon name="check_circle" size={13} />
-                        {updatingId === order.id ? "…" : "Mark Done"}
-                      </button>
-                    )}
-                    <Icon name={isOpen ? "expand_less" : "expand_more"} size={18} className="shrink-0 text-on-surface-variant" />
-                  </div>
-
-                  {/* Detail */}
-                  {isOpen && (
-                    <div className="p-4 space-y-4">
-                      <div className="flex items-center gap-3 text-xs text-on-surface-variant flex-wrap">
-                        <span className="flex items-center gap-1">
-                          <Icon name="schedule" size={12} />
-                          {new Date(order.placedAt).toLocaleString("en-PH", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+          <div className="overflow-x-auto rounded-xl border border-outline-variant/20 bg-surface-container-lowest">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="bg-surface-container text-on-surface-variant text-[10px] uppercase tracking-wider">
+                  <th className="text-left font-semibold px-3 py-2.5 whitespace-nowrap">Status</th>
+                  <th className="text-left font-semibold px-3 py-2.5 whitespace-nowrap">Order</th>
+                  <th className="text-left font-semibold px-3 py-2.5 whitespace-nowrap">Date</th>
+                  <th className="text-left font-semibold px-3 py-2.5 whitespace-nowrap">Customer</th>
+                  <th className="text-left font-semibold px-3 py-2.5 whitespace-nowrap">Phone</th>
+                  <th className="text-left font-semibold px-3 py-2.5 whitespace-nowrap">FB / IG</th>
+                  <th className="text-left font-semibold px-3 py-2.5 whitespace-nowrap">Items</th>
+                  <th className="text-right font-semibold px-3 py-2.5 whitespace-nowrap">Total</th>
+                  <th className="text-left font-semibold px-3 py-2.5 whitespace-nowrap">Type</th>
+                  <th className="text-left font-semibold px-3 py-2.5 whitespace-nowrap">Notes</th>
+                  <th className="text-right font-semibold px-3 py-2.5 whitespace-nowrap">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map((order) => {
+                  const total = order.items.reduce((s, i) => s + i.unitPrice * i.qty, 0);
+                  const done = isDoneStatus(order.status);
+                  return (
+                    <tr
+                      key={order.id}
+                      className={`border-t border-outline-variant/15 hover:bg-surface-container/40 transition-colors ${done ? "opacity-60" : ""}`}
+                    >
+                      <td className="px-3 py-2.5">
+                        <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${statusStyle(order.status)}`}>
+                          {statusLabel(order.status)}
                         </span>
+                      </td>
+                      <td className="px-3 py-2.5 font-mono font-bold text-primary whitespace-nowrap">#{order.id}</td>
+                      <td className="px-3 py-2.5 text-on-surface-variant whitespace-nowrap">
+                        {new Date(order.placedAt).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                      </td>
+                      <td className="px-3 py-2.5 text-primary font-medium whitespace-nowrap">
+                        {order.customerName}
+                        {order.fulfillmentType === "delivery" && order.customerAddress && (
+                          <span className="block text-[11px] font-normal text-on-surface-variant max-w-[220px] truncate">{order.customerAddress}</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2.5 text-on-surface-variant whitespace-nowrap">{order.customerPhone || "—"}</td>
+                      <td className="px-3 py-2.5 text-on-surface-variant max-w-[200px] truncate" title={order.customerSocial}>{order.customerSocial || "—"}</td>
+                      <td className="px-3 py-2.5 text-on-surface-variant max-w-[240px]">
+                        {order.items.length === 0
+                          ? <span className="text-error">no items</span>
+                          : order.items.map((it) => `${it.name} ×${it.qty}`).join(", ")}
+                      </td>
+                      <td className="px-3 py-2.5 text-right font-mono font-bold text-primary whitespace-nowrap">{peso(total)}</td>
+                      <td className="px-3 py-2.5 whitespace-nowrap">
                         <button
                           onClick={() => toggleFulfillment(order)}
                           disabled={done}
-                          className="flex items-center gap-1 px-2 py-0.5 rounded-full border border-outline-variant/40 hover:bg-surface-container transition-colors disabled:opacity-50"
+                          className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border border-outline-variant/40 hover:bg-surface-container transition-colors disabled:opacity-50"
                         >
-                          <Icon name="sync_alt" size={11} />
-                          Switch to {order.fulfillmentType === "delivery" ? "Pickup" : "Delivery"}
+                          <Icon name={order.fulfillmentType === "delivery" ? "local_shipping" : "storefront"} size={11} />
+                          {order.fulfillmentType === "delivery" ? "Delivery" : "Pickup"}
                         </button>
-                      </div>
-
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        {/* Customer */}
-                        <div className="space-y-1.5">
-                          <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider">Customer</p>
-                          <p className="text-sm font-semibold text-primary">{order.customerName}</p>
-                          {order.customerPhone && (
-                            <p className="text-xs text-on-surface-variant flex items-center gap-1.5">
-                              <Icon name="call" size={12} /> {order.customerPhone}
-                            </p>
-                          )}
-                          {order.customerSocial && (
-                            <p className="text-xs text-on-surface-variant flex items-center gap-1.5">
-                              <Icon name="share" size={12} /> {order.customerSocial}
-                            </p>
-                          )}
-                          {order.fulfillmentType === "delivery" && (
-                            <p className="text-xs text-on-surface-variant flex items-start gap-1.5">
-                              <Icon name="location_on" size={12} className="shrink-0 mt-0.5" />
-                              {order.customerAddress || <span className="italic opacity-60">No address on file</span>}
-                            </p>
-                          )}
-                          {order.notes && (
-                            <div className="text-xs text-on-surface-variant bg-surface-container rounded-lg px-3 py-2">
-                              <span className="font-semibold">Note:</span> {order.notes}
-                            </div>
+                      </td>
+                      <td className="px-3 py-2.5 text-on-surface-variant max-w-[200px] truncate" title={order.notes || ""}>{order.notes || "—"}</td>
+                      <td className="px-3 py-2.5">
+                        <div className="flex items-center gap-1.5 justify-end whitespace-nowrap">
+                          {done ? (
+                            <span className="text-xs text-on-surface-variant">—</span>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => setCancelModal(order)}
+                                className="h-8 px-2.5 rounded-lg border border-error/30 text-error text-xs font-semibold hover:bg-error-container/30 active:scale-95 transition-all"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                onClick={() => markDone(order)}
+                                disabled={updatingId === order.id}
+                                className="h-8 px-3 rounded-lg bg-primary text-on-primary text-xs font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50"
+                              >
+                                {updatingId === order.id ? "…" : "Mark Done"}
+                              </button>
+                            </>
                           )}
                         </div>
-
-                        {/* Items */}
-                        <div className="space-y-2">
-                          <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider">Items</p>
-                          {order.items.length === 0 && (
-                            <p className="text-xs text-error">No items recorded for this order.</p>
-                          )}
-                          {order.items.map((item, i) => (
-                            <div key={i} className="flex items-center gap-3">
-                              <div className="w-9 h-9 rounded-lg overflow-hidden shrink-0 bg-surface-container">
-                                {item.img && <img src={item.img} alt={item.name} className="w-full h-full object-cover" />}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold text-primary truncate">{item.name}</p>
-                              </div>
-                              <span className="text-sm font-bold text-primary font-mono shrink-0">×{item.qty}</span>
-                              <span className="text-xs text-on-surface-variant font-mono shrink-0">{peso(item.unitPrice * item.qty)}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {!done && (
-                        <div className="flex items-center justify-between pt-3 border-t border-outline-variant/10">
-                          <button
-                            onClick={() => setCancelModal(order)}
-                            className="h-9 px-4 rounded-lg border border-error/30 text-error text-sm font-semibold hover:bg-error-container/30 active:scale-95 transition-all flex items-center gap-1.5"
-                          >
-                            <Icon name="cancel" size={14} /> Cancel
-                          </button>
-                          <button
-                            onClick={() => markDone(order)}
-                            disabled={updatingId === order.id}
-                            className="h-10 px-6 rounded-lg bg-primary text-on-primary text-sm font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-2"
-                          >
-                            <Icon name="check_circle" size={15} />
-                            {updatingId === order.id ? "Saving…" : "Mark Done"}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
