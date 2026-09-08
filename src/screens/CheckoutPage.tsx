@@ -43,11 +43,11 @@ export default function CheckoutPage({ cart, guest, userId, onSaveGuest, onUpdat
   const [gcashRef, setGcashRef] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [locating, setLocating] = useState(false);
+  const [locateStatus, setLocateStatus] = useState<"idle" | "locating" | "success" | "error">("idle");
 
   const locateMe = () => {
-    if (!navigator.geolocation) return;
-    setLocating(true);
+    if (!navigator.geolocation) { setLocateStatus("error"); return; }
+    setLocateStatus("locating");
     navigator.geolocation.getCurrentPosition(
       async ({ coords }) => {
         try {
@@ -55,11 +55,14 @@ export default function CheckoutPage({ cart, guest, userId, onSaveGuest, onUpdat
           const data = await res.json();
           const { road, house_number, suburb, city, town, municipality, province, state, country } = data.address || {};
           const parts = [house_number && road ? `${house_number} ${road}` : road, suburb, city || town || municipality, province || state, country].filter(Boolean);
+          if (parts.length === 0) { setLocateStatus("error"); return; }
           setAddress(parts.join(", "));
-        } catch { /* keep existing */ }
-        setLocating(false);
+          setLocateStatus("success");
+        } catch {
+          setLocateStatus("error");
+        }
       },
-      () => setLocating(false),
+      () => setLocateStatus("error"),
       { enableHighAccuracy: true, timeout: 10000 }
     );
   };
@@ -212,9 +215,31 @@ export default function CheckoutPage({ cart, guest, userId, onSaveGuest, onUpdat
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-xs font-semibold text-[#26170c]/50 uppercase tracking-wider">Delivery Address *</label>
-                <button onClick={locateMe} disabled={locating} className="flex items-center gap-1 text-xs font-semibold text-[#26170c] bg-[#26170c]/8 hover:bg-[#26170c]/15 px-2.5 py-1 rounded-full transition-all disabled:opacity-50">
-                  <Icon name={locating ? "progress_activity" : "my_location"} size={12} />
-                  {locating ? "Locating…" : "Locate Me"}
+                <button
+                  onClick={locateMe}
+                  disabled={locateStatus === "locating"}
+                  className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full transition-all disabled:opacity-50 ${
+                    locateStatus === "success"
+                      ? "text-green-700 bg-green-600/10 hover:bg-green-600/20"
+                      : locateStatus === "error"
+                      ? "text-red-600 bg-red-600/10 hover:bg-red-600/20"
+                      : "text-[#26170c] bg-[#26170c]/8 hover:bg-[#26170c]/15"
+                  }`}
+                >
+                  <Icon
+                    name={
+                      locateStatus === "locating" ? "progress_activity"
+                      : locateStatus === "success" ? "check_circle"
+                      : locateStatus === "error" ? "refresh"
+                      : "my_location"
+                    }
+                    size={12}
+                    className={locateStatus === "locating" ? "animate-spin" : ""}
+                  />
+                  {locateStatus === "locating" ? "Locating…"
+                    : locateStatus === "success" ? "Located"
+                    : locateStatus === "error" ? "Retry"
+                    : "Locate Me"}
                 </button>
               </div>
               <textarea
@@ -224,6 +249,12 @@ export default function CheckoutPage({ cart, guest, userId, onSaveGuest, onUpdat
                 onChange={(e) => setAddress(e.target.value)}
                 placeholder="House no., street, barangay, city"
               />
+              {locateStatus === "success" && (
+                <p className="text-xs text-green-700 mt-1">Location found — check the address above and edit if needed.</p>
+              )}
+              {locateStatus === "error" && (
+                <p className="text-xs text-red-500 mt-1">Couldn't get your location. Allow location access, then tap Retry.</p>
+              )}
             </div>
           )}
         </div>

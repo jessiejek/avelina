@@ -23,11 +23,13 @@ export default function ProfileSetup({ user, onSave }: Props) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [locating, setLocating] = useState(false);
+  const [located, setLocated] = useState(false);
   const [locateError, setLocateError] = useState("");
 
   const locateMe = () => {
     if (!navigator.geolocation) { setLocateError("Geolocation not supported by your browser."); return; }
     setLocating(true);
+    setLocated(false);
     setLocateError("");
     navigator.geolocation.getCurrentPosition(
       async ({ coords }) => {
@@ -45,7 +47,9 @@ export default function ProfileSetup({ user, onSave }: Props) {
             province || state,
             country,
           ].filter(Boolean);
+          if (parts.length === 0) { setLocateError("Couldn't read an address for your location. Type it manually."); setLocating(false); return; }
           setAddress(parts.join(", "));
+          setLocated(true);
         } catch {
           setLocateError("Could not fetch address. Paste coordinates manually.");
         }
@@ -121,10 +125,20 @@ export default function ProfileSetup({ user, onSave }: Props) {
                   type="button"
                   onClick={locateMe}
                   disabled={locating}
-                  className="flex items-center gap-1 text-xs font-semibold text-[#26170c] bg-[#26170c]/8 hover:bg-[#26170c]/15 px-3 py-1 rounded-full transition-all disabled:opacity-50"
+                  className={`flex items-center gap-1 text-xs font-semibold px-3 py-1 rounded-full transition-all disabled:opacity-50 ${
+                    located
+                      ? "text-green-700 bg-green-600/10 hover:bg-green-600/20"
+                      : locateError
+                      ? "text-red-600 bg-red-600/10 hover:bg-red-600/20"
+                      : "text-[#26170c] bg-[#26170c]/8 hover:bg-[#26170c]/15"
+                  }`}
                 >
-                  <Icon name={locating ? "progress_activity" : "my_location"} size={13} />
-                  {locating ? "Locating…" : "Locate Me"}
+                  <Icon
+                    name={locating ? "progress_activity" : located ? "check_circle" : locateError ? "refresh" : "my_location"}
+                    size={13}
+                    className={locating ? "animate-spin" : ""}
+                  />
+                  {locating ? "Locating…" : located ? "Located" : locateError ? "Retry" : "Locate Me"}
                 </button>
               </div>
               <textarea
@@ -135,6 +149,7 @@ export default function ProfileSetup({ user, onSave }: Props) {
                 onChange={(e) => setAddress(e.target.value)}
               />
               {locateError && <p className="text-xs text-red-500 mt-1">{locateError}</p>}
+              {located && !locateError && <p className="text-xs text-green-700 mt-1">Location found — check the address above and edit if needed.</p>}
             </div>
             {error && <p className="text-xs text-red-500">{error}</p>}
             <button

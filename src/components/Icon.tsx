@@ -152,7 +152,7 @@ const map: Record<string, Comp> = {
   add_circle_outline: PlusCircle, remove_circle: MinusCircle, cancel: XCircle, done_all: CheckCheck,
   settings_alt: Settings2, filter: Filter, zoom_in: ZoomIn, zoom_out: ZoomOut,
   upload: Upload, share: Share2, link: Link, link2: Link2, external_link: ExternalLink,
-  refresh: RefreshCw, rotate_cw: RotateCw, rotate_ccw: RotateCcw, repeat: Repeat, shuffle: Shuffle,
+  refresh: RefreshCw, progress_activity: RefreshCw, rotate_cw: RotateCw, rotate_ccw: RotateCcw, repeat: Repeat, shuffle: Shuffle,
   power: Power, login: LogIn, edit_alt: Edit, edit_line: PencilLine, eraser: Eraser,
   scissors: Scissors, hammer: Hammer, trash: Trash, wrench: Wrench,
   // comms
@@ -161,7 +161,7 @@ const map: Record<string, Comp> = {
   // people
   person: User, people: Users, person_add: UserPlus, person_check: UserCheck,
   // place
-  location: MapPin, map: Map, navigation: Navigation, globe: Globe, home: Home,
+  location: MapPin, map: Map, navigation: Navigation, my_location: Navigation, globe: Globe, home: Home,
   building: Building, store: Store,
   // money / commerce
   gift: Gift, tags: Tags, receipt: Receipt, credit_card: CreditCard, coins: Coins,
