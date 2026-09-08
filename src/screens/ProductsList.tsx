@@ -201,6 +201,7 @@ export default function ProductsList({ products, loading, onChanged }: Props) {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [saleFilter, setSaleFilter] = useState<"all" | "selling" | "not">("all");
 
   useEffect(() => {
     supabase.from("recipe_categories").select("name").order("created_at").then(({ data }) => {
@@ -236,7 +237,19 @@ export default function ProductsList({ products, loading, onChanged }: Props) {
     onChanged();
   };
 
-  const filtered = products.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()));
+  const filtered = products
+    .filter((p) => p.name.toLowerCase().includes(search.toLowerCase()))
+    .filter((p) => {
+      const selling = p.is_for_sale !== false;
+      return saleFilter === "all" || (saleFilter === "selling" ? selling : !selling);
+    })
+    .sort((a, b) => Number(b.is_for_sale !== false) - Number(a.is_for_sale !== false) || a.name.localeCompare(b.name));
+
+  const saleChips: { id: typeof saleFilter; label: string }[] = [
+    { id: "all", label: "All" },
+    { id: "selling", label: "Selling" },
+    { id: "not", label: "Not selling" },
+  ];
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-y-auto bg-surface">
@@ -262,6 +275,19 @@ export default function ProductsList({ products, loading, onChanged }: Props) {
       </header>
 
       <div className="p-6 lg:p-10 max-w-6xl mx-auto w-full">
+        <div className="flex gap-2 flex-wrap mb-5">
+          {saleChips.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => setSaleFilter(c.id)}
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                saleFilter === c.id ? "bg-primary text-on-primary" : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high"
+              }`}
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
         {loading ? (
           <div className="py-24 text-center text-on-surface-variant text-sm">Loading products…</div>
         ) : filtered.length === 0 ? (

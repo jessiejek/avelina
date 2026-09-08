@@ -24,7 +24,10 @@ const supabase = createClient(
 // ---------- Google OAuth2 access token from the service account ----------
 
 function pemToArrayBuffer(pem: string): ArrayBuffer {
-  const b64 = pem.replace(/-----BEGIN [^-]+-----/, "").replace(/-----END [^-]+-----/, "").replace(/\s+/g, "");
+  const b64 = pem
+    .replace(/-----[^-]+-----/g, "") // strip BEGIN + END markers
+    .replace(/\\[rn]/g, "")          // strip literal \n \r left over from JSON
+    .replace(/[^A-Za-z0-9+/=]/g, ""); // strip newlines, quotes, spaces, anything non-base64
   const bin = atob(b64);
   const buf = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
