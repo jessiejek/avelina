@@ -5,6 +5,7 @@ import Icon from "../components/Icon.tsx";
 import { supabase } from "../lib/supabase.ts";
 import { peso } from "../lib/money.ts";
 import PushToggle from "../components/PushToggle.tsx";
+import EdgeFillImage from "../components/EdgeFillImage.tsx";
 
 
 interface FlyingDot {
@@ -253,24 +254,17 @@ function RecipeCard(props: {
 
   return (
     <div className={`bg-white rounded-2xl overflow-hidden shadow-sm transition-all duration-300 group border border-[#26170c]/5 ${soldOut ? "opacity-75" : "hover:shadow-md hover:-translate-y-1"}`}>
-      <div className="overflow-hidden relative bg-[#f4ece5]" style={{ aspectRatio: "1/1" }}>
-        <img
-          src={recipe.img}
-          alt=""
-          aria-hidden="true"
-          className="absolute inset-0 w-full h-full object-cover scale-125 blur-2xl"
-        />
-        <img
-          src={recipe.img}
-          alt={recipe.name}
-          className={`relative w-full h-full object-contain transition-transform duration-500 ${soldOut ? "grayscale" : "group-hover:scale-105"}`}
-        />
+      <EdgeFillImage
+        src={recipe.img}
+        alt={recipe.name}
+        imgClassName={`transition-transform duration-500 ${soldOut ? "grayscale" : "group-hover:scale-105"}`}
+      >
         {soldOut && (
           <div className="absolute top-3 left-3 bg-[#26170c] text-white text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full flex items-center gap-1">
             <Icon name="lock" size={11} /> Sold Out
           </div>
         )}
-      </div>
+      </EdgeFillImage>
       <div className="p-5">
         <span className="inline-block text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-[#fff8f5] text-[#26170c]/50 uppercase tracking-wide mb-2 border border-[#26170c]/10">
           {recipe.category}
