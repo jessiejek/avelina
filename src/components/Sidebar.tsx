@@ -6,19 +6,14 @@ import { supabase } from "../lib/supabase.ts";
 interface SidebarProps {
   currentTab: string;
   setCurrentTab: (tab: string) => void;
-  onNewProduction: () => void;
 }
 
 const navItems = [
-  { id: "inventory", icon: "inventory_2", label: "Inventory" },
-  { id: "recipes", icon: "menu_book", label: "Recipes" },
+  { id: "products", icon: "storefront", label: "Products" },
   { id: "orders", icon: "assignment", label: "Orders" },
-  { id: "bakelog", icon: "history_edu", label: "Bake Log" },
-  { id: "finance", icon: "wallet", label: "Finance" },
-  { id: "stats", icon: "query_stats", label: "Stats" },
 ];
 
-export default function Sidebar({ currentTab, setCurrentTab, onNewProduction }: SidebarProps) {
+export default function Sidebar({ currentTab, setCurrentTab }: SidebarProps) {
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -39,7 +34,7 @@ export default function Sidebar({ currentTab, setCurrentTab, onNewProduction }: 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {navItems.map((item) => {
-          const isActive = currentTab === item.id || currentTab.startsWith(item.id + "-");
+          const isActive = currentTab === item.id;
           return (
             <button
               key={item.id}
@@ -57,27 +52,8 @@ export default function Sidebar({ currentTab, setCurrentTab, onNewProduction }: 
         })}
       </nav>
 
-      {/* New Production CTA */}
-      <div className="px-3 pb-3 border-t border-outline-variant/20 pt-3">
-        <button
-          onClick={onNewProduction}
-          className="w-full h-11 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 text-on-primary transition-opacity hover:opacity-90 active:scale-95 bg-primary"
-          style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}
-        >
-          <Icon name="add" size={16} strokeWidth={2.5} />
-          New Production
-        </button>
-      </div>
-
-      {/* Settings + User + Logout */}
+      {/* User + Logout */}
       <div className="px-3 pb-4 space-y-1">
-        <button
-          onClick={() => setCurrentTab("settings")}
-          className={`w-full flex items-center gap-3 px-4 h-11 rounded-xl transition-colors text-sm ${currentTab === "settings" ? "bg-secondary-container text-on-secondary-container font-semibold" : "text-on-surface-variant hover:bg-surface-container-high"}`}
-        >
-          <Icon name="settings" size={18} />
-          <span style={{ fontFamily: "'Work Sans', sans-serif" }}>Settings</span>
-        </button>
         <button
           onClick={handleLogout}
           className="w-full flex items-center gap-3 px-4 h-11 rounded-xl text-error hover:bg-error-container/30 transition-colors text-sm"
