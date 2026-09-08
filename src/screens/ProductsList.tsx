@@ -66,7 +66,7 @@ function ProductModal({
 
     const { error: dbErr } =
       mode === "add"
-        ? await supabase.from("recipes").insert({ id: `prod-${Date.now()}`, ...fields })
+        ? await supabase.from("recipes").insert({ id: `prod-${Date.now()}`, yield: "—", time: "—", ...fields })
         : await supabase.from("recipes").update(fields).eq("id", initial.id!);
 
     setSaving(false);
