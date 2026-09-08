@@ -9,12 +9,12 @@ importScripts("https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js
 importScripts("https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js");
 
 firebase.initializeApp({
-  apiKey: "REPLACE_API_KEY",
-  authDomain: "REPLACE_PROJECT_ID.firebaseapp.com",
-  projectId: "REPLACE_PROJECT_ID",
-  storageBucket: "REPLACE_PROJECT_ID.appspot.com",
-  messagingSenderId: "REPLACE_SENDER_ID",
-  appId: "REPLACE_APP_ID",
+  apiKey: "AIzaSyA9j2BCbi2dMhbYMxOszDLbBBnGj6-4fPs",
+  authDomain: "majaldita.firebaseapp.com",
+  projectId: "majaldita",
+  storageBucket: "majaldita.firebasestorage.app",
+  messagingSenderId: "870073885479",
+  appId: "1:870073885479:web:8524d94651c2d787d8bf02",
 });
 
 const messaging = firebase.messaging();

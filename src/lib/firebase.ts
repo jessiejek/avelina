@@ -5,16 +5,16 @@ import { getMessaging, isSupported, type Messaging } from "firebase/messaging";
 // Fill these from Firebase console → Project settings → General → Your apps → SDK setup.
 // The SAME values must also be pasted into public/firebase-messaging-sw.js
 export const firebaseConfig = {
-  apiKey: "REPLACE_API_KEY",
-  authDomain: "REPLACE_PROJECT_ID.firebaseapp.com",
-  projectId: "REPLACE_PROJECT_ID",
-  storageBucket: "REPLACE_PROJECT_ID.appspot.com",
-  messagingSenderId: "REPLACE_SENDER_ID",
-  appId: "REPLACE_APP_ID",
+  apiKey: "AIzaSyA9j2BCbi2dMhbYMxOszDLbBBnGj6-4fPs",
+  authDomain: "majaldita.firebaseapp.com",
+  projectId: "majaldita",
+  storageBucket: "majaldita.firebasestorage.app",
+  messagingSenderId: "870073885479",
+  appId: "1:870073885479:web:8524d94651c2d787d8bf02",
 };
 
 // Firebase console → Project settings → Cloud Messaging → Web Push certificates → Key pair
-export const VAPID_KEY = "REPLACE_VAPID_PUBLIC_KEY";
+export const VAPID_KEY = "BO6fXzVEMqDTk4dmR1jsbmzLN6ps345iNsGb2lAH97cb89uLJrlJnXbXEZe8CFWeORde9hb5lPgbUAnFbJc027U";
 
 export const firebaseApp = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 
