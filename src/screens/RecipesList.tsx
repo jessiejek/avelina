@@ -27,6 +27,7 @@ function NewRecipeModal({ inventory, categories, onSave, onClose }: { inventory:
   const [time, setTime] = useState("");
   const [price, setPrice] = useState("");
   const [isAvailable, setIsAvailable] = useState(true);
+  const [isForSale, setIsForSale] = useState(true);
   const [img, setImg] = useState(PLACEHOLDER_IMG);
   const [imgFile, setImgFile] = useState<File | null>(null);
   type IngRow = RecipeIngredient & { rowType: "inventory" | "custom" };
@@ -96,6 +97,7 @@ function NewRecipeModal({ inventory, categories, onSave, onClose }: { inventory:
       img: finalImg,
       price: price === "" ? 0 : Number(price),
       is_available: isAvailable,
+      is_for_sale: isForSale,
       ingredients: allIngredients,
       steps: steps.filter((s) => s.title.trim()),
     };
@@ -103,7 +105,7 @@ function NewRecipeModal({ inventory, categories, onSave, onClose }: { inventory:
     const { error: recErr } = await supabase.from("recipes").insert({
       id: recipe.id, name: recipe.name, category: recipe.category,
       yield: recipe.yield, time: recipe.time, img: recipe.img,
-      price: recipe.price, is_available: recipe.is_available,
+      price: recipe.price, is_available: recipe.is_available, is_for_sale: recipe.is_for_sale,
     });
     if (recErr) { setSaveError(recErr.message); setSaving(false); return; }
 
@@ -206,9 +208,27 @@ function NewRecipeModal({ inventory, categories, onSave, onClose }: { inventory:
                     }`}
                   >
                     <Icon name={isAvailable ? "check_circle" : "lock"} size={14} />
-                    {isAvailable ? "For Sale" : "Sold Out"}
+                    {isAvailable ? "In Stock" : "Sold Out"}
                   </button>
                 </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1.5">Storefront</label>
+                <button
+                  type="button"
+                  onClick={() => setIsForSale((v) => !v)}
+                  className={`w-full flex items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-xs font-bold border transition-colors ${
+                    isForSale
+                      ? "bg-secondary-container text-on-secondary-container border-secondary/30"
+                      : "bg-surface-container text-on-surface-variant border-outline-variant"
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <Icon name={isForSale ? "storefront" : "visibility_off"} size={14} />
+                    {isForSale ? "Shown on home page" : "Hidden (draft)"}
+                  </span>
+                  <Icon name="sync_alt" size={13} className="opacity-60" />
+                </button>
               </div>
             </>
           )}
@@ -462,6 +482,11 @@ export default function RecipesList({ recipes, inventory, onAddRecipe, onViewRec
                   {recipe.is_available === false && (
                     <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-error-container text-on-error-container uppercase tracking-wide">
                       <Icon name="lock" size={10} /> Sold Out
+                    </span>
+                  )}
+                  {recipe.is_for_sale === false && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant uppercase tracking-wide">
+                      <Icon name="visibility_off" size={10} /> Hidden
                     </span>
                   )}
                 </div>

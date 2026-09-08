@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS recipes (
   difficulty              text,
   price                   numeric DEFAULT 0,
   is_available            boolean DEFAULT true,
+  is_for_sale             boolean DEFAULT true,
   finished_shelf_life_days integer
 );
 ALTER TABLE recipes ADD COLUMN IF NOT EXISTS finished_shelf_life_days integer;
@@ -58,6 +59,7 @@ ALTER TABLE recipes ADD COLUMN IF NOT EXISTS description             text;
 ALTER TABLE recipes ADD COLUMN IF NOT EXISTS prep_time               text;
 ALTER TABLE recipes ADD COLUMN IF NOT EXISTS difficulty              text;
 ALTER TABLE recipes ADD COLUMN IF NOT EXISTS is_available            boolean DEFAULT true;
+ALTER TABLE recipes ADD COLUMN IF NOT EXISTS is_for_sale             boolean DEFAULT true;
 
 -- ── recipe_ingredients ───────────────────────────────────────
 CREATE TABLE IF NOT EXISTS recipe_ingredients (

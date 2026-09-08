@@ -68,6 +68,7 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
   );
   const [price, setPrice] = useState<string>(recipe.price != null ? String(recipe.price) : "");
   const [isAvailable, setIsAvailable] = useState(recipe.is_available ?? true);
+  const [isForSale, setIsForSale] = useState(recipe.is_for_sale ?? true);
 
   const totalTime = composeDuration(hours, minutes);
   const yieldAmt = yieldQty ? `${yieldQty} ${yieldUnit}` : "";
@@ -101,7 +102,7 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
     }
 
     // Update recipe basics
-    const { error: recErr } = await supabase.from("recipes").update({ name: recipeName, img: finalImg, description, prep_time: prepTime || null, difficulty: difficulty || null, time: totalTime || null, yield: yieldAmt || null, price: price === "" ? 0 : Number(price), is_available: isAvailable, finished_shelf_life_days: shelfLifeDays === "" ? null : parseInt(shelfLifeDays) || null }).eq("id", recipe.id);
+    const { error: recErr } = await supabase.from("recipes").update({ name: recipeName, img: finalImg, description, prep_time: prepTime || null, difficulty: difficulty || null, time: totalTime || null, yield: yieldAmt || null, price: price === "" ? 0 : Number(price), is_available: isAvailable, is_for_sale: isForSale, finished_shelf_life_days: shelfLifeDays === "" ? null : parseInt(shelfLifeDays) || null }).eq("id", recipe.id);
     if (recErr) { setSaveError(recErr.message); setSaving(false); return; }
     // Replace ingredients
     await supabase.from("recipe_ingredients").delete().eq("recipe_id", recipe.id);
@@ -292,7 +293,7 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
             </div>
 
             {/* Price + availability — what the public sees */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4 border-t border-outline-variant/10">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 border-t border-outline-variant/10">
               <div>
                 <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-widest mb-1">Selling Price (per unit)</p>
                 <div className="flex items-center gap-1">
@@ -321,7 +322,26 @@ export default function RecipeBuilder({ onBack, inventory, recipe }: Props) {
                 >
                   <span className="flex items-center gap-1.5">
                     <Icon name={isAvailable ? "check_circle" : "lock"} size={14} />
-                    {isAvailable ? "For Sale" : "Sold Out / Hidden"}
+                    {isAvailable ? "In Stock" : "Sold Out"}
+                  </span>
+                  {editing && <Icon name="sync_alt" size={14} className="opacity-60" />}
+                </button>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-widest mb-1">Storefront</p>
+                <button
+                  type="button"
+                  disabled={!editing}
+                  onClick={() => setIsForSale((v) => !v)}
+                  className={`w-full flex items-center justify-between gap-2 rounded-lg px-3 py-1.5 text-sm font-bold border transition-colors disabled:cursor-default ${
+                    isForSale
+                      ? "bg-secondary-container text-on-secondary-container border-secondary/30"
+                      : "bg-surface-container text-on-surface-variant border-outline-variant"
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <Icon name={isForSale ? "storefront" : "visibility_off"} size={14} />
+                    {isForSale ? "Shown" : "Hidden"}
                   </span>
                   {editing && <Icon name="sync_alt" size={14} className="opacity-60" />}
                 </button>

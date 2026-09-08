@@ -46,7 +46,7 @@ export default function PublicHome({ onPreOrder, currentUser, cartCount }: Props
         setRecipes((prev) => prev.find((r) => r.id === row.id) ? prev : [...prev, { ...row, ingredients: [], steps: [] }]);
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "recipes" }, ({ new: row }) => {
-        setRecipes((prev) => prev.map((r) => r.id === row.id ? { ...r, name: row.name, img: row.img, category: row.category, yield: row.yield, time: row.time, price: row.price ?? 0, is_available: row.is_available ?? true } : r));
+        setRecipes((prev) => prev.map((r) => r.id === row.id ? { ...r, name: row.name, img: row.img, category: row.category, yield: row.yield, time: row.time, price: row.price ?? 0, is_available: row.is_available ?? true, is_for_sale: row.is_for_sale ?? true } : r));
       })
       .on("postgres_changes", { event: "DELETE", schema: "public", table: "recipes" }, ({ old: row }) => {
         setRecipes((prev) => prev.filter((r) => r.id !== row.id));
@@ -57,6 +57,7 @@ export default function PublicHome({ onPreOrder, currentUser, cartCount }: Props
   }, []);
 
   const filtered = recipes.filter((r) => {
+    if (r.is_for_sale === false) return false; // hidden from storefront by admin
     const matchCat = activeCategory === "All" || r.category === activeCategory;
     return matchCat && r.name.toLowerCase().includes(search.toLowerCase());
   });
