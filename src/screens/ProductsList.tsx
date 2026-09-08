@@ -306,8 +306,9 @@ export default function ProductsList({ products, loading, onChanged }: Props) {
               const selling = p.is_for_sale !== false;
               return (
                 <div key={p.id} className="bg-surface-container-lowest rounded-xl border border-outline-variant/20 overflow-hidden">
-                  <div className="relative bg-surface-container" style={{ aspectRatio: "1/1" }}>
-                    <img src={p.img} alt={p.name} className={`w-full h-full object-contain ${selling ? "" : "grayscale opacity-60"}`} />
+                  <div className="relative overflow-hidden bg-surface-container" style={{ aspectRatio: "1/1" }}>
+                    <img src={p.img} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover scale-125 blur-2xl" />
+                    <img src={p.img} alt={p.name} className={`relative w-full h-full object-contain ${selling ? "" : "grayscale opacity-60"}`} />
                     {!selling && (
                       <span className="absolute top-2 left-2 inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant uppercase tracking-wide">
                         <Icon name="visibility_off" size={10} /> Hidden

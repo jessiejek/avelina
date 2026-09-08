@@ -256,8 +256,14 @@ function RecipeCard(props: {
       <div className="overflow-hidden relative bg-[#f4ece5]" style={{ aspectRatio: "1/1" }}>
         <img
           src={recipe.img}
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 w-full h-full object-cover scale-125 blur-2xl"
+        />
+        <img
+          src={recipe.img}
           alt={recipe.name}
-          className={`w-full h-full object-contain transition-transform duration-500 ${soldOut ? "grayscale" : "group-hover:scale-105"}`}
+          className={`relative w-full h-full object-contain transition-transform duration-500 ${soldOut ? "grayscale" : "group-hover:scale-105"}`}
         />
         {soldOut && (
           <div className="absolute top-3 left-3 bg-[#26170c] text-white text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full flex items-center gap-1">
