@@ -146,12 +146,25 @@ export default function PublicHome({ onPreOrder, currentUser, cartCount }: Props
               <span className="hidden sm:inline">My Orders</span>
             </button>
 
-            {currentUser && (
+            {currentUser ? (
+              <>
+                <span className="hidden sm:inline text-xs font-semibold text-[#26170c]/70">
+                  Hi, {currentUser.name.split(" ")[0]}
+                </span>
+                <button
+                  onClick={async () => { await supabase.auth.signOut(); navigate("/"); }}
+                  className="px-3 h-9 rounded-full border border-[#26170c]/20 text-xs font-semibold text-[#26170c]/60 hover:text-[#26170c] hover:bg-white transition-all"
+                >
+                  Sign Out
+                </button>
+              </>
+            ) : (
               <button
-                onClick={async () => { await supabase.auth.signOut(); navigate("/"); }}
-                className="px-3 h-9 rounded-full border border-[#26170c]/20 text-xs font-semibold text-[#26170c]/60 hover:text-[#26170c] hover:bg-white transition-all"
+                onClick={() => navigate("/login")}
+                className="flex items-center gap-1.5 px-4 h-9 rounded-full bg-[#26170c] text-white text-xs font-semibold hover:opacity-90 transition-all"
               >
-                Sign Out
+                <Icon name="person" size={14} />
+                Log in
               </button>
             )}
 
