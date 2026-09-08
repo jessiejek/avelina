@@ -66,8 +66,6 @@ export default function PublicHome({ onPreOrder, currentUser, cartCount }: Props
     // fire the onPreOrder (adds to cart state in App)
     onPreOrder(recipe);
 
-    if (!currentUser) return; // login redirect handled by parent, no animation needed
-
     // Get source and target positions
     const src = sourceEl.getBoundingClientRect();
     const tgt = cartBtnRef.current?.getBoundingClientRect();
@@ -127,42 +125,33 @@ export default function PublicHome({ onPreOrder, currentUser, cartCount }: Props
               />
             </div>
 
-            {currentUser ? (
-              <button
-                ref={cartBtnRef}
-                onClick={() => navigate("/cart")}
-                className="relative flex items-center gap-1.5 px-3 h-9 rounded-full bg-[#26170c] text-white text-xs font-semibold hover:opacity-90 transition-all"
-                style={{ transform: cartBump ? "scale(1.25)" : "scale(1)", transition: "transform 0.15s cubic-bezier(.36,.07,.19,.97)" }}
+            <button
+              ref={cartBtnRef}
+              onClick={() => navigate("/cart")}
+              className="relative flex items-center gap-1.5 px-3 h-9 rounded-full bg-[#26170c] text-white text-xs font-semibold hover:opacity-90 transition-all"
+              style={{ transform: cartBump ? "scale(1.25)" : "scale(1)", transition: "transform 0.15s cubic-bezier(.36,.07,.19,.97)" }}
+            >
+              <Icon name="shopping_bag" size={14} />
+              Cart
+              <span
+                className="bg-white text-[#26170c] rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold transition-all"
+                style={{ transform: cartBump ? "scale(1.4)" : "scale(1)", transition: "transform 0.15s cubic-bezier(.36,.07,.19,.97)" }}
               >
-                <Icon name="shopping_bag" size={14} />
-                Cart
-                <span
-                  className="bg-white text-[#26170c] rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold transition-all"
-                  style={{ transform: cartBump ? "scale(1.4)" : "scale(1)", transition: "transform 0.15s cubic-bezier(.36,.07,.19,.97)" }}
-                >
-                  {cartCount}
-                </span>
-              </button>
-            ) : null}
+                {cartCount}
+              </span>
+            </button>
 
-            {currentUser ? (
-              <>
-                <button onClick={() => navigate("/orders")} className="flex items-center gap-1.5 px-3 h-9 rounded-full border border-[#26170c]/20 text-xs font-semibold text-[#26170c] hover:bg-white transition-all">
-                  <div className="w-5 h-5 rounded-full bg-[#26170c] flex items-center justify-center">
-                    <span className="text-[8px] font-bold text-white">{currentUser.name.slice(0, 2).toUpperCase()}</span>
-                  </div>
-                  My Orders
-                </button>
-                <button
-                  onClick={async () => { await supabase.auth.signOut(); navigate("/"); }}
-                  className="px-3 h-9 rounded-full border border-[#26170c]/20 text-xs font-semibold text-[#26170c]/60 hover:text-[#26170c] hover:bg-white transition-all"
-                >
-                  Sign Out
-                </button>
-              </>
-            ) : (
-              <button onClick={() => navigate("/login")} className="px-4 h-9 rounded-full border border-[#26170c]/20 text-xs font-semibold text-[#26170c] hover:bg-white transition-all">
-                Sign In
+            <button onClick={() => navigate("/orders")} className="flex items-center gap-1.5 px-3 h-9 rounded-full border border-[#26170c]/20 text-xs font-semibold text-[#26170c] hover:bg-white transition-all">
+              <Icon name="receipt_long" size={14} />
+              <span className="hidden sm:inline">My Orders</span>
+            </button>
+
+            {currentUser && (
+              <button
+                onClick={async () => { await supabase.auth.signOut(); navigate("/"); }}
+                className="px-3 h-9 rounded-full border border-[#26170c]/20 text-xs font-semibold text-[#26170c]/60 hover:text-[#26170c] hover:bg-white transition-all"
+              >
+                Sign Out
               </button>
             )}
 
@@ -208,7 +197,6 @@ export default function PublicHome({ onPreOrder, currentUser, cartCount }: Props
             <RecipeCard
               key={recipe.id}
               recipe={recipe}
-              isLoggedIn={!!currentUser}
               onAddToCart={handleAddToCart}
             />
           ))}
@@ -224,6 +212,8 @@ export default function PublicHome({ onPreOrder, currentUser, cartCount }: Props
       {/* Footer */}
       <footer className="border-t border-[#26170c]/10 py-8 text-center text-xs text-[#26170c]/40">
         © {new Date().getFullYear()} Majaldita's Bakery · Made with love
+        {" · "}
+        <button onClick={() => navigate("/login")} className="underline hover:text-[#26170c]/70 transition-colors">Staff login</button>
       </footer>
     </div>
   );
@@ -231,11 +221,10 @@ export default function PublicHome({ onPreOrder, currentUser, cartCount }: Props
 
 function RecipeCard(props: {
   recipe: Recipe;
-  isLoggedIn: boolean;
   onAddToCart: (recipe: Recipe, el: HTMLButtonElement) => void;
   key?: React.Key;
 }) {
-  const { recipe, isLoggedIn, onAddToCart } = props;
+  const { recipe, onAddToCart } = props;
   const btnRef = useRef<HTMLButtonElement>(null);
   const [added, setAdded] = useState(false);
   const soldOut = recipe.is_available === false;
@@ -243,10 +232,8 @@ function RecipeCard(props: {
   const handleClick = () => {
     if (soldOut || !btnRef.current) return;
     onAddToCart(recipe, btnRef.current);
-    if (isLoggedIn) {
-      setAdded(true);
-      setTimeout(() => setAdded(false), 1200);
-    }
+    setAdded(true);
+    setTimeout(() => setAdded(false), 1200);
   };
 
   return (
@@ -285,7 +272,7 @@ function RecipeCard(props: {
           }}
         >
           <Icon name={soldOut ? "lock" : added ? "check" : "shopping_bag"} size={15} />
-          {soldOut ? "Sold Out" : added ? "Added!" : isLoggedIn ? "Add to Cart" : "Pre-Order"}
+          {soldOut ? "Sold Out" : added ? "Added!" : "Add to Cart"}
         </button>
       </div>
     </div>

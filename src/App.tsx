@@ -7,9 +7,8 @@ import AdminOrders from "./screens/AdminOrders.tsx";
 import ProductsList from "./screens/ProductsList.tsx";
 import PublicHome from "./screens/PublicHome.tsx";
 import LoginPage from "./screens/LoginPage.tsx";
-import ProfileSetup, { UserProfile } from "./screens/ProfileSetup.tsx";
 import CartPage, { CartItem } from "./screens/CartPage.tsx";
-import CheckoutPage, { Order } from "./screens/CheckoutPage.tsx";
+import CheckoutPage, { Order, GuestInfo } from "./screens/CheckoutPage.tsx";
 import OrderConfirmed from "./screens/OrderConfirmed.tsx";
 import OrdersPage from "./screens/OrdersPage.tsx";
 import Icon from "./components/Icon.tsx";
@@ -109,10 +108,19 @@ function AdminShell() {
 
 // ── Public shell ──────────────────────────────────────────────
 
+const emptyGuest: GuestInfo = { name: "", phone: "", address: "", fulfillment: "pickup" };
+
+function rememberOrderId(id: string) {
+  try {
+    const raw = localStorage.getItem("majalditas_orders_v1");
+    const ids: string[] = raw ? JSON.parse(raw) : [];
+    if (!ids.includes(id)) localStorage.setItem("majalditas_orders_v1", JSON.stringify([id, ...ids]));
+  } catch {}
+}
+
 function PublicShell() {
   const navigate = useNavigate();
   const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [cart, setCart] = useState<CartItem[]>(() => {
     try {
       const saved = localStorage.getItem("avelinas_cart_v1");
@@ -121,9 +129,15 @@ function PublicShell() {
       return [];
     }
   });
-  const [pendingRecipe, setPendingRecipe] = useState<Recipe | null>(null);
+  const [guest, setGuest] = useState<GuestInfo>(() => {
+    try {
+      const saved = localStorage.getItem("majalditas_guest_v1");
+      return saved ? { ...emptyGuest, ...JSON.parse(saved) } : emptyGuest;
+    } catch {
+      return emptyGuest;
+    }
+  });
   const [lastOrder, setLastOrder] = useState<Order | null>(null);
-  const [profileLoading, setProfileLoading] = useState(true);
 
   const currentUser = session
     ? {
@@ -132,83 +146,34 @@ function PublicShell() {
       }
     : null;
 
-  // Auth listener
+  // Only job of auth here: bounce admins to the dashboard.
   useEffect(() => {
-    const redirectByRole = async (session: Session | null) => {
-      if (!session) return;
-      const { data } = await supabase.from("users").select("id, role").eq("id", session.user.id).single();
-      if (!data) {
-        navigate("/profile/setup");
-      } else if (data.role === "admin") {
-        navigate("/admin");
-      }
+    const checkAdmin = async (s: Session | null) => {
+      if (!s) return;
+      const { data } = await supabase.from("users").select("role").eq("id", s.user.id).single();
+      if (data?.role === "admin") navigate("/admin");
     };
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      redirectByRole(session);
+      checkAdmin(session);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
-      if (event === "SIGNED_IN") {
-        redirectByRole(session);
-      }
+      if (event === "SIGNED_IN") checkAdmin(session);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  // Persist cart to localStorage on every change
   useEffect(() => {
     try { localStorage.setItem("avelinas_cart_v1", JSON.stringify(cart)); } catch {}
   }, [cart]);
 
-  // Load profile whenever session changes
   useEffect(() => {
-    if (!session) { setProfile(null); setProfileLoading(false); return; }
-    setProfileLoading(true);
-    supabase
-      .from("users")
-      .select("*")
-      .eq("id", session.user.id)
-      .single()
-      .then(({ data }) => {
-        if (data) setProfile({ name: data.name, email: session.user.email || "", phone: data.phone, address: data.address });
-        setProfileLoading(false);
-      });
-  }, [session]);
-
-  const handleLogin = async (_user: { name: string; email: string }) => {
-    const { data: { session: s } } = await supabase.auth.getSession();
-    if (!s) return;
-
-    const { data: profileData } = await supabase
-      .from("users").select("id, role").eq("id", s.user.id).single();
-
-    if (!profileData) {
-      navigate("/profile/setup");
-    } else if (profileData.role === "admin") {
-      navigate("/admin");
-    } else if (pendingRecipe) {
-      addToCart(pendingRecipe);
-      setPendingRecipe(null);
-      navigate("/cart");
-    } else {
-      navigate("/");
-    }
-  };
-
-  const handleProfileSave = (p: UserProfile) => {
-    setProfile(p);
-    if (pendingRecipe) {
-      addToCart(pendingRecipe);
-      setPendingRecipe(null);
-      navigate("/cart");
-    } else {
-      navigate("/");
-    }
-  };
+    try { localStorage.setItem("majalditas_guest_v1", JSON.stringify(guest)); } catch {}
+  }, [guest]);
 
   const addToCart = (recipe: Recipe) => {
     setCart((prev) => {
@@ -220,74 +185,53 @@ function PublicShell() {
     });
   };
 
-  const handlePreOrder = (recipe: Recipe) => {
-    if (!currentUser) {
-      setPendingRecipe(recipe);
-      navigate("/login");
-    } else if (!profile) {
-      setPendingRecipe(recipe);
-      navigate("/profile/setup");
-    } else {
-      addToCart(recipe);
-    }
+  const handleLogin = async () => {
+    const { data: { session: s } } = await supabase.auth.getSession();
+    if (!s) { navigate("/"); return; }
+    const { data } = await supabase.from("users").select("role").eq("id", s.user.id).single();
+    navigate(data?.role === "admin" ? "/admin" : "/");
   };
 
   const handlePlaceOrder = (order: Order) => {
+    rememberOrderId(order.id);
     setLastOrder(order);
     setCart([]);
     try { localStorage.removeItem("avelinas_cart_v1"); } catch {}
     navigate("/order-confirmed");
   };
 
+  const updateQty = (i: number, qty: number) => setCart((prev) => prev.map((item, idx) => idx === i ? { ...item, qty } : item));
+  const updateDate = (i: number, date: string) => setCart((prev) => prev.map((item, idx) => idx === i ? { ...item, date } : item));
+
   return (
     <Routes>
-      <Route path="/" element={<PublicHome onPreOrder={handlePreOrder} currentUser={currentUser} cartCount={cart.length} />} />
+      <Route path="/" element={<PublicHome onPreOrder={addToCart} currentUser={currentUser} cartCount={cart.length} />} />
       <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
-      <Route path="/profile/setup" element={
-        profileLoading
-          ? <div className="min-h-screen bg-[#fff8f5] flex items-center justify-center"><p className="text-sm text-[#26170c]/40">Loading…</p></div>
-          : !currentUser
-            ? <Navigate to="/login" replace />
-            : profile
-              ? <Navigate to="/" replace />
-              : <ProfileSetup user={currentUser} onSave={handleProfileSave} />
-      } />
+      <Route path="/profile/setup" element={<Navigate to="/" replace />} />
       <Route path="/cart" element={
-        profileLoading
-          ? <div className="min-h-screen bg-[#fff8f5] flex items-center justify-center"><p className="text-sm text-[#26170c]/40">Loading…</p></div>
-          : !session
-            ? <Navigate to="/login" replace />
-            : !profile
-              ? <Navigate to="/profile/setup" replace />
-              : <CartPage
-                  cart={cart}
-                  profile={profile}
-                  onUpdateQty={(i, qty) => setCart((prev) => prev.map((item, idx) => idx === i ? { ...item, qty } : item))}
-                  onUpdateDate={(i, date) => setCart((prev) => prev.map((item, idx) => idx === i ? { ...item, date } : item))}
-                  onRemove={(i) => setCart((prev) => prev.filter((_, idx) => idx !== i))}
-                  onCheckout={() => navigate("/checkout")}
-                />
+        <CartPage
+          cart={cart}
+          onUpdateQty={updateQty}
+          onUpdateDate={updateDate}
+          onRemove={(i) => setCart((prev) => prev.filter((_, idx) => idx !== i))}
+          onCheckout={() => navigate("/checkout")}
+        />
       } />
       <Route path="/checkout" element={
-        profileLoading
-          ? <div className="min-h-screen bg-[#fff8f5] flex items-center justify-center"><p className="text-sm text-[#26170c]/40">Loading…</p></div>
-          : !session
-            ? <Navigate to="/login" replace />
-            : !profile
-              ? <Navigate to="/profile/setup" replace />
-              : cart.length === 0
-                ? <Navigate to="/cart" replace />
-                : <CheckoutPage
-                    cart={cart}
-                    profile={profile}
-                    userId={session.user.id}
-                    onUpdateQty={(i, qty) => setCart((prev) => prev.map((item, idx) => idx === i ? { ...item, qty } : item))}
-                    onUpdateDate={(i, date) => setCart((prev) => prev.map((item, idx) => idx === i ? { ...item, date } : item))}
-                    onPlaceOrder={handlePlaceOrder}
-                  />
+        cart.length === 0
+          ? <Navigate to="/cart" replace />
+          : <CheckoutPage
+              cart={cart}
+              guest={guest}
+              userId={session?.user?.id ?? null}
+              onSaveGuest={setGuest}
+              onUpdateQty={updateQty}
+              onUpdateDate={updateDate}
+              onPlaceOrder={handlePlaceOrder}
+            />
       } />
       <Route path="/order-confirmed" element={<OrderConfirmed order={lastOrder} />} />
-      <Route path="/orders" element={<OrdersPage profile={profile} />} />
+      <Route path="/orders" element={<OrdersPage />} />
     </Routes>
   );
 }

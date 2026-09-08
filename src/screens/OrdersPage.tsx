@@ -2,12 +2,16 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Icon from "../components/Icon.tsx";
 import { Order } from "./CheckoutPage.tsx";
-import { UserProfile } from "./ProfileSetup.tsx";
 import { supabase } from "../lib/supabase.ts";
 import { peso } from "../lib/money.ts";
 
-interface Props {
-  profile: UserProfile | null;
+function myOrderIds(): string[] {
+  try {
+    const raw = localStorage.getItem("majalditas_orders_v1");
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
 }
 
 const statusColor = (s: Order["status"]) => {
@@ -26,22 +30,25 @@ const statusLabel = (s: Order["status"]) => {
   return "Pending";
 };
 
-export default function OrdersPage({ profile }: Props) {
+export default function OrdersPage() {
   const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchOrders = async () => {
+    const ids = myOrderIds();
+    if (ids.length === 0) { setOrders([]); setLoading(false); return; }
     const { data } = await supabase
       .from("orders")
       .select("*, order_items(qty, pickup_date, recipes(*))")
+      .in("id", ids)
       .order("placed_at", { ascending: false });
     if (data) {
       setOrders(data.map((o) => ({
         id: o.id,
         placedAt: o.placed_at,
         status: o.status,
-        profile: profile || { name: "", email: "", phone: "", address: "" },
+        profile: { name: o.customer_name || "", email: "", phone: o.customer_phone || "", address: o.delivery_address || "" },
         items: (o.order_items || []).map((item: any) => ({
           recipe: item.recipes,
           qty: item.qty,
@@ -81,18 +88,6 @@ export default function OrdersPage({ profile }: Props) {
       </header>
 
       <div className="max-w-2xl mx-auto px-6 py-8 space-y-4">
-        {profile && (
-          <div className="flex items-center gap-3 bg-white rounded-xl px-4 py-3 border border-[#26170c]/8">
-            <div className="w-9 h-9 rounded-full bg-[#26170c] flex items-center justify-center shrink-0">
-              <span className="text-xs font-bold text-white">{profile.name.slice(0, 2).toUpperCase()}</span>
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-[#26170c]">{profile.name}</p>
-              <p className="text-xs text-[#26170c]/50">{profile.email}</p>
-            </div>
-          </div>
-        )}
-
         {loading ? (
           <div className="py-24 text-center text-[#26170c]/40 text-sm">Loading orders…</div>
         ) : orders.length === 0 ? (

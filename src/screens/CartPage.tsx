@@ -2,7 +2,6 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import Icon from "../components/Icon.tsx";
 import { Recipe } from "../data/recipes.ts";
-import { UserProfile } from "./ProfileSetup.tsx";
 import { peso } from "../lib/money.ts";
 import AvailableDatePicker from "../components/AvailableDatePicker.tsx";
 
@@ -14,14 +13,13 @@ export interface CartItem {
 
 interface Props {
   cart: CartItem[];
-  profile: UserProfile;
   onUpdateQty: (index: number, qty: number) => void;
   onUpdateDate: (index: number, date: string) => void;
   onRemove: (index: number) => void;
   onCheckout: () => void;
 }
 
-export default function CartPage({ cart, profile, onUpdateQty, onUpdateDate, onRemove, onCheckout }: Props) {
+export default function CartPage({ cart, onUpdateQty, onUpdateDate, onRemove, onCheckout }: Props) {
   const navigate = useNavigate();
 
   return (
@@ -37,17 +35,6 @@ export default function CartPage({ cart, profile, onUpdateQty, onUpdateDate, onR
       </header>
 
       <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
-        {/* Profile pill */}
-        <div className="flex items-center gap-3 bg-white rounded-xl px-4 py-3 border border-[#26170c]/8">
-          <div className="w-9 h-9 rounded-full bg-[#26170c] flex items-center justify-center shrink-0">
-            <span className="text-xs font-bold text-white">{profile.name.slice(0, 2).toUpperCase()}</span>
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-[#26170c]">{profile.name}</p>
-            <p className="text-xs text-[#26170c]/50">{profile.phone} · {profile.address}</p>
-          </div>
-        </div>
-
         {cart.length === 0 ? (
           <div className="py-24 text-center">
             <Icon name="shopping_bag" size={48} className="mx-auto mb-4 text-[#26170c]/20" />
