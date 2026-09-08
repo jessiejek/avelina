@@ -319,6 +319,9 @@ export default function AdminOrders() {
                         {/* Items */}
                         <div className="space-y-2">
                           <p className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider">Items</p>
+                          {order.items.length === 0 && (
+                            <p className="text-xs text-error">No items recorded for this order.</p>
+                          )}
                           {order.items.map((item, i) => (
                             <div key={i} className="flex items-center gap-3">
                               <div className="w-9 h-9 rounded-lg overflow-hidden shrink-0 bg-surface-container">

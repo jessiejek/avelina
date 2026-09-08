@@ -92,15 +92,30 @@ export default function CheckoutPage({ cart, guest, userId, onSaveGuest, onUpdat
       gcash_reference: paymentMethod === "gcash" ? gcashRef.trim() : null,
     });
 
-    if (orderErr) { setError(orderErr.message); setLoading(false); return; }
+    if (orderErr) {
+      console.error("order insert failed:", orderErr);
+      setError(`Could not place order: ${orderErr.message}`);
+      setLoading(false);
+      return;
+    }
 
-    for (const item of cart) {
-      await supabase.from("order_items").insert({
-        order_id: orderId,
-        recipe_id: item.recipe.id,
-        qty: item.qty,
-        unit_price: item.recipe.price ?? 0,
-      });
+    const itemRows = cart.map((item) => ({
+      order_id: orderId,
+      recipe_id: item.recipe.id,
+      qty: item.qty,
+      unit_price: item.recipe.price ?? 0,
+    }));
+    const { data: insertedItems, error: itemsErr } = await supabase
+      .from("order_items")
+      .insert(itemRows)
+      .select();
+
+    if (itemsErr || !insertedItems || insertedItems.length !== itemRows.length) {
+      console.error("order_items insert failed:", itemsErr, { attempted: itemRows, inserted: insertedItems });
+      await supabase.from("orders").delete().eq("id", orderId);
+      setError(`Could not save your order items: ${itemsErr?.message || "no rows were saved"}`);
+      setLoading(false);
+      return;
     }
 
     setLoading(false);

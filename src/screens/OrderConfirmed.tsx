@@ -29,6 +29,15 @@ export default function OrderConfirmed({ order }: Props) {
         Your order <span className="font-bold text-[#26170c]">#{order.id}</span> has been placed. We'll get it ready for you.
       </p>
 
+      <div className="bg-[#fff3ec] border border-[#26170c]/10 rounded-2xl p-4 w-full max-w-sm mt-4 text-left flex gap-3">
+        <Icon name="sms" size={20} className="text-[#26170c]/50 shrink-0 mt-0.5" />
+        <p className="text-xs text-[#26170c]/70 leading-relaxed">
+          There's no live order tracking here yet, so you won't get a status update in the app.
+          We'll <span className="font-semibold text-[#26170c]">text you at {order.profile.phone || "the number you provided"}</span> to
+          confirm we've received your order and again when it's ready for pickup.
+        </p>
+      </div>
+
       <div className="bg-white rounded-2xl border border-[#26170c]/8 p-5 w-full max-w-sm mt-6 mb-8 text-left space-y-3">
         <h3 className="font-bold text-[#26170c] text-sm mb-1" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>Order Details</h3>
         {order.items.map((item, i) => (
