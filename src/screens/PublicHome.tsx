@@ -112,7 +112,7 @@ export default function PublicHome({ onPreOrder, currentUser, cartCount }: Props
       <header className="sticky top-0 z-50 bg-[#fff8f5]/90 backdrop-blur-md border-b border-[#26170c]/10">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <h1 className="font-bold text-[#26170c]">
-            <img src="/autograf-personal-use-only.png" alt="Majaldita's" className="h-8 w-auto" />
+            <img src="/majaldita.png" alt="Majaldita's" className="h-8 w-auto" />
           </h1>
           <div className="flex items-center gap-3">
             <div className="hidden md:flex items-center gap-2 bg-white border border-[#26170c]/10 rounded-full px-4 py-2">

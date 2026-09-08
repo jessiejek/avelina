@@ -70,6 +70,7 @@ export default function CheckoutPage({ cart, guest, userId, onSaveGuest, onUpdat
   const handlePlaceOrder = async () => {
     if (cart.length === 0) return;
     if (!name.trim()) { setError("Please enter your full name."); return; }
+    if (!phone.trim()) { setError("Please enter your phone number."); return; }
     if (!allDatesSet) { setError("Please set a date for each item."); return; }
     if (fulfillment === "delivery" && !address.trim()) { setError("Please enter a delivery address."); return; }
     if (paymentMethod === "gcash" && !gcashRef.trim()) { setError("Please enter your GCash reference number."); return; }
@@ -87,7 +88,7 @@ export default function CheckoutPage({ cart, guest, userId, onSaveGuest, onUpdat
       status: "pending",
       fulfillment_type: fulfillment,
       customer_name: name.trim(),
-      customer_phone: phone.trim() || null,
+      customer_phone: phone.trim(),
       delivery_address: fulfillment === "delivery" ? address.trim() || null : null,
       notes: notes.trim() || null,
       placed_at: now,
@@ -142,7 +143,7 @@ export default function CheckoutPage({ cart, guest, userId, onSaveGuest, onUpdat
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-[#26170c]/50 uppercase tracking-wider mb-1.5">Phone (optional)</label>
+            <label className="block text-xs font-semibold text-[#26170c]/50 uppercase tracking-wider mb-1.5">Phone *</label>
             <input type="tel" className={inputCls} placeholder="+63 912 345 6789" value={phone} onChange={(e) => setPhone(e.target.value)} />
           </div>
 
