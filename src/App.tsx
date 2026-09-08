@@ -108,7 +108,7 @@ function AdminShell() {
 
 // ── Public shell ──────────────────────────────────────────────
 
-const emptyGuest: GuestInfo = { name: "", phone: "", address: "", fulfillment: "pickup" };
+const emptyGuest: GuestInfo = { name: "", phone: "", social: "", address: "", fulfillment: "pickup" };
 
 function rememberOrderId(id: string) {
   try {

@@ -21,6 +21,7 @@ interface AdminOrder {
   notes: string | null;
   customerName: string;
   customerPhone: string;
+  customerSocial: string;
   customerAddress: string;
   items: AdminOrderItem[];
 }
@@ -48,6 +49,7 @@ function mapOrder(o: any): AdminOrder {
     notes: o.notes ?? null,
     customerName: o.users?.name || o.customer_name || "Walk-in customer",
     customerPhone: o.users?.phone || o.customer_phone || "",
+    customerSocial: o.customer_social || "",
     customerAddress: o.delivery_address || o.users?.address || "",
     items: (o.order_items || []).map((it: any) => ({
       id: it.id || "",
@@ -301,6 +303,11 @@ export default function AdminOrders() {
                           {order.customerPhone && (
                             <p className="text-xs text-on-surface-variant flex items-center gap-1.5">
                               <Icon name="call" size={12} /> {order.customerPhone}
+                            </p>
+                          )}
+                          {order.customerSocial && (
+                            <p className="text-xs text-on-surface-variant flex items-center gap-1.5">
+                              <Icon name="share" size={12} /> {order.customerSocial}
                             </p>
                           )}
                           {order.fulfillmentType === "delivery" && (

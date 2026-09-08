@@ -9,6 +9,7 @@ import { peso } from "../lib/money.ts";
 export interface GuestInfo {
   name: string;
   phone: string;
+  social: string;
   address: string;
   fulfillment: "pickup" | "delivery";
 }
@@ -34,6 +35,7 @@ export default function CheckoutPage({ cart, guest, userId, onSaveGuest, onUpdat
   const navigate = useNavigate();
   const [name, setName] = useState(guest.name);
   const [phone, setPhone] = useState(guest.phone);
+  const [social, setSocial] = useState(guest.social || "");
   const [address, setAddress] = useState(guest.address);
   const [fulfillment, setFulfillment] = useState<"pickup" | "delivery">(guest.fulfillment || "pickup");
   const [notes, setNotes] = useState("");
@@ -73,7 +75,7 @@ export default function CheckoutPage({ cart, guest, userId, onSaveGuest, onUpdat
 
     setLoading(true);
     setError("");
-    onSaveGuest({ name: name.trim(), phone: phone.trim(), address: address.trim(), fulfillment });
+    onSaveGuest({ name: name.trim(), phone: phone.trim(), social: social.trim(), address: address.trim(), fulfillment });
 
     const orderId = `MJ-${Date.now().toString().slice(-6)}`;
     const now = new Date().toISOString();
@@ -85,6 +87,7 @@ export default function CheckoutPage({ cart, guest, userId, onSaveGuest, onUpdat
       fulfillment_type: fulfillment,
       customer_name: name.trim(),
       customer_phone: phone.trim(),
+      customer_social: social.trim() || null,
       delivery_address: fulfillment === "delivery" ? address.trim() || null : null,
       notes: notes.trim() || null,
       placed_at: now,
@@ -155,6 +158,11 @@ export default function CheckoutPage({ cart, guest, userId, onSaveGuest, onUpdat
           <div>
             <label className="block text-xs font-semibold text-[#26170c]/50 uppercase tracking-wider mb-1.5">Phone *</label>
             <input type="tel" className={inputCls} placeholder="+63 912 345 6789" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-[#26170c]/50 uppercase tracking-wider mb-1.5">Facebook / Instagram (optional)</label>
+            <input className={inputCls} placeholder="facebook.com/yourname or @yourhandle" value={social} onChange={(e) => setSocial(e.target.value)} />
           </div>
 
           <div>
