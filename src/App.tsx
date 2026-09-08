@@ -181,7 +181,7 @@ function PublicShell() {
       if (existing >= 0) {
         return prev.map((item, i) => i === existing ? { ...item, qty: item.qty + 1 } : item);
       }
-      return [...prev, { recipe, qty: 1, date: "" }];
+      return [...prev, { recipe, qty: 1 }];
     });
   };
 
@@ -201,7 +201,6 @@ function PublicShell() {
   };
 
   const updateQty = (i: number, qty: number) => setCart((prev) => prev.map((item, idx) => idx === i ? { ...item, qty } : item));
-  const updateDate = (i: number, date: string) => setCart((prev) => prev.map((item, idx) => idx === i ? { ...item, date } : item));
 
   return (
     <Routes>
@@ -212,7 +211,6 @@ function PublicShell() {
         <CartPage
           cart={cart}
           onUpdateQty={updateQty}
-          onUpdateDate={updateDate}
           onRemove={(i) => setCart((prev) => prev.filter((_, idx) => idx !== i))}
           onCheckout={() => navigate("/checkout")}
         />
@@ -226,7 +224,6 @@ function PublicShell() {
               userId={session?.user?.id ?? null}
               onSaveGuest={setGuest}
               onUpdateQty={updateQty}
-              onUpdateDate={updateDate}
               onPlaceOrder={handlePlaceOrder}
             />
       } />

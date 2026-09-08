@@ -5,7 +5,6 @@ import { CartItem } from "./CartPage.tsx";
 import { UserProfile } from "./ProfileSetup.tsx";
 import { supabase } from "../lib/supabase.ts";
 import { peso } from "../lib/money.ts";
-import AvailableDatePicker from "../components/AvailableDatePicker.tsx";
 
 export interface GuestInfo {
   name: string;
@@ -28,11 +27,10 @@ interface Props {
   userId: string | null;
   onSaveGuest: (g: GuestInfo) => void;
   onUpdateQty: (index: number, qty: number) => void;
-  onUpdateDate: (index: number, date: string) => void;
   onPlaceOrder: (order: Order) => void;
 }
 
-export default function CheckoutPage({ cart, guest, userId, onSaveGuest, onUpdateQty, onUpdateDate, onPlaceOrder }: Props) {
+export default function CheckoutPage({ cart, guest, userId, onSaveGuest, onUpdateQty, onPlaceOrder }: Props) {
   const navigate = useNavigate();
   const [name, setName] = useState(guest.name);
   const [phone, setPhone] = useState(guest.phone);
@@ -64,14 +62,12 @@ export default function CheckoutPage({ cart, guest, userId, onSaveGuest, onUpdat
     );
   };
 
-  const allDatesSet = cart.every((item) => item.date);
   const total = cart.reduce((s, i) => s + (i.recipe.price ?? 0) * i.qty, 0);
 
   const handlePlaceOrder = async () => {
     if (cart.length === 0) return;
     if (!name.trim()) { setError("Please enter your full name."); return; }
     if (!phone.trim()) { setError("Please enter your phone number."); return; }
-    if (!allDatesSet) { setError("Please set a date for each item."); return; }
     if (fulfillment === "delivery" && !address.trim()) { setError("Please enter a delivery address."); return; }
     if (paymentMethod === "gcash" && !gcashRef.trim()) { setError("Please enter your GCash reference number."); return; }
 
@@ -103,7 +99,6 @@ export default function CheckoutPage({ cart, guest, userId, onSaveGuest, onUpdat
         order_id: orderId,
         recipe_id: item.recipe.id,
         qty: item.qty,
-        pickup_date: item.date,
         unit_price: item.recipe.price ?? 0,
       });
     }
@@ -197,24 +192,16 @@ export default function CheckoutPage({ cart, guest, userId, onSaveGuest, onUpdat
                   <p className="text-xs text-[#26170c]/50">{item.recipe.category}</p>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-[#26170c]/50 uppercase tracking-wider mb-1.5">Quantity</label>
-                  <div className="flex items-center gap-2 border border-[#26170c]/15 rounded-lg w-fit">
-                    <button onClick={() => onUpdateQty(i, Math.max(1, item.qty - 1))} className="w-9 h-9 flex items-center justify-center text-[#26170c]/60 hover:text-[#26170c]">
-                      <Icon name="remove" size={14} />
-                    </button>
-                    <span className="w-8 text-center text-sm font-bold text-[#26170c] font-mono">{item.qty}</span>
-                    <button onClick={() => onUpdateQty(i, item.qty + 1)} className="w-9 h-9 flex items-center justify-center text-[#26170c]/60 hover:text-[#26170c]">
-                      <Icon name="add" size={14} />
-                    </button>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-[#26170c]/50 uppercase tracking-wider mb-1.5">
-                    {fulfillment === "delivery" ? "Delivery Date" : "Pickup Date"}
-                  </label>
-                  <AvailableDatePicker value={item.date} onChange={(date) => onUpdateDate(i, date)} />
+              <div>
+                <label className="block text-xs font-semibold text-[#26170c]/50 uppercase tracking-wider mb-1.5">Quantity</label>
+                <div className="flex items-center gap-2 border border-[#26170c]/15 rounded-lg w-fit">
+                  <button onClick={() => onUpdateQty(i, Math.max(1, item.qty - 1))} className="w-9 h-9 flex items-center justify-center text-[#26170c]/60 hover:text-[#26170c]">
+                    <Icon name="remove" size={14} />
+                  </button>
+                  <span className="w-8 text-center text-sm font-bold text-[#26170c] font-mono">{item.qty}</span>
+                  <button onClick={() => onUpdateQty(i, item.qty + 1)} className="w-9 h-9 flex items-center justify-center text-[#26170c]/60 hover:text-[#26170c]">
+                    <Icon name="add" size={14} />
+                  </button>
                 </div>
               </div>
             </div>
@@ -270,7 +257,6 @@ export default function CheckoutPage({ cart, guest, userId, onSaveGuest, onUpdat
               <span className="text-[#26170c]/70">{item.recipe.name} <span className="text-[#26170c]/40 font-mono">x{item.qty}</span></span>
               <div className="text-right">
                 <span className="font-mono font-semibold text-[#26170c]">{peso((item.recipe.price ?? 0) * item.qty)}</span>
-                {item.date && <span className="block text-xs text-[#26170c]/40">{item.date}</span>}
               </div>
             </div>
           ))}

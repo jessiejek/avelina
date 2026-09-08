@@ -40,7 +40,7 @@ export default function OrdersPage() {
     if (ids.length === 0) { setOrders([]); setLoading(false); return; }
     const { data } = await supabase
       .from("orders")
-      .select("*, order_items(qty, pickup_date, recipes(*))")
+      .select("*, order_items(qty, recipes(*))")
       .in("id", ids)
       .order("placed_at", { ascending: false });
     if (data) {
@@ -52,7 +52,6 @@ export default function OrdersPage() {
         items: (o.order_items || []).map((item: any) => ({
           recipe: item.recipes,
           qty: item.qty,
-          date: item.pickup_date,
         })),
       })));
     }
@@ -118,7 +117,7 @@ export default function OrdersPage() {
                     </div>
                     <div className="flex-1">
                       <p className="text-sm font-semibold text-[#26170c]">{item.recipe.name}</p>
-                      <p className="text-xs text-[#26170c]/50">x{item.qty} · Pickup {item.date}</p>
+                      <p className="text-xs text-[#26170c]/50">x{item.qty}</p>
                     </div>
                     <span className="text-sm font-semibold text-[#26170c] font-mono shrink-0">{peso((item.recipe.price ?? 0) * item.qty)}</span>
                   </div>

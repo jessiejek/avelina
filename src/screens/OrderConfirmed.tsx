@@ -38,7 +38,7 @@ export default function OrderConfirmed({ order }: Props) {
             </div>
             <div className="flex-1">
               <p className="text-sm font-semibold text-[#26170c]">{item.recipe.name}</p>
-              <p className="text-xs text-[#26170c]/50">x{item.qty} · Pickup {item.date}</p>
+              <p className="text-xs text-[#26170c]/50">x{item.qty}</p>
             </div>
             <span className="text-sm font-semibold text-[#26170c] font-mono shrink-0">{peso((item.recipe.price ?? 0) * item.qty)}</span>
           </div>

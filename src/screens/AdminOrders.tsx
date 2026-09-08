@@ -10,7 +10,6 @@ interface AdminOrderItem {
   name: string;
   img: string;
   qty: number;
-  pickupDate: string;
   unitPrice: number;
 }
 
@@ -55,13 +54,12 @@ function mapOrder(o: any): AdminOrder {
       name: it.recipes?.name || "—",
       img: it.recipes?.img || "",
       qty: it.qty,
-      pickupDate: it.pickup_date,
       unitPrice: it.unit_price ?? it.recipes?.price ?? 0,
     })),
   };
 }
 
-const SELECT = "*, users(name, phone, address), order_items(id, qty, pickup_date, unit_price, recipes(id, name, img, price))";
+const SELECT = "*, users(name, phone, address), order_items(id, qty, unit_price, recipes(id, name, img, price))";
 
 type Filter = "all" | "active" | "completed" | "cancelled";
 
@@ -97,7 +95,7 @@ export default function AdminOrders() {
     // Fallback without the users join (RLS can block it)
     const { data: bare, error: bareErr } = await supabase
       .from("orders")
-      .select("*, order_items(id, qty, pickup_date, unit_price, recipes(id, name, img, price))")
+      .select("*, order_items(id, qty, unit_price, recipes(id, name, img, price))")
       .order("placed_at", { ascending: false });
 
     if (bareErr || !bare) {
@@ -328,7 +326,6 @@ export default function AdminOrders() {
                               </div>
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-semibold text-primary truncate">{item.name}</p>
-                                <p className="text-xs text-on-surface-variant">{order.fulfillmentType === "delivery" ? "Deliver" : "Pickup"}: {item.pickupDate || "—"}</p>
                               </div>
                               <span className="text-sm font-bold text-primary font-mono shrink-0">×{item.qty}</span>
                               <span className="text-xs text-on-surface-variant font-mono shrink-0">{peso(item.unitPrice * item.qty)}</span>

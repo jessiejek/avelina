@@ -3,23 +3,20 @@ import { useNavigate } from "react-router-dom";
 import Icon from "../components/Icon.tsx";
 import { Recipe } from "../data/recipes.ts";
 import { peso } from "../lib/money.ts";
-import AvailableDatePicker from "../components/AvailableDatePicker.tsx";
 
 export interface CartItem {
   recipe: Recipe;
   qty: number;
-  date: string;
 }
 
 interface Props {
   cart: CartItem[];
   onUpdateQty: (index: number, qty: number) => void;
-  onUpdateDate: (index: number, date: string) => void;
   onRemove: (index: number) => void;
   onCheckout: () => void;
 }
 
-export default function CartPage({ cart, onUpdateQty, onUpdateDate, onRemove, onCheckout }: Props) {
+export default function CartPage({ cart, onUpdateQty, onRemove, onCheckout }: Props) {
   const navigate = useNavigate();
 
   return (
@@ -52,8 +49,7 @@ export default function CartPage({ cart, onUpdateQty, onUpdateDate, onRemove, on
                     <img src={item.recipe.img} alt={item.recipe.name} className="w-full h-full object-cover" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-[#26170c] text-sm leading-tight mb-1" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>{item.recipe.name}</h3>
-                    <p className="text-xs text-[#26170c]/50 mb-3">Pickup: <span className="font-semibold text-[#26170c]/70">{item.date || "—"}</span></p>
+                    <h3 className="font-bold text-[#26170c] text-sm leading-tight mb-3" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>{item.recipe.name}</h3>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 border border-[#26170c]/15 rounded-lg">
                         <button onClick={() => onUpdateQty(i, Math.max(1, item.qty - 1))} className="w-8 h-8 flex items-center justify-center text-[#26170c]/60 hover:text-[#26170c] transition-colors">
@@ -67,10 +63,6 @@ export default function CartPage({ cart, onUpdateQty, onUpdateDate, onRemove, on
                       <button onClick={() => onRemove(i)} className="text-xs text-red-400 hover:text-red-600 transition-colors font-semibold">
                         Remove
                       </button>
-                    </div>
-                    <div className="mt-2">
-                      <label className="block text-xs font-semibold text-[#26170c]/50 uppercase tracking-wider mb-1.5">Pickup Date</label>
-                      <AvailableDatePicker value={item.date} onChange={(date) => onUpdateDate(i, date)} />
                     </div>
                   </div>
                 </div>
