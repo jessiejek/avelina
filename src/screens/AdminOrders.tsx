@@ -29,15 +29,17 @@ interface AdminOrder {
 const isDoneStatus = (s: OrderStatus) => s === "completed" || s === "cancelled";
 
 const statusStyle = (s: OrderStatus) => {
-  if (s === "completed") return "bg-secondary text-white";
-  if (s === "cancelled") return "bg-error-container text-on-error-container";
-  return "bg-primary-container text-on-primary-fixed";
+  if (s === "completed") return "bg-green-100 text-green-800 border border-green-300";
+  if (s === "cancelled") return "bg-red-100 text-red-700 border border-red-300";
+  if (s === "pending") return "bg-amber-100 text-amber-800 border border-amber-300";
+  return "bg-blue-100 text-blue-800 border border-blue-300";
 };
 
 const statusLabel = (s: OrderStatus) => {
   if (s === "completed") return "Done";
   if (s === "cancelled") return "Cancelled";
-  return "Active";
+  if (s === "pending") return "Pending";
+  return "Confirmed";
 };
 
 function mapOrder(o: any): AdminOrder {
@@ -73,6 +75,16 @@ export default function AdminOrders() {
   const [loadError, setLoadError] = useState("");
   const [cancelModal, setCancelModal] = useState<AdminOrder | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  const copyText = async (key: string, text: string) => {
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedKey(key);
+      setTimeout(() => setCopiedKey((c) => (c === key ? null : c)), 1500);
+    } catch { /* clipboard unavailable */ }
+  };
 
   const fetchOrders = async () => {
     setLoadError("");
@@ -136,6 +148,14 @@ export default function AdminOrders() {
       .from("orders")
       .update({ status: "completed", completed_at: new Date().toISOString() })
       .eq("id", order.id);
+    if (error) setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, status: order.status } : o)));
+    setUpdatingId(null);
+  };
+
+  const markConfirmed = async (order: AdminOrder) => {
+    setUpdatingId(order.id);
+    setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, status: "confirmed" } : o)));
+    const { error } = await supabase.from("orders").update({ status: "confirmed" }).eq("id", order.id);
     if (error) setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, status: order.status } : o)));
     setUpdatingId(null);
   };
@@ -227,7 +247,6 @@ export default function AdminOrders() {
               <thead>
                 <tr className="bg-surface-container text-on-surface-variant text-[10px] uppercase tracking-wider">
                   <th className="text-left font-semibold px-3 py-2.5 whitespace-nowrap">Status</th>
-                  <th className="text-left font-semibold px-3 py-2.5 whitespace-nowrap">Order</th>
                   <th className="text-left font-semibold px-3 py-2.5 whitespace-nowrap">Date</th>
                   <th className="text-left font-semibold px-3 py-2.5 whitespace-nowrap">Customer</th>
                   <th className="text-left font-semibold px-3 py-2.5 whitespace-nowrap">Phone</th>
@@ -249,22 +268,51 @@ export default function AdminOrders() {
                       className={`border-t border-outline-variant/15 hover:bg-surface-container/40 transition-colors ${done ? "opacity-60" : ""}`}
                     >
                       <td className="px-3 py-2.5">
-                        <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${statusStyle(order.status)}`}>
+                        <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full ${statusStyle(order.status)}`}>
                           {statusLabel(order.status)}
                         </span>
                       </td>
-                      <td className="px-3 py-2.5 font-mono font-bold text-primary whitespace-nowrap">#{order.id}</td>
                       <td className="px-3 py-2.5 text-on-surface-variant whitespace-nowrap">
                         {new Date(order.placedAt).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                       </td>
-                      <td className="px-3 py-2.5 text-primary font-medium whitespace-nowrap">
-                        {order.customerName}
+                      <td className="px-3 py-2.5 text-primary font-medium">
+                        <span className="whitespace-nowrap">{order.customerName}</span>
                         {order.fulfillmentType === "delivery" && order.customerAddress && (
-                          <span className="block text-[11px] font-normal text-on-surface-variant max-w-[220px] truncate">{order.customerAddress}</span>
+                          <span className="flex items-center gap-1.5 max-w-[240px] font-normal">
+                            <span className="text-[11px] text-on-surface-variant truncate" title={order.customerAddress}>{order.customerAddress}</span>
+                            <button
+                              onClick={() => copyText(order.id + ":addr", order.customerAddress)}
+                              title="Copy address"
+                              className="shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-md border border-outline-variant/40 hover:bg-surface-container transition-colors"
+                            >
+                              <Icon name={copiedKey === order.id + ":addr" ? "check" : "content_copy"} size={11} />
+                            </button>
+                          </span>
                         )}
                       </td>
                       <td className="px-3 py-2.5 text-on-surface-variant whitespace-nowrap">{order.customerPhone || "—"}</td>
-                      <td className="px-3 py-2.5 text-on-surface-variant max-w-[200px] truncate" title={order.customerSocial}>{order.customerSocial || "—"}</td>
+                      <td className="px-3 py-2.5">
+                        {order.customerSocial ? (
+                          <div className="flex items-center gap-1.5 max-w-[240px]">
+                            {/^https?:\/\//i.test(order.customerSocial) ? (
+                              <a href={order.customerSocial} target="_blank" rel="noreferrer" className="text-primary underline truncate" title={order.customerSocial}>
+                                {order.customerSocial}
+                              </a>
+                            ) : (
+                              <span className="text-on-surface-variant truncate" title={order.customerSocial}>{order.customerSocial}</span>
+                            )}
+                            <button
+                              onClick={() => copyText(order.id + ":social", order.customerSocial)}
+                              title="Copy"
+                              className="shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-md border border-outline-variant/40 hover:bg-surface-container transition-colors"
+                            >
+                              <Icon name={copiedKey === order.id + ":social" ? "check" : "content_copy"} size={12} />
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-on-surface-variant">—</span>
+                        )}
+                      </td>
                       <td className="px-3 py-2.5 text-on-surface-variant max-w-[240px]">
                         {order.items.length === 0
                           ? <span className="text-error">no items</span>
@@ -294,6 +342,15 @@ export default function AdminOrders() {
                               >
                                 Cancel
                               </button>
+                              {order.status === "pending" && (
+                                <button
+                                  onClick={() => markConfirmed(order)}
+                                  disabled={updatingId === order.id}
+                                  className="h-8 px-3 rounded-lg border border-blue-400 text-blue-700 text-xs font-bold hover:bg-blue-50 active:scale-95 transition-all disabled:opacity-50"
+                                >
+                                  {updatingId === order.id ? "…" : "Confirm"}
+                                </button>
+                              )}
                               <button
                                 onClick={() => markDone(order)}
                                 disabled={updatingId === order.id}
