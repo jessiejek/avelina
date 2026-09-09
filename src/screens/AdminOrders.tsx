@@ -459,9 +459,15 @@ export default function AdminOrders() {
                         </div>
                       </td>
                       <td className="px-3 py-3 text-on-surface-variant min-w-[280px]">
-                        {order.items.length === 0
-                          ? <span className="text-error">no items</span>
-                          : order.items.map((it) => `${it.name} ×${it.qty}`).join(", ")}
+                        {order.items.length === 0 ? (
+                          <span className="text-error">no items</span>
+                        ) : (
+                          <ul className="space-y-0.5">
+                            {order.items.map((it, i) => (
+                              <li key={i}>{it.name} ×{it.qty}</li>
+                            ))}
+                          </ul>
+                        )}
                       </td>
                       <td className="px-3 py-2.5 text-right font-mono font-bold text-primary whitespace-nowrap">{peso(total)}</td>
                       <td className="px-3 py-2.5 whitespace-nowrap">
