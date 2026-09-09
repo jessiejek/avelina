@@ -44,6 +44,7 @@ export default function CheckoutPage({ cart, guest, userId, onSaveGuest, onUpdat
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [locateStatus, setLocateStatus] = useState<"idle" | "locating" | "success" | "error">("idle");
+  const [reviewOpen, setReviewOpen] = useState(false);
   const [placedOrder, setPlacedOrder] = useState<Order | null>(null);
 
   const locateMe = () => {
@@ -70,14 +71,18 @@ export default function CheckoutPage({ cart, guest, userId, onSaveGuest, onUpdat
 
   const total = cart.reduce((s, i) => s + (i.recipe.price ?? 0) * i.qty, 0);
 
-  const handlePlaceOrder = async () => {
+  const openReview = () => {
     if (cart.length === 0) return;
     if (!name.trim()) { setError("Please enter your full name."); return; }
     if (!phone.trim()) { setError("Please enter your phone number."); return; }
     if (!social.trim()) { setError("Please enter your Facebook or Instagram."); return; }
     if (fulfillment === "delivery" && !address.trim()) { setError("Please enter a delivery address."); return; }
     if (paymentMethod === "gcash" && !gcashRef.trim()) { setError("Please enter your GCash reference number."); return; }
+    setError("");
+    setReviewOpen(true);
+  };
 
+  const confirmOrder = async () => {
     setLoading(true);
     setError("");
     onSaveGuest({ name: name.trim(), phone: phone.trim(), social: social.trim(), address: address.trim(), fulfillment });
@@ -144,6 +149,7 @@ export default function CheckoutPage({ cart, guest, userId, onSaveGuest, onUpdat
     }
 
     setLoading(false);
+    setReviewOpen(false);
     setPlacedOrder({
       id: orderId,
       items: cart,
@@ -351,16 +357,70 @@ export default function CheckoutPage({ cart, guest, userId, onSaveGuest, onUpdat
         {error && <p className="text-xs text-red-500 font-semibold">{error}</p>}
 
         <button
-          onClick={handlePlaceOrder}
+          onClick={openReview}
           disabled={cart.length === 0 || loading}
           className="w-full py-4 rounded-xl bg-[#26170c] text-white text-sm font-bold hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          <Icon name="check_circle" size={18} /> {loading ? "Sending order…" : "Place Order"}
+          <Icon name="check_circle" size={18} /> Review Order
         </button>
         <p className="text-xs text-[#26170c]/50 text-center mt-2">
-          Your order is sent to the bakery and stays pending until we confirm it with you.
+          You'll see a summary to confirm before your order is sent.
         </p>
       </div>
+
+      {reviewOpen && (
+        <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-4" style={{ backgroundColor: "rgba(38,23,12,0.5)" }}>
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden" style={{ fontFamily: "'Work Sans', sans-serif" }}>
+            <div className="p-5 border-b border-[#26170c]/8">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#26170c]/40">Review your order</p>
+              <h3 className="font-bold text-[#26170c] text-lg mt-0.5" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>
+                Confirm before sending
+              </h3>
+            </div>
+
+            <div className="p-5 space-y-2 max-h-[45vh] overflow-y-auto">
+              {cart.map((item, i) => (
+                <div key={i} className="flex justify-between text-sm">
+                  <span className="text-[#26170c]/70">
+                    {item.recipe.name} <span className="text-[#26170c]/40 font-mono">x{item.qty}</span>
+                  </span>
+                  <span className="font-mono font-semibold text-[#26170c] shrink-0">{peso((item.recipe.price ?? 0) * item.qty)}</span>
+                </div>
+              ))}
+              <div className="border-t border-[#26170c]/10 pt-2 flex justify-between font-bold text-[#26170c]">
+                <span>Total ({cart.reduce((s, i) => s + i.qty, 0)} items)</span>
+                <span className="font-mono">{peso(total)}</span>
+              </div>
+              <div className="flex justify-between text-xs text-[#26170c]/55 pt-1">
+                <span>{fulfillment === "delivery" ? "Delivery" : "Pickup"}</span>
+                <span>{paymentMethod === "gcash" ? `GCash · ${gcashRef.trim()}` : "Cash on Pickup"}</span>
+              </div>
+              {fulfillment === "delivery" && address.trim() && (
+                <p className="text-xs text-[#26170c]/55">{address.trim()}</p>
+              )}
+            </div>
+
+            {error && <p className="px-5 text-xs text-red-500 font-semibold">{error}</p>}
+
+            <div className="p-4 border-t border-[#26170c]/8 flex gap-3">
+              <button
+                onClick={() => setReviewOpen(false)}
+                disabled={loading}
+                className="flex-1 py-3.5 rounded-xl border border-[#26170c]/20 text-[#26170c] text-sm font-bold hover:bg-[#26170c]/5 transition-all disabled:opacity-40"
+              >
+                Go Back
+              </button>
+              <button
+                onClick={confirmOrder}
+                disabled={loading}
+                className="flex-1 py-3.5 rounded-xl bg-[#26170c] text-white text-sm font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-40"
+              >
+                {loading ? "Sending…" : "Confirm Order"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {placedOrder && (
         <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-4" style={{ backgroundColor: "rgba(38,23,12,0.5)" }}>
