@@ -405,11 +405,7 @@ export default function AdminOrders() {
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="bg-surface-container text-on-surface-variant text-[10px] uppercase tracking-wider">
-                  <th className="text-left font-semibold px-3 py-2.5 whitespace-nowrap">Status</th>
-                  <th className="text-left font-semibold px-3 py-2.5 whitespace-nowrap">Date</th>
                   <th className="text-left font-semibold px-3 py-2.5 whitespace-nowrap">Customer</th>
-                  <th className="text-left font-semibold px-3 py-2.5 whitespace-nowrap">Phone</th>
-                  <th className="text-left font-semibold px-3 py-2.5 whitespace-nowrap">FB / IG</th>
                   <th className="text-left font-semibold px-3 py-2.5 w-full">Items</th>
                   <th className="text-right font-semibold px-3 py-2.5 whitespace-nowrap">Total</th>
                   <th className="text-left font-semibold px-3 py-2.5 whitespace-nowrap">Type</th>
@@ -424,21 +420,18 @@ export default function AdminOrders() {
                   return (
                     <tr
                       key={order.id}
-                      className={`border-t border-outline-variant/15 hover:bg-surface-container/40 transition-colors ${done ? "opacity-60" : ""}`}
+                      className={`border-t border-outline-variant/15 hover:bg-surface-container/40 transition-colors [&>td]:align-top ${done ? "opacity-60" : ""}`}
                     >
-                      <td className="px-3 py-2.5">
-                        <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full ${statusStyle(order.status)}`}>
-                          {statusLabel(order.status)}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2.5 text-on-surface-variant whitespace-nowrap">
-                        {new Date(order.placedAt).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                      </td>
-                      <td className="px-3 py-2.5 text-primary font-medium">
-                        <span className="whitespace-nowrap">{order.customerName}</span>
-                        {order.fulfillmentType === "delivery" && order.customerAddress && (
-                          <span className="flex items-center gap-1.5 max-w-[240px] font-normal">
-                            <span className="text-[11px] text-on-surface-variant truncate" title={order.customerAddress}>{order.customerAddress}</span>
+                      <td className="px-3 py-3 min-w-[240px] max-w-[320px]">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-primary">{order.customerName}</span>
+                          <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${statusStyle(order.status)}`}>
+                            {statusLabel(order.status)}
+                          </span>
+                        </div>
+                        {order.customerAddress && (
+                          <div className="flex items-start gap-1.5 mt-1">
+                            <span className="text-xs text-on-surface-variant" title={order.customerAddress}>{order.customerAddress}</span>
                             <button
                               onClick={() => copyText(order.id + ":addr", order.customerAddress)}
                               title="Copy address"
@@ -446,33 +439,26 @@ export default function AdminOrders() {
                             >
                               <Icon name={copiedKey === order.id + ":addr" ? "check" : "content_copy"} size={11} />
                             </button>
-                          </span>
+                          </div>
                         )}
-                      </td>
-                      <td className="px-3 py-2.5 text-on-surface-variant whitespace-nowrap">{order.customerPhone || "—"}</td>
-                      <td className="px-3 py-2.5">
-                        {order.customerSocial ? (
-                          <div className="flex items-center gap-1.5 max-w-[240px]">
-                            {/^https?:\/\//i.test(order.customerSocial) ? (
-                              <a href={order.customerSocial} target="_blank" rel="noreferrer" className="text-primary underline truncate" title={order.customerSocial}>
-                                {order.customerSocial}
-                              </a>
-                            ) : (
-                              <span className="text-on-surface-variant truncate" title={order.customerSocial}>{order.customerSocial}</span>
-                            )}
+                        {order.customerPhone && (
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <a href={`tel:${order.customerPhone}`} className="text-xs text-on-surface-variant">{order.customerPhone}</a>
                             <button
-                              onClick={() => copyText(order.id + ":social", order.customerSocial)}
-                              title="Copy"
-                              className="shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-md border border-outline-variant/40 hover:bg-surface-container transition-colors"
+                              onClick={() => copyText(order.id + ":phone", order.customerPhone)}
+                              title="Copy number"
+                              className="shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-md border border-outline-variant/40 hover:bg-surface-container transition-colors"
                             >
-                              <Icon name={copiedKey === order.id + ":social" ? "check" : "content_copy"} size={12} />
+                              <Icon name={copiedKey === order.id + ":phone" ? "check" : "content_copy"} size={11} />
                             </button>
                           </div>
-                        ) : (
-                          <span className="text-on-surface-variant">—</span>
                         )}
+                        {order.customerSocial && <div className="mt-1 text-xs">{socialLink(order)}</div>}
+                        <div className="text-[11px] text-on-surface-variant mt-1">
+                          {new Date(order.placedAt).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                        </div>
                       </td>
-                      <td className="px-3 py-2.5 text-on-surface-variant min-w-[280px]">
+                      <td className="px-3 py-3 text-on-surface-variant min-w-[280px]">
                         {order.items.length === 0
                           ? <span className="text-error">no items</span>
                           : order.items.map((it) => `${it.name} ×${it.qty}`).join(", ")}
