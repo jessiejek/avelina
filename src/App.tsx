@@ -200,9 +200,13 @@ function PublicShell() {
   const handlePlaceOrder = (order: Order) => {
     rememberOrderId(order.id);
     setLastOrder(order);
-    setCart([]);
-    try { localStorage.removeItem("avelinas_cart_v1"); } catch {}
+    // Leave /checkout first, then clear the cart. Clearing while still on
+    // /checkout makes its "empty cart -> /cart" guard bounce us to /cart.
     navigate("/orders");
+    setTimeout(() => {
+      setCart([]);
+      try { localStorage.removeItem("avelinas_cart_v1"); } catch {}
+    }, 0);
   };
 
   const updateQty = (i: number, qty: number) => setCart((prev) => prev.map((item, idx) => idx === i ? { ...item, qty } : item));
