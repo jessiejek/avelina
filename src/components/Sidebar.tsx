@@ -6,6 +6,7 @@ import { supabase } from "../lib/supabase.ts";
 interface SidebarProps {
   currentTab: string;
   setCurrentTab: (tab: string) => void;
+  onHide?: () => void;
 }
 
 const navItems = [
@@ -13,7 +14,7 @@ const navItems = [
   { id: "orders", icon: "assignment", label: "Orders" },
 ];
 
-export default function Sidebar({ currentTab, setCurrentTab }: SidebarProps) {
+export default function Sidebar({ currentTab, setCurrentTab, onHide }: SidebarProps) {
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -24,11 +25,22 @@ export default function Sidebar({ currentTab, setCurrentTab }: SidebarProps) {
   return (
     <aside className="hidden lg:flex flex-col h-screen sticky top-0 w-[280px] border-r shrink-0 bg-surface-container-low border-outline-variant/20">
       {/* Brand */}
-      <div className="px-6 py-5 border-b border-outline-variant/20">
-        <h1 className="text-primary font-bold" style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 20 }}>
-          Majaldita's
-        </h1>
-        <p className="text-[11px] text-on-surface-variant mt-0.5 uppercase tracking-widest">Artisan Bakery</p>
+      <div className="px-6 py-5 border-b border-outline-variant/20 flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h1 className="text-primary font-bold" style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 20 }}>
+            Majaldita's
+          </h1>
+          <p className="text-[11px] text-on-surface-variant mt-0.5 uppercase tracking-widest">Artisan Bakery</p>
+        </div>
+        {onHide && (
+          <button
+            onClick={onHide}
+            title="Hide menu"
+            className="shrink-0 -mr-2 inline-flex items-center justify-center w-8 h-8 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors"
+          >
+            <Icon name="chevron_left" size={18} />
+          </button>
+        )}
       </div>
 
       {/* Navigation */}

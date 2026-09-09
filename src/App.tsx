@@ -63,6 +63,15 @@ function AdminShell() {
   const currentTab = location.pathname.startsWith("/admin/orders") ? "orders" : "products";
   const navTo = (tab: string) => navigate(`/admin/${tab}`);
 
+  const [navHidden, setNavHidden] = useState(() => {
+    try { return localStorage.getItem("mj_admin_nav_hidden") === "1"; } catch { return false; }
+  });
+  const toggleNav = () => setNavHidden((v) => {
+    const nv = !v;
+    try { localStorage.setItem("mj_admin_nav_hidden", nv ? "1" : "0"); } catch {}
+    return nv;
+  });
+
   const navItems = [
     { id: "products", icon: "storefront", label: "Products" },
     { id: "orders", icon: "assignment", label: "Orders" },
@@ -70,9 +79,18 @@ function AdminShell() {
 
   return (
     <div className="flex min-h-screen bg-surface text-on-surface" style={{ fontFamily: "'Work Sans', sans-serif" }}>
-      <Sidebar currentTab={currentTab} setCurrentTab={navTo} />
+      {!navHidden && <Sidebar currentTab={currentTab} setCurrentTab={navTo} onHide={toggleNav} />}
 
       <main className="flex-1 flex flex-col min-w-0 pb-16 lg:pb-0" style={{ paddingBottom: 'max(4rem, env(safe-area-inset-bottom, 0px) + 4rem)' }}>
+        {navHidden && (
+          <button
+            onClick={toggleNav}
+            title="Show menu"
+            className="hidden lg:inline-flex items-center gap-2 self-start m-3 px-3 h-9 rounded-lg border border-outline-variant/30 text-sm text-on-surface-variant hover:bg-surface-container transition-colors"
+          >
+            <Icon name="menu" size={16} /> Show menu
+          </button>
+        )}
         <Routes>
           <Route index element={<Navigate to="products" replace />} />
           <Route path="products" element={<ProductsList products={products} loading={loading} onChanged={loadProducts} />} />

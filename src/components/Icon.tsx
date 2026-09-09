@@ -161,7 +161,11 @@ const map: Record<string, Comp> = {
   // people
   person: User, people: Users, person_add: UserPlus, person_check: UserCheck,
   // place
-  location: MapPin, map: Map, navigation: Navigation, my_location: Navigation, globe: Globe, home: Home,
+  location: MapPin, location_on: MapPin, map: Map, navigation: Navigation, my_location: Navigation, globe: Globe, home: Home,
+  // Material Symbols names used around the app -> Lucide equivalents
+  storefront: Store, content_copy: Copy, schedule: Clock, delivery: Truck,
+  visibility_off: EyeOff, visibility: Eye,
+  notifications_active: BellRing, notifications_off: BellOff,
   building: Building, store: Store,
   // money / commerce
   gift: Gift, tags: Tags, receipt: Receipt, credit_card: CreditCard, coins: Coins,
