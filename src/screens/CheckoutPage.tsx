@@ -44,6 +44,7 @@ export default function CheckoutPage({ cart, guest, userId, onSaveGuest, onUpdat
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [locateStatus, setLocateStatus] = useState<"idle" | "locating" | "success" | "error">("idle");
+  const [placedOrder, setPlacedOrder] = useState<Order | null>(null);
 
   const locateMe = () => {
     if (!navigator.geolocation) { setLocateStatus("error"); return; }
@@ -143,7 +144,7 @@ export default function CheckoutPage({ cart, guest, userId, onSaveGuest, onUpdat
     }
 
     setLoading(false);
-    onPlaceOrder({
+    setPlacedOrder({
       id: orderId,
       items: cart,
       profile: { name: name.trim(), email: "", phone: phone.trim(), address: address.trim() },
@@ -360,6 +361,51 @@ export default function CheckoutPage({ cart, guest, userId, onSaveGuest, onUpdat
           Your order is sent to the bakery and stays pending until we confirm it with you.
         </p>
       </div>
+
+      {placedOrder && (
+        <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-4" style={{ backgroundColor: "rgba(38,23,12,0.5)" }}>
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden" style={{ fontFamily: "'Work Sans', sans-serif" }}>
+            <div className="p-6 text-center border-b border-[#26170c]/8">
+              <div className="w-14 h-14 rounded-full bg-[#d4e8ce] flex items-center justify-center mx-auto mb-3">
+                <Icon name="check_circle" size={28} className="text-[#26170c]" />
+              </div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#26170c]/40">Order Sent</p>
+              <h3 className="font-bold text-[#26170c] text-lg mt-0.5" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>
+                Order #{placedOrder.id}
+              </h3>
+              <p className="text-xs text-[#26170c]/55 mt-1">Please wait for the bakery to confirm your order.</p>
+            </div>
+
+            <div className="p-5 space-y-2 max-h-[45vh] overflow-y-auto">
+              {placedOrder.items.map((item, i) => (
+                <div key={i} className="flex justify-between text-sm">
+                  <span className="text-[#26170c]/70">
+                    {item.recipe.name} <span className="text-[#26170c]/40 font-mono">x{item.qty}</span>
+                  </span>
+                  <span className="font-mono font-semibold text-[#26170c] shrink-0">{peso((item.recipe.price ?? 0) * item.qty)}</span>
+                </div>
+              ))}
+              <div className="border-t border-[#26170c]/10 pt-2 flex justify-between font-bold text-[#26170c]">
+                <span>Total ({placedOrder.items.reduce((s, i) => s + i.qty, 0)} items)</span>
+                <span className="font-mono">{peso(total)}</span>
+              </div>
+              <div className="flex justify-between text-xs text-[#26170c]/55 pt-1">
+                <span>{fulfillment === "delivery" ? "Delivery" : "Pickup"}</span>
+                <span>{paymentMethod === "gcash" ? `GCash · ${gcashRef.trim()}` : "Cash on Pickup"}</span>
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-[#26170c]/8">
+              <button
+                onClick={() => onPlaceOrder(placedOrder)}
+                className="w-full py-3.5 rounded-xl bg-[#26170c] text-white text-sm font-bold hover:opacity-90 active:scale-95 transition-all"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
