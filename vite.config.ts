@@ -33,6 +33,12 @@ export default defineConfig(() => {
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+          cleanupOutdatedCaches: true,
+          skipWaiting: true,
+          clientsClaim: true,
+          // Never serve the cached app shell for admin routes — always hit
+          // the network so a new deploy's HTML/CSS is picked up immediately.
+          navigateFallbackDenylist: [/^\/admin/],
           runtimeCaching: [
             {
               urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
