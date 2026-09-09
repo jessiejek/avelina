@@ -202,7 +202,7 @@ function PublicShell() {
     setLastOrder(order);
     setCart([]);
     try { localStorage.removeItem("avelinas_cart_v1"); } catch {}
-    navigate("/order-confirmed");
+    navigate("/orders");
   };
 
   const updateQty = (i: number, qty: number) => setCart((prev) => prev.map((item, idx) => idx === i ? { ...item, qty } : item));
