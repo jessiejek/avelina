@@ -280,7 +280,7 @@ export default function AdminOrders() {
         </div>
       </header>
 
-      <div className="p-4 lg:p-8 max-w-6xl mx-auto w-full space-y-4">
+      <div className="p-4 lg:px-8 lg:py-8 w-full space-y-4">
         {/* Filter chips */}
         <div className="flex gap-2 flex-wrap">
           {chips.map((c) => (
@@ -410,7 +410,7 @@ export default function AdminOrders() {
                   <th className="text-left font-semibold px-3 py-2.5 whitespace-nowrap">Customer</th>
                   <th className="text-left font-semibold px-3 py-2.5 whitespace-nowrap">Phone</th>
                   <th className="text-left font-semibold px-3 py-2.5 whitespace-nowrap">FB / IG</th>
-                  <th className="text-left font-semibold px-3 py-2.5 whitespace-nowrap">Items</th>
+                  <th className="text-left font-semibold px-3 py-2.5 w-full">Items</th>
                   <th className="text-right font-semibold px-3 py-2.5 whitespace-nowrap">Total</th>
                   <th className="text-left font-semibold px-3 py-2.5 whitespace-nowrap">Type</th>
                   <th className="text-left font-semibold px-3 py-2.5 whitespace-nowrap">Notes</th>
@@ -472,7 +472,7 @@ export default function AdminOrders() {
                           <span className="text-on-surface-variant">—</span>
                         )}
                       </td>
-                      <td className="px-3 py-2.5 text-on-surface-variant max-w-[240px]">
+                      <td className="px-3 py-2.5 text-on-surface-variant min-w-[280px]">
                         {order.items.length === 0
                           ? <span className="text-error">no items</span>
                           : order.items.map((it) => `${it.name} ×${it.qty}`).join(", ")}
