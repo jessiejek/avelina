@@ -5,6 +5,7 @@ import Icon from "../components/Icon.tsx";
 import { supabase } from "../lib/supabase.ts";
 import { peso } from "../lib/money.ts";
 import PushToggle from "../components/PushToggle.tsx";
+import { signOut } from "../lib/auth.ts";
 
 
 interface FlyingDot {
@@ -44,7 +45,7 @@ export default function PublicHome({ onPreOrder, currentUser, cartCount }: Props
     const channel = supabase
       .channel("rt-public-recipes")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "recipes" }, ({ new: row }) => {
-        setRecipes((prev) => prev.find((r) => r.id === row.id) ? prev : [...prev, { ...row, ingredients: [], steps: [] }]);
+        setRecipes((prev) => prev.find((r) => r.id === row.id) ? prev : [...prev, { ...(row as Recipe), ingredients: [], steps: [] }]);
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "recipes" }, ({ new: row }) => {
         setRecipes((prev) => prev.map((r) => r.id === row.id ? { ...r, name: row.name, img: row.img, category: row.category, yield: row.yield, time: row.time, price: row.price ?? 0, is_available: row.is_available ?? true, is_for_sale: row.is_for_sale ?? true } : r));
@@ -154,7 +155,7 @@ export default function PublicHome({ onPreOrder, currentUser, cartCount }: Props
                 </span>
                 <PushToggle userId={currentUser.id} role="customer" variant="icon" className="text-[#26170c]" />
                 <button
-                  onClick={async () => { await supabase.auth.signOut(); navigate("/"); }}
+                  onClick={async () => { await signOut(); navigate("/"); }}
                   className="px-3 h-9 rounded-full border border-[#26170c]/20 text-xs font-semibold text-[#26170c]/60 hover:text-[#26170c] hover:bg-white transition-all"
                 >
                   Sign Out

@@ -5,6 +5,10 @@
 //   UPDATE status -> 'confirmed'    -> notify that customer's devices ("Order confirmed")
 //
 // Required secrets (supabase secrets set ...):
+//   NOTIFY_WEBHOOK_SECRET - shared secret; must equal the Vault secret
+//                           `notify_webhook_secret` that the DB trigger sends in
+//                           the `x-webhook-secret` header (see migration
+//                           20260909002000_notify_order_secret.sql)
 //   FCM_PROJECT_ID     - Firebase project id
 //   FCM_CLIENT_EMAIL   - service account client_email
 //   FCM_PRIVATE_KEY    - service account private_key (with real newlines or \n)
@@ -15,6 +19,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.108.2";
 const FCM_PROJECT_ID = Deno.env.get("FCM_PROJECT_ID")!;
 const FCM_CLIENT_EMAIL = Deno.env.get("FCM_CLIENT_EMAIL")!;
 const FCM_PRIVATE_KEY = (Deno.env.get("FCM_PRIVATE_KEY") ?? "").replace(/\\n/g, "\n");
+const NOTIFY_WEBHOOK_SECRET = Deno.env.get("NOTIFY_WEBHOOK_SECRET") ?? "";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -99,8 +104,9 @@ async function sendToTokens(tokens: string[], title: string, body: string, url: 
     });
     if (!res.ok) {
       const err = await res.text();
-      // Prune dead tokens so the table stays clean.
-      if (res.status === 404 || res.status === 403 || err.includes("UNREGISTERED") || err.includes("INVALID_ARGUMENT")) {
+      // Prune only tokens FCM reports as gone. 403 / INVALID_ARGUMENT usually mean
+      // a credential or payload problem and would otherwise wipe every valid token.
+      if (res.status === 404 || err.includes("UNREGISTERED")) {
         await supabase.from("push_tokens").delete().eq("token", token);
       }
       console.error(`FCM ${res.status} for token ${token.slice(0, 12)}…: ${err}`);
@@ -108,9 +114,29 @@ async function sendToTokens(tokens: string[], title: string, body: string, url: 
   }));
 }
 
+// ---------- Webhook auth ----------
+
+function timingSafeEqual(a: string, b: string): boolean {
+  const ea = new TextEncoder().encode(a);
+  const eb = new TextEncoder().encode(b);
+  if (ea.length !== eb.length) return false;
+  let diff = 0;
+  for (let i = 0; i < ea.length; i++) diff |= ea[i] ^ eb[i];
+  return diff === 0;
+}
+
 // ---------- Webhook handler ----------
 
 Deno.serve(async (req) => {
+  // Fail closed: refuse everything until the shared secret is configured.
+  if (!NOTIFY_WEBHOOK_SECRET) {
+    console.error("notify-order: NOTIFY_WEBHOOK_SECRET is not set; rejecting request");
+    return new Response("not configured", { status: 500 });
+  }
+  if (req.method !== "POST" || !timingSafeEqual(req.headers.get("x-webhook-secret") ?? "", NOTIFY_WEBHOOK_SECRET)) {
+    return new Response("unauthorized", { status: 401 });
+  }
+
   try {
     const payload = await req.json();
     const { type, table, record, old_record } = payload;
@@ -119,7 +145,13 @@ Deno.serve(async (req) => {
     if (type === "INSERT") {
       const { data: toks } = await supabase.from("push_tokens").select("token").eq("role", "admin");
       const tokens = (toks ?? []).map((t: { token: string }) => t.token);
-      const total = Number(record.total ?? 0);
+      // orders has no total column — sum the line items (they are inserted in the
+      // same transaction by place_order(), and pg_net only sends after commit).
+      const { data: lines } = await supabase.from("order_items").select("qty, unit_price").eq("order_id", record.id);
+      const total = (lines ?? []).reduce(
+        (s: number, l: { qty: number; unit_price: number }) => s + Number(l.qty) * Number(l.unit_price),
+        0,
+      );
       await sendToTokens(
         tokens,
         "New order 🧾",

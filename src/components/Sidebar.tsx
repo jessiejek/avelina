@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import Icon from "./Icon.tsx";
-import { supabase } from "../lib/supabase.ts";
+import { signOut } from "../lib/auth.ts";
 
 interface SidebarProps {
   currentTab: string;
@@ -18,7 +18,7 @@ export default function Sidebar({ currentTab, setCurrentTab, onHide }: SidebarPr
   const navigate = useNavigate();
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await signOut();
     navigate("/");
   };
 

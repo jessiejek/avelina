@@ -19,7 +19,9 @@ export interface Order {
   items: CartItem[];
   profile: UserProfile;
   placedAt: string;
-  status: "pending" | "confirmed" | "baking" | "ready" | "completed";
+  status: "pending" | "confirmed" | "baking" | "ready" | "completed" | "cancelled";
+  /** Server-computed total (prices come from the database, not the cart). */
+  total?: number;
 }
 
 interface Props {
@@ -28,10 +30,13 @@ interface Props {
   userId: string | null;
   onSaveGuest: (g: GuestInfo) => void;
   onUpdateQty: (index: number, qty: number) => void;
+  /** Fired as soon as the order is saved (remember it + clear the cart). */
+  onOrderSaved: (order: Order) => void;
+  /** Fired when the customer taps Done on the success modal. */
   onPlaceOrder: (order: Order) => void;
 }
 
-export default function CheckoutPage({ cart, guest, userId, onSaveGuest, onUpdateQty, onPlaceOrder }: Props) {
+export default function CheckoutPage({ cart, guest, onSaveGuest, onUpdateQty, onOrderSaved, onPlaceOrder }: Props) {
   const navigate = useNavigate();
   const [name, setName] = useState(guest.name);
   const [phone, setPhone] = useState(guest.phone);
@@ -83,81 +88,51 @@ export default function CheckoutPage({ cart, guest, userId, onSaveGuest, onUpdat
   };
 
   const confirmOrder = async () => {
+    if (loading) return;
     setLoading(true);
     setError("");
     onSaveGuest({ name: name.trim(), phone: phone.trim(), social: social.trim(), address: address.trim(), fulfillment });
 
-    const orderId = `MJ-${Date.now().toString().slice(-6)}`;
-    const now = new Date().toISOString();
-
-    // Make sure a matching users row exists, otherwise orders.user_id FK fails.
-    // Profile setup is disabled, so signed-up customers may have no users row yet.
-    if (userId) {
-      const { error: userErr } = await supabase
-        .from("users")
-        .upsert(
-          { id: userId, name: name.trim(), phone: phone.trim(), address: address.trim() },
-          { onConflict: "id" }
-        );
-      if (userErr) {
-        console.error("user upsert failed:", userErr);
-        setError(`Could not save your profile: ${userErr.message}`);
-        setLoading(false);
-        return;
-      }
-    }
-
-    const { error: orderErr } = await supabase.from("orders").insert({
-      id: orderId,
-      user_id: userId,
-      status: "pending",
-      fulfillment_type: fulfillment,
-      customer_name: name.trim(),
-      customer_phone: phone.trim(),
-      customer_social: social.trim() || null,
-      delivery_address: fulfillment === "delivery" ? address.trim() || null : null,
-      notes: notes.trim() || null,
-      placed_at: now,
-      payment_method: paymentMethod,
-      gcash_reference: paymentMethod === "gcash" ? gcashRef.trim() : null,
+    // Everything (profile upsert, price lookup, availability/qty checks, id
+    // generation, order + items insert) happens in ONE transaction on the
+    // server. Prices sent from the cart are ignored.
+    const { data, error: rpcErr } = await supabase.rpc("place_order", {
+      p_items: cart.map((item) => ({ recipe_id: item.recipe.id, qty: item.qty })),
+      p_customer_name: name.trim(),
+      p_customer_phone: phone.trim(),
+      p_customer_social: social.trim() || null,
+      p_fulfillment_type: fulfillment,
+      p_delivery_address: fulfillment === "delivery" ? address.trim() || null : null,
+      p_notes: notes.trim() || null,
+      p_payment_method: paymentMethod,
+      p_gcash_reference: paymentMethod === "gcash" ? gcashRef.trim() : null,
     });
 
-    if (orderErr) {
-      console.error("order insert failed:", orderErr);
-      setError(`Could not place order: ${orderErr.message}`);
+    const result = data as { id?: string; total?: number | string } | null;
+    if (rpcErr || !result?.id) {
+      console.error("place_order failed:", rpcErr);
+      setError(`Could not place order: ${rpcErr?.message || "please try again."}`);
       setLoading(false);
       return;
     }
 
-    const itemRows = cart.map((item) => ({
-      order_id: orderId,
-      recipe_id: item.recipe.id,
-      qty: item.qty,
-      unit_price: item.recipe.price ?? 0,
-    }));
-    const { data: insertedItems, error: itemsErr } = await supabase
-      .from("order_items")
-      .insert(itemRows)
-      .select();
-
-    if (itemsErr || !insertedItems || insertedItems.length !== itemRows.length) {
-      console.error("order_items insert failed:", itemsErr, { attempted: itemRows, inserted: insertedItems });
-      await supabase.from("orders").delete().eq("id", orderId);
-      setError(`Could not save your order items: ${itemsErr?.message || "no rows were saved"}`);
-      setLoading(false);
-      return;
-    }
+    const order: Order = {
+      id: result.id,
+      items: cart,
+      profile: { name: name.trim(), email: "", phone: phone.trim(), address: address.trim() },
+      placedAt: new Date().toISOString(),
+      status: "pending",
+      total: Number(result.total ?? total),
+    };
 
     setLoading(false);
     setReviewOpen(false);
-    setPlacedOrder({
-      id: orderId,
-      items: cart,
-      profile: { name: name.trim(), email: "", phone: phone.trim(), address: address.trim() },
-      placedAt: now,
-      status: "pending",
-    });
+    setPlacedOrder(order);
+    // Persist immediately (order id saved, cart cleared) — not only on "Done".
+    onOrderSaved(order);
   };
+
+  const cashLabel = fulfillment === "delivery" ? "Cash on Delivery" : "Cash on Pickup";
 
   const inputCls = "w-full h-12 px-4 rounded-xl border border-[#26170c]/15 bg-[#fff8f5] text-sm text-[#26170c] focus:outline-none focus:border-[#26170c]/40";
 
@@ -319,7 +294,7 @@ export default function CheckoutPage({ cart, guest, userId, onSaveGuest, onUpdat
                 onClick={() => setPaymentMethod(m)}
                 className={`flex-1 py-3 rounded-xl border-2 text-sm font-bold transition-all ${paymentMethod === m ? "border-[#26170c] bg-[#26170c] text-white" : "border-[#26170c]/15 text-[#26170c]/60 hover:border-[#26170c]/40"}`}
               >
-                {m === "cash" ? (fulfillment === "delivery" ? "Cash on Delivery" : "Cash on Pickup") : "GCash"}
+                {m === "cash" ? cashLabel : "GCash"}
               </button>
             ))}
           </div>
@@ -393,7 +368,7 @@ export default function CheckoutPage({ cart, guest, userId, onSaveGuest, onUpdat
               </div>
               <div className="flex justify-between text-xs text-[#26170c]/55 pt-1">
                 <span>{fulfillment === "delivery" ? "Delivery" : "Pickup"}</span>
-                <span>{paymentMethod === "gcash" ? `GCash · ${gcashRef.trim()}` : "Cash on Pickup"}</span>
+                <span>{paymentMethod === "gcash" ? `GCash · ${gcashRef.trim()}` : cashLabel}</span>
               </div>
               {fulfillment === "delivery" && address.trim() && (
                 <p className="text-xs text-[#26170c]/55">{address.trim()}</p>
@@ -447,11 +422,11 @@ export default function CheckoutPage({ cart, guest, userId, onSaveGuest, onUpdat
               ))}
               <div className="border-t border-[#26170c]/10 pt-2 flex justify-between font-bold text-[#26170c]">
                 <span>Total ({placedOrder.items.reduce((s, i) => s + i.qty, 0)} items)</span>
-                <span className="font-mono">{peso(total)}</span>
+                <span className="font-mono">{peso(placedOrder.total ?? placedOrder.items.reduce((s, i) => s + (i.recipe.price ?? 0) * i.qty, 0))}</span>
               </div>
               <div className="flex justify-between text-xs text-[#26170c]/55 pt-1">
                 <span>{fulfillment === "delivery" ? "Delivery" : "Pickup"}</span>
-                <span>{paymentMethod === "gcash" ? `GCash · ${gcashRef.trim()}` : "Cash on Pickup"}</span>
+                <span>{paymentMethod === "gcash" ? `GCash · ${gcashRef.trim()}` : cashLabel}</span>
               </div>
             </div>
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabase.ts";
+import { signOut, STORAGE_KEYS } from "./lib/auth.ts";
 import Sidebar from "./components/Sidebar.tsx";
 import AdminOrders from "./screens/AdminOrders.tsx";
 import ProductsList from "./screens/ProductsList.tsx";
@@ -34,6 +35,43 @@ function mapProduct(r: any): Recipe {
     ingredients: [],
     steps: [],
   };
+}
+
+// ── Admin guard ───────────────────────────────────────────────
+// Client-side gate for /admin/*: requires a session AND users.role = 'admin'.
+// This is UX only — the real protection is RLS (is_admin() policies).
+
+function AdminGuard() {
+  const [state, setState] = useState<"loading" | "admin" | "anon" | "forbidden">("loading");
+
+  useEffect(() => {
+    let cancelled = false;
+    const check = async (s: Session | null) => {
+      if (!s) { if (!cancelled) setState("anon"); return; }
+      const { data, error } = await supabase.from("users").select("role").eq("id", s.user.id).maybeSingle();
+      if (cancelled) return;
+      setState(!error && data?.role === "admin" ? "admin" : "forbidden");
+    };
+
+    supabase.auth.getSession().then(({ data: { session } }) => check(session));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT") setState("anon");
+      else if (event === "SIGNED_IN" || event === "USER_UPDATED") check(session);
+    });
+    return () => { cancelled = true; subscription.unsubscribe(); };
+  }, []);
+
+  if (state === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-surface text-on-surface-variant text-sm" style={{ fontFamily: "'Work Sans', sans-serif" }}>
+        Checking access…
+      </div>
+    );
+  }
+  if (state === "anon") return <Navigate to="/login" replace />;
+  // Signed in but not an admin: back to the storefront.
+  if (state === "forbidden") return <Navigate to="/" replace />;
+  return <AdminShell />;
 }
 
 // ── Admin shell ───────────────────────────────────────────────
@@ -112,7 +150,7 @@ function AdminShell() {
             );
           })}
           <button
-            onClick={async () => { await supabase.auth.signOut(); navigate("/"); }}
+            onClick={async () => { await signOut(); navigate("/"); }}
             className="flex flex-col items-center justify-center gap-0.5 px-5 py-1 rounded-xl transition-all min-w-0 text-on-surface-variant"
           >
             <Icon name="logout" size={20} />
@@ -130,9 +168,9 @@ const emptyGuest: GuestInfo = { name: "", phone: "", social: "", address: "", fu
 
 function rememberOrderId(id: string) {
   try {
-    const raw = localStorage.getItem("majalditas_orders_v1");
+    const raw = localStorage.getItem(STORAGE_KEYS.orders);
     const ids: string[] = raw ? JSON.parse(raw) : [];
-    if (!ids.includes(id)) localStorage.setItem("majalditas_orders_v1", JSON.stringify([id, ...ids]));
+    if (!ids.includes(id)) localStorage.setItem(STORAGE_KEYS.orders, JSON.stringify([id, ...ids]));
   } catch {}
 }
 
@@ -142,7 +180,7 @@ function PublicShell() {
   const [authLoading, setAuthLoading] = useState(true);
   const [cart, setCart] = useState<CartItem[]>(() => {
     try {
-      const saved = localStorage.getItem("avelinas_cart_v1");
+      const saved = localStorage.getItem(STORAGE_KEYS.cart);
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
@@ -150,13 +188,18 @@ function PublicShell() {
   });
   const [guest, setGuest] = useState<GuestInfo>(() => {
     try {
-      const saved = localStorage.getItem("majalditas_guest_v1");
+      const saved = localStorage.getItem(STORAGE_KEYS.guest);
       return saved ? { ...emptyGuest, ...JSON.parse(saved) } : emptyGuest;
     } catch {
       return emptyGuest;
     }
   });
   const [lastOrder, setLastOrder] = useState<Order | null>(null);
+  // True between "order saved" and the customer tapping Done on the success
+  // modal: the cart is already empty, but /checkout must stay mounted.
+  const [justPlaced, setJustPlaced] = useState(false);
+  const { pathname } = useLocation();
+  useEffect(() => { if (pathname !== "/checkout") setJustPlaced(false); }, [pathname]);
 
   const currentUser = session
     ? {
@@ -184,17 +227,23 @@ function PublicShell() {
       setSession(session);
       setAuthLoading(false);
       if (event === "SIGNED_IN") checkAdmin(session);
+      if (event === "SIGNED_OUT") {
+        // Don't leave the previous customer's cart / contact details behind.
+        setCart([]);
+        setGuest(emptyGuest);
+        setLastOrder(null);
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
-    try { localStorage.setItem("avelinas_cart_v1", JSON.stringify(cart)); } catch {}
+    try { localStorage.setItem(STORAGE_KEYS.cart, JSON.stringify(cart)); } catch {}
   }, [cart]);
 
   useEffect(() => {
-    try { localStorage.setItem("majalditas_guest_v1", JSON.stringify(guest)); } catch {}
+    try { localStorage.setItem(STORAGE_KEYS.guest, JSON.stringify(guest)); } catch {}
   }, [guest]);
 
   const addToCart = (recipe: Recipe) => {
@@ -215,23 +264,26 @@ function PublicShell() {
     navigate(cart.length > 0 ? "/cart" : "/");
   };
 
-  const handlePlaceOrder = (order: Order) => {
+  // Called the moment the order is saved: remember it and empty the cart right
+  // away, so a refresh / closed tab can't lose the order or re-submit it.
+  const handleOrderSaved = (order: Order) => {
     rememberOrderId(order.id);
     setLastOrder(order);
-    // Leave /checkout first, then clear the cart. Clearing while still on
-    // /checkout makes its "empty cart -> /cart" guard bounce us to /cart.
+    setJustPlaced(true);
+    setCart([]);
+    try { localStorage.removeItem(STORAGE_KEYS.cart); } catch {}
+  };
+
+  // Called when the customer taps Done on the success modal.
+  const handlePlaceOrder = () => {
     navigate("/orders");
-    setTimeout(() => {
-      setCart([]);
-      try { localStorage.removeItem("avelinas_cart_v1"); } catch {}
-    }, 0);
   };
 
   const updateQty = (i: number, qty: number) => setCart((prev) => prev.map((item, idx) => idx === i ? { ...item, qty } : item));
 
   return (
     <Routes>
-      <Route path="/" element={<PublicHome onPreOrder={addToCart} currentUser={currentUser} cartCount={cart.length} />} />
+      <Route path="/" element={<PublicHome onPreOrder={addToCart} currentUser={currentUser} cartCount={cart.reduce((n, item) => n + item.qty, 0)} />} />
       <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
       <Route path="/profile/setup" element={<Navigate to="/" replace />} />
       <Route path="/cart" element={
@@ -247,7 +299,7 @@ function PublicShell() {
           ? null
           : !session
           ? <Navigate to="/login" replace />
-          : cart.length === 0
+          : cart.length === 0 && !justPlaced
           ? <Navigate to="/cart" replace />
           : <CheckoutPage
               cart={cart}
@@ -255,11 +307,12 @@ function PublicShell() {
               userId={session.user.id}
               onSaveGuest={setGuest}
               onUpdateQty={updateQty}
+              onOrderSaved={handleOrderSaved}
               onPlaceOrder={handlePlaceOrder}
             />
       } />
       <Route path="/order-confirmed" element={<OrderConfirmed order={lastOrder} />} />
-      <Route path="/orders" element={<OrdersPage />} />
+      <Route path="/orders" element={<OrdersPage userId={session?.user.id ?? null} authLoading={authLoading} />} />
     </Routes>
   );
 }
@@ -268,7 +321,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/admin/*" element={<AdminShell />} />
+        <Route path="/admin/*" element={<AdminGuard />} />
         <Route path="/*" element={<PublicShell />} />
       </Routes>
     </BrowserRouter>

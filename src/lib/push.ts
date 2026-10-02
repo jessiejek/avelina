@@ -2,6 +2,12 @@ import { getToken, onMessage, deleteToken } from "firebase/messaging";
 import { supabase } from "./supabase.ts";
 import { getMessagingIfSupported, VAPID_KEY, pushConfigured } from "./firebase.ts";
 
+// The Workbox PWA service worker (sw.js) owns scope "/". A scope can only have
+// one service worker, so registering firebase-messaging-sw.js at "/" would
+// replace it (and vice versa on the next load). Give FCM its own scope.
+const FCM_SW_URL = "/firebase-messaging-sw.js";
+const FCM_SW_SCOPE = "/firebase-cloud-messaging-push-scope";
+
 /**
  * Ask for notification permission, get an FCM token for this device, and store it
  * in `push_tokens` keyed to the signed-in user. Safe to call repeatedly / on every
@@ -10,7 +16,9 @@ import { getMessagingIfSupported, VAPID_KEY, pushConfigured } from "./firebase.t
  * Returns "granted" | "denied" | "unsupported" | "error".
  * Must be triggered by a user gesture the first time (browser requirement).
  */
-export async function enablePush(userId: string, role: "admin" | "customer"): Promise<string> {
+export async function enablePush(_userId: string, _role: "admin" | "customer"): Promise<string> {
+  // userId/role are kept for call-site compatibility only: the server binds the
+  // token to auth.uid() and derives the role from users.role.
   if (!pushConfigured) return "unsupported";
   if (typeof Notification === "undefined" || !("serviceWorker" in navigator)) return "unsupported";
 
@@ -22,20 +30,18 @@ export async function enablePush(userId: string, role: "admin" | "customer"): Pr
   if (permission !== "granted") return permission; // "denied"
 
   try {
-    const registration = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
+    const registration = await navigator.serviceWorker.register(FCM_SW_URL, { scope: FCM_SW_SCOPE });
     const token = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: registration });
     if (!token) return "error";
 
-    await supabase.from("push_tokens").upsert(
-      {
-        token,
-        user_id: userId,
-        role,
-        user_agent: navigator.userAgent.slice(0, 300),
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "token" }
-    );
+    const { error } = await supabase.rpc("register_push_token", {
+      p_token: token,
+      p_user_agent: navigator.userAgent.slice(0, 300),
+    });
+    if (error) {
+      console.error("register_push_token failed:", error);
+      return "error";
+    }
 
     // Show notifications that arrive while the tab is focused (SW only fires when backgrounded).
     onMessage(messaging, (payload) => {
@@ -51,16 +57,19 @@ export async function enablePush(userId: string, role: "admin" | "customer"): Pr
   }
 }
 
-/** Remove this device's token (call on sign-out). */
+/** Remove this device's token (call on sign-out, while the session is still valid). */
 export async function disablePush(): Promise<void> {
   try {
+    // Never trigger a permission prompt or create a registration here.
+    if (!pushConfigured || typeof Notification === "undefined" || Notification.permission !== "granted") return;
+    if (!("serviceWorker" in navigator)) return;
+    const reg = await navigator.serviceWorker.getRegistration(FCM_SW_SCOPE);
+    if (!reg) return;
     const messaging = await getMessagingIfSupported();
-    if (messaging) {
-      const reg = await navigator.serviceWorker.getRegistration("/firebase-messaging-sw.js");
-      const token = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg ?? undefined }).catch(() => null);
-      if (token) await supabase.from("push_tokens").delete().eq("token", token);
-      await deleteToken(messaging).catch(() => {});
-    }
+    if (!messaging) return;
+    const token = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg }).catch(() => null);
+    if (token) await supabase.from("push_tokens").delete().eq("token", token);
+    await deleteToken(messaging).catch(() => {});
   } catch { /* ignore */ }
 }
 

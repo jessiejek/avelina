@@ -74,6 +74,7 @@ export default function AdminOrders() {
   const [filter, setFilter] = useState<Filter>("active");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState("");
+  const [actionError, setActionError] = useState("");
   const [cancelModal, setCancelModal] = useState<AdminOrder | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -147,41 +148,63 @@ export default function AdminOrders() {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
+  // Update one order and require that a row was actually changed: under RLS a
+  // blocked UPDATE returns no error, just zero rows.
+  const updateOrder = async (id: string, fields: Record<string, unknown>): Promise<string | null> => {
+    const { data, error } = await supabase.from("orders").update(fields).eq("id", id).select("id");
+    if (error) return error.message;
+    if (!data || data.length === 0) return "No permission to update this order (or it no longer exists).";
+    return null;
+  };
+
   const markDone = async (order: AdminOrder) => {
     setUpdatingId(order.id);
+    setActionError("");
     setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, status: "completed" } : o)));
-    const { error } = await supabase
-      .from("orders")
-      .update({ status: "completed", completed_at: new Date().toISOString() })
-      .eq("id", order.id);
-    if (error) setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, status: order.status } : o)));
+    const err = await updateOrder(order.id, { status: "completed", completed_at: new Date().toISOString() });
+    if (err) {
+      setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, status: order.status } : o)));
+      setActionError(`Could not mark #${order.id} done: ${err}`);
+    }
     setUpdatingId(null);
   };
 
   const markConfirmed = async (order: AdminOrder) => {
     setUpdatingId(order.id);
+    setActionError("");
     setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, status: "confirmed" } : o)));
-    const { error } = await supabase.from("orders").update({ status: "confirmed" }).eq("id", order.id);
-    if (error) setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, status: order.status } : o)));
+    const err = await updateOrder(order.id, { status: "confirmed" });
+    if (err) {
+      setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, status: order.status } : o)));
+      setActionError(`Could not confirm #${order.id}: ${err}`);
+    }
     setUpdatingId(null);
   };
 
   const toggleFulfillment = async (order: AdminOrder) => {
     const next: "pickup" | "delivery" = order.fulfillmentType === "pickup" ? "delivery" : "pickup";
+    setActionError("");
     setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, fulfillmentType: next } : o)));
-    await supabase.from("orders").update({ fulfillment_type: next }).eq("id", order.id);
+    const err = await updateOrder(order.id, { fulfillment_type: next });
+    if (err) {
+      setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, fulfillmentType: order.fulfillmentType } : o)));
+      setActionError(`Could not change #${order.id} to ${next}: ${err}`);
+    }
   };
 
   const handleCancel = async () => {
     if (!cancelModal) return;
+    const target = cancelModal;
     setCancelling(true);
-    await supabase
-      .from("orders")
-      .update({ status: "cancelled", cancelled_at: new Date().toISOString() })
-      .eq("id", cancelModal.id);
-    setOrders((prev) => prev.map((o) => (o.id === cancelModal.id ? { ...o, status: "cancelled" } : o)));
+    setActionError("");
+    const err = await updateOrder(target.id, { status: "cancelled", cancelled_at: new Date().toISOString() });
     setCancelling(false);
     setCancelModal(null);
+    if (err) {
+      setActionError(`Could not cancel #${target.id}: ${err}`);
+      return;
+    }
+    setOrders((prev) => prev.map((o) => (o.id === target.id ? { ...o, status: "cancelled" } : o)));
   };
 
   const counts = {
@@ -303,6 +326,19 @@ export default function AdminOrders() {
               <p className="font-semibold text-sm">Could not load orders</p>
               <p className="text-xs mt-0.5 opacity-80 break-words font-mono">{loadError}</p>
             </div>
+          </div>
+        )}
+
+        {actionError && (
+          <div className="bg-error-container text-on-error-container p-4 rounded-xl flex items-start gap-3 border border-error/20">
+            <Icon name="warning" size={20} className="shrink-0 mt-0.5" />
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold text-sm">Action failed</p>
+              <p className="text-xs mt-0.5 opacity-80 break-words">{actionError}</p>
+            </div>
+            <button onClick={() => setActionError("")} title="Dismiss" className="shrink-0">
+              <Icon name="close" size={16} />
+            </button>
           </div>
         )}
 

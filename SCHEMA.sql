@@ -1,7 +1,15 @@
 -- ============================================================
--- AVELINA'S BAKERY — COMPLETE SCHEMA
--- Run this once in Supabase SQL editor.
--- Safe to re-run: uses IF NOT EXISTS / DROP IF EXISTS guards.
+-- AVELINA'S BAKERY — LEGACY BASELINE SCHEMA
+--
+-- NOTE: supabase/migrations/ is the SOURCE OF TRUTH for the database.
+-- This file is a historical baseline only and is known to differ from the
+-- live database in places (see CLAUDE.md "Known Schema Gotcha"). Prefer
+-- regenerating it with `supabase db pull` over editing it by hand.
+--
+-- It is non-destructive (IF NOT EXISTS / ADD COLUMN IF NOT EXISTS only) and
+-- does NOT create any RLS policies: RLS is enabled here (deny-by-default) and
+-- the real policies live in the migrations (20260909000000_rls_lockdown.sql).
+-- Re-running it will never drop data or re-open access.
 -- ============================================================
 
 -- ── users ────────────────────────────────────────────────────
@@ -61,11 +69,18 @@ ALTER TABLE recipes ADD COLUMN IF NOT EXISTS difficulty              text;
 ALTER TABLE recipes ADD COLUMN IF NOT EXISTS is_available            boolean DEFAULT true;
 ALTER TABLE recipes ADD COLUMN IF NOT EXISTS is_for_sale             boolean DEFAULT true;
 
+-- ── recipe_categories ────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS recipe_categories (
+  id         uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  name       text NOT NULL UNIQUE,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
 -- ── recipe_ingredients ───────────────────────────────────────
 CREATE TABLE IF NOT EXISTS recipe_ingredients (
   id            uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   recipe_id     uuid REFERENCES recipes(id) ON DELETE CASCADE,
-  ingredient_id text REFERENCES ingredients(id) ON DELETE SET NULL,
+  ingredient_id uuid REFERENCES ingredients(id) ON DELETE SET NULL,
   qty           numeric NOT NULL,
   unit          text NOT NULL
 );
@@ -148,10 +163,9 @@ ALTER TABLE bake_entries ADD COLUMN IF NOT EXISTS cost       numeric DEFAULT 0;
 ALTER TABLE bake_entries ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
 
 -- ── inventory_adjustments ────────────────────────────────────
-DROP TABLE IF EXISTS inventory_adjustments;
-CREATE TABLE inventory_adjustments (
+CREATE TABLE IF NOT EXISTS inventory_adjustments (
   id            uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  ingredient_id text REFERENCES ingredients(id) ON DELETE CASCADE,
+  ingredient_id uuid REFERENCES ingredients(id) ON DELETE CASCADE,
   delta         numeric NOT NULL,
   unit          text,
   reason        text,
@@ -195,7 +209,7 @@ CREATE TABLE IF NOT EXISTS expenses (
   amount        numeric NOT NULL DEFAULT 0,
   description   text,
   note          text,
-  ingredient_id text REFERENCES ingredients(id) ON DELETE SET NULL,
+  ingredient_id uuid REFERENCES ingredients(id) ON DELETE SET NULL,
   qty           numeric,
   unit          text,
   created_by    text,
@@ -206,24 +220,24 @@ ALTER TABLE expenses ADD COLUMN IF NOT EXISTS category      text;
 ALTER TABLE expenses ADD COLUMN IF NOT EXISTS type          text;
 ALTER TABLE expenses ADD COLUMN IF NOT EXISTS description   text;
 ALTER TABLE expenses ADD COLUMN IF NOT EXISTS note          text;
-ALTER TABLE expenses ADD COLUMN IF NOT EXISTS ingredient_id text REFERENCES ingredients(id) ON DELETE SET NULL;
+ALTER TABLE expenses ADD COLUMN IF NOT EXISTS ingredient_id uuid REFERENCES ingredients(id) ON DELETE SET NULL;
 ALTER TABLE expenses ADD COLUMN IF NOT EXISTS qty           numeric;
 ALTER TABLE expenses ADD COLUMN IF NOT EXISTS unit          text;
 ALTER TABLE expenses ADD COLUMN IF NOT EXISTS created_by    text;
 ALTER TABLE expenses ADD COLUMN IF NOT EXISTS recorded_at   timestamptz DEFAULT now();
 
 -- ============================================================
--- ROW LEVEL SECURITY — permissive policies for all tables
--- (tighten per-table when you add proper auth roles)
+-- ROW LEVEL SECURITY
+-- Enabled with NO policies here (deny-by-default for anon/authenticated).
+-- Policies are defined in supabase/migrations/20260909000000_rls_lockdown.sql.
+-- (The old permissive "allow_all" policies were removed on purpose.)
 -- ============================================================
 DO $$ DECLARE t text; BEGIN
   FOR t IN SELECT unnest(ARRAY[
-    'users','ingredients','recipes','recipe_ingredients','recipe_steps',
+    'users','ingredients','recipes','recipe_categories','recipe_ingredients','recipe_steps',
     'orders','order_items','order_edit_log','bake_entries',
     'inventory_adjustments','finished_goods','finished_goods_dispositions','expenses'
   ]) LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
-    EXECUTE format('DROP POLICY IF EXISTS "allow_all" ON %I', t);
-    EXECUTE format('CREATE POLICY "allow_all" ON %I FOR ALL USING (true) WITH CHECK (true)', t);
   END LOOP;
 END $$;
