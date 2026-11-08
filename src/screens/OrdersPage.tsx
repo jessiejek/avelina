@@ -4,6 +4,8 @@ import Icon from "../components/Icon.tsx";
 import { supabase } from "../lib/supabase.ts";
 import { peso } from "../lib/money.ts";
 import { fmtDate } from "../lib/preorder.ts";
+import { downPayment, PaymentStatus } from "../lib/payment.ts";
+import PaymentProofForm from "../components/PaymentProofForm.tsx";
 
 type OrderStatus = "pending" | "confirmed" | "baking" | "ready" | "completed" | "cancelled";
 
@@ -19,6 +21,11 @@ interface OrderView {
   placedAt: string;
   status: OrderStatus;
   preorderDate: string | null;
+  /** null = payment columns not there yet (migration not run) */
+  paymentStatus: PaymentStatus | null;
+  downPayment: number | null;
+  paymentRef: string | null;
+  paymentNote: string | null;
   items: OrderLine[];
 }
 
@@ -46,6 +53,10 @@ function mapOrder(o: any): OrderView {
     placedAt: o.placed_at,
     status: o.status,
     preorderDate: o.preorder_date ?? null,
+    paymentStatus: o.payment_status ?? null,
+    downPayment: o.down_payment != null ? Number(o.down_payment) : null,
+    paymentRef: o.payment_ref ?? null,
+    paymentNote: o.payment_note ?? null,
     items: (o.order_items || []).map((item: any) => ({
       // The product may have been deleted/hidden since: never dereference blindly.
       name: item.recipes?.name ?? "Item no longer available",
@@ -68,6 +79,8 @@ export default function OrdersPage({ userId, authLoading }: Props) {
   const navigate = useNavigate();
   const [orders, setOrders] = useState<OrderView[]>([]);
   const [loading, setLoading] = useState(true);
+  const [payFor, setPayFor] = useState<OrderView | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (authLoading) return;
@@ -95,12 +108,19 @@ export default function OrdersPage({ userId, authLoading }: Props) {
         fetchOrders();
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "orders", filter: `user_id=eq.${userId}` }, ({ new: row }) => {
-        setOrders((prev) => prev.map((o) => o.id === row.id ? { ...o, status: row.status as OrderStatus } : o));
+        setOrders((prev) => prev.map((o) => o.id === row.id ? {
+          ...o,
+          status: row.status as OrderStatus,
+          paymentStatus: row.payment_status ?? o.paymentStatus,
+          paymentRef: row.payment_ref ?? o.paymentRef,
+          paymentNote: row.payment_note ?? null,
+          downPayment: row.down_payment != null ? Number(row.down_payment) : o.downPayment,
+        } : o));
       })
       .subscribe();
 
     return () => { cancelled = true; supabase.removeChannel(channel); };
-  }, [userId, authLoading]);
+  }, [userId, authLoading, reloadKey]);
 
   return (
     <div className="min-h-screen bg-[#fff8f5]" style={{ fontFamily: "'Work Sans', sans-serif" }}>
@@ -160,10 +180,69 @@ export default function OrdersPage({ userId, authLoading }: Props) {
                   <span className="font-mono">{peso(lineTotal(order))}</span>
                 </div>
               </div>
+              {order.paymentStatus && order.status !== "cancelled" && (() => {
+                const dp = order.downPayment ?? downPayment(lineTotal(order));
+                if (order.paymentStatus === "verified") return (
+                  <div className="rounded-xl bg-green-50 border border-green-200 p-3 flex items-center gap-2 text-xs">
+                    <Icon name="check_circle" size={16} className="text-green-700" />
+                    <span className="font-bold text-green-800">Down payment verified · {peso(dp)}</span>
+                    <span className="ml-auto text-green-700/80">Balance {peso(lineTotal(order) - dp)}</span>
+                  </div>
+                );
+                if (order.paymentStatus === "submitted") return (
+                  <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 flex items-center gap-2">
+                    <Icon name="hourglass" size={16} className="text-amber-700 shrink-0" />
+                    <div className="text-xs">
+                      <p className="font-bold text-amber-800">Proof sent – waiting for verification</p>
+                      <p className="text-amber-700/80">{order.paymentRef ? `Ref ${order.paymentRef} · ` : ""}{peso(dp)}</p>
+                    </div>
+                  </div>
+                );
+                return (
+                  <div className="rounded-xl bg-red-50 border border-red-200 p-3 space-y-2">
+                    <div className="flex justify-between items-center gap-2">
+                      <span className="text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-full bg-red-600 text-white">
+                        {order.paymentStatus === "rejected" ? "Proof rejected" : "Awaiting payment"}
+                      </span>
+                      <span className="text-xs font-mono font-bold text-red-700">Down {peso(dp)}</span>
+                    </div>
+                    {order.paymentStatus === "rejected" && order.paymentNote && (
+                      <p className="text-xs text-red-800">Reason: {order.paymentNote}</p>
+                    )}
+                    <button onClick={() => setPayFor(order)} className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg bg-[#26170c] text-white text-xs font-bold">
+                      <Icon name="upload" size={14} /> {order.paymentStatus === "rejected" ? "Upload new proof" : "Upload proof"}
+                    </button>
+                  </div>
+                );
+              })()}
             </div>
           ))
         )}
       </div>
+
+      {payFor && userId && (
+        <div className="fixed inset-0 z-[200] overflow-y-auto bg-[#fff8f5]">
+          <div className="max-w-md mx-auto px-5 py-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <button onClick={() => setPayFor(null)} className="flex items-center gap-2 text-[#26170c] font-semibold text-sm">
+                <Icon name="arrow_back" size={16} /> My Orders
+              </button>
+              <span className="text-xs font-mono text-[#26170c]/60">#{payFor.id}</span>
+            </div>
+            <h2 className="font-bold text-[#26170c] text-xl text-center" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>Pay your down payment</h2>
+            <PaymentProofForm
+              userId={userId}
+              orderIds={[payFor.id]}
+              amount={payFor.downPayment ?? downPayment(lineTotal(payFor))}
+              balance={lineTotal(payFor) - (payFor.downPayment ?? downPayment(lineTotal(payFor)))}
+              note={payFor.paymentStatus === "rejected" ? payFor.paymentNote : null}
+              onSubmitted={() => { setPayFor(null); setReloadKey((k) => k + 1); }}
+              onLater={() => setPayFor(null)}
+              laterLabel="Not now"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

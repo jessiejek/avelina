@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabase.ts";
 import { peso } from "../lib/money.ts";
 import PushToggle from "../components/PushToggle.tsx";
 import { fmtDate, todayManila } from "../lib/preorder.ts";
+import { downPayment, paymentLabel, PaymentStatus, proofUrl } from "../lib/payment.ts";
 
 type OrderStatus = "pending" | "confirmed" | "baking" | "ready" | "completed" | "cancelled";
 
@@ -26,6 +27,12 @@ interface AdminOrder {
   customerSocial: string;
   customerAddress: string;
   preorderDate: string | null;
+  /** null = payment columns not there yet (migration not run) */
+  paymentStatus: PaymentStatus | null;
+  downPayment: number | null;
+  paymentProofPath: string | null;
+  paymentRef: string | null;
+  paymentNote: string | null;
   items: AdminOrderItem[];
 }
 
@@ -57,6 +64,11 @@ function mapOrder(o: any): AdminOrder {
     customerSocial: o.customer_social || "",
     customerAddress: o.delivery_address || o.users?.address || "",
     preorderDate: o.preorder_date ?? null,
+    paymentStatus: o.payment_status ?? null,
+    downPayment: o.down_payment != null ? Number(o.down_payment) : null,
+    paymentProofPath: o.payment_proof_path ?? null,
+    paymentRef: o.payment_ref ?? null,
+    paymentNote: o.payment_note ?? null,
     items: (o.order_items || []).map((it: any) => ({
       id: it.id || "",
       name: it.recipes?.name || "—",
@@ -69,7 +81,37 @@ function mapOrder(o: any): AdminOrder {
 
 const SELECT = "*, users(name, phone, address), order_items(id, qty, unit_price, recipes(id, name, img, price))";
 
-type Filter = "all" | "active" | "preorders" | "completed" | "cancelled";
+type Filter = "all" | "active" | "preorders" | "unpaid" | "submitted" | "completed" | "cancelled";
+
+const orderTotal = (o: { items: { unitPrice: number; qty: number }[] }) => o.items.reduce((s, i) => s + i.unitPrice * i.qty, 0);
+const dpOf = (o: AdminOrder) => o.downPayment ?? downPayment(orderTotal(o));
+const needsPayment = (o: AdminOrder) => o.paymentStatus === "unpaid" || o.paymentStatus === "rejected";
+
+const payBadge = (o: AdminOrder) => {
+  if (!o.paymentStatus) return null;
+  const cls =
+    o.paymentStatus === "verified" ? "bg-green-600 text-white"
+    : o.paymentStatus === "submitted" ? "bg-amber-400 text-amber-950"
+    : "bg-red-600 text-white";
+  const icon = o.paymentStatus === "verified" ? "check" : o.paymentStatus === "submitted" ? "hourglass" : "alert";
+  return (
+    <span className={`inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-full whitespace-nowrap ${cls}`}>
+      <Icon name={icon} size={10} strokeWidth={3} /> {paymentLabel(o.paymentStatus)}
+    </span>
+  );
+};
+
+const dpLine = (o: AdminOrder) =>
+  o.paymentStatus ? (
+    <span className="text-[11px] text-on-surface-variant whitespace-nowrap">Down {peso(dpOf(o))} · Bal {peso(orderTotal(o) - dpOf(o))}</span>
+  ) : null;
+
+const unverifiedWarn = (o: AdminOrder) =>
+  o.paymentStatus && o.paymentStatus !== "verified" && !isDoneStatus(o.status) ? (
+    <p className="text-[11px] font-semibold text-red-700 bg-red-50 border border-red-200 rounded-lg px-2 py-1 inline-flex items-center gap-1">
+      <Icon name="warning" size={12} /> Down payment not verified
+    </p>
+  ) : null;
 
 const preorderBadge = (order: { preorderDate: string | null }) =>
   order.preorderDate ? (
@@ -103,6 +145,7 @@ export default function AdminOrders() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>("active");
   const [preorderDay, setPreorderDay] = useState<string>("all");
+  const [proofFor, setProofFor] = useState<AdminOrder | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState("");
   const [actionError, setActionError] = useState("");
@@ -167,7 +210,12 @@ export default function AdminOrders() {
         setOrders((prev) =>
           prev.map((o) =>
             o.id === row.id
-              ? { ...o, status: row.status as OrderStatus, fulfillmentType: row.fulfillment_type === "delivery" ? "delivery" : "pickup", preorderDate: row.preorder_date ?? o.preorderDate }
+              ? { ...o, status: row.status as OrderStatus, fulfillmentType: row.fulfillment_type === "delivery" ? "delivery" : "pickup", preorderDate: row.preorder_date ?? o.preorderDate,
+                  paymentStatus: row.payment_status ?? o.paymentStatus,
+                  paymentProofPath: row.payment_proof_path ?? o.paymentProofPath,
+                  paymentRef: row.payment_ref ?? o.paymentRef,
+                  paymentNote: row.payment_note ?? null,
+                  downPayment: row.down_payment != null ? Number(row.down_payment) : o.downPayment }
               : o
           )
         );
@@ -198,6 +246,15 @@ export default function AdminOrders() {
       setActionError(`Could not mark #${order.id} done: ${err}`);
     }
     setUpdatingId(null);
+  };
+
+  // Warn (never block) when the down payment isn't verified yet.
+  const confirmClick = (order: AdminOrder) => {
+    if (order.paymentStatus && order.paymentStatus !== "verified") {
+      const what = order.paymentStatus === "submitted" ? "has a proof waiting for your review" : "is not paid yet";
+      if (!window.confirm(`The ${peso(dpOf(order))} down payment for #${order.id} ${what}.\n\nConfirm the order anyway?`)) return;
+    }
+    markConfirmed(order);
   };
 
   const markConfirmed = async (order: AdminOrder) => {
@@ -242,6 +299,8 @@ export default function AdminOrders() {
     all: orders.length,
     active: orders.filter((o) => !isDoneStatus(o.status)).length,
     preorders: orders.filter((o) => o.preorderDate && !isDoneStatus(o.status)).length,
+    unpaid: orders.filter((o) => needsPayment(o) && o.status !== "cancelled").length,
+    submitted: orders.filter((o) => o.paymentStatus === "submitted").length,
     completed: orders.filter((o) => o.status === "completed").length,
     cancelled: orders.filter((o) => o.status === "cancelled").length,
   };
@@ -257,6 +316,10 @@ export default function AdminOrders() {
       ? orders
       : filter === "active"
       ? orders.filter((o) => !isDoneStatus(o.status))
+      : filter === "unpaid"
+      ? orders.filter((o) => needsPayment(o) && o.status !== "cancelled")
+      : filter === "submitted"
+      ? orders.filter((o) => o.paymentStatus === "submitted")
       : filter === "preorders"
       ? openPreorders.filter((o) => preorderDay === "all" || o.preorderDate === preorderDay)
       : orders.filter((o) => o.status === filter);
@@ -264,6 +327,10 @@ export default function AdminOrders() {
   const chips: { id: Filter; label: string }[] = [
     { id: "active", label: "Active" },
     { id: "preorders", label: "Pre-orders" },
+    ...(orders.some((o) => o.paymentStatus) ? [
+      { id: "unpaid" as Filter, label: "Unpaid" },
+      { id: "submitted" as Filter, label: "Proof sent" },
+    ] : []),
     { id: "completed", label: "Done" },
     { id: "cancelled", label: "Cancelled" },
     { id: "all", label: "All" },
@@ -307,6 +374,11 @@ export default function AdminOrders() {
       <span className="text-xs text-on-surface-variant">—</span>
     ) : (
       <>
+        {order.paymentProofPath && (
+          <button onClick={() => setProofFor(order)} className="h-8 px-3 rounded-lg bg-amber-400 text-amber-950 text-xs font-bold hover:opacity-90 active:scale-95 transition-all inline-flex items-center gap-1">
+            <Icon name="eye" size={12} /> {order.paymentStatus === "submitted" ? "View proof" : "Proof"}
+          </button>
+        )}
         <button
           onClick={() => setCancelModal(order)}
           className="h-8 px-2.5 rounded-lg border border-error/30 text-error text-xs font-semibold hover:bg-error-container/30 active:scale-95 transition-all"
@@ -315,11 +387,12 @@ export default function AdminOrders() {
         </button>
         {order.status === "pending" && (
           <button
-            onClick={() => markConfirmed(order)}
+            onClick={() => confirmClick(order)}
             disabled={updatingId === order.id}
-            className="h-8 px-3 rounded-lg border border-blue-400 text-blue-700 text-xs font-bold hover:bg-blue-50 active:scale-95 transition-all disabled:opacity-50"
+            className={`h-8 px-3 rounded-lg border text-xs font-bold active:scale-95 transition-all disabled:opacity-50 inline-flex items-center gap-1 ${order.paymentStatus && order.paymentStatus !== "verified" ? "border-red-400 text-red-700 bg-red-50 hover:bg-red-100" : "border-blue-400 text-blue-700 hover:bg-blue-50"}`}
+            title={order.paymentStatus && order.paymentStatus !== "verified" ? "Down payment not verified" : undefined}
           >
-            {updatingId === order.id ? "…" : "Confirm"}
+            {order.paymentStatus && order.paymentStatus !== "verified" && <Icon name="warning" size={12} />}{updatingId === order.id ? "…" : "Confirm"}
           </button>
         )}
         <button
@@ -405,7 +478,7 @@ export default function AdminOrders() {
         ) : visible.length === 0 ? (
           <div className="py-24 text-center rounded-xl border-2 border-dashed border-outline-variant/30">
             <Icon name="assignment" size={40} className="mx-auto mb-3 text-outline/40" />
-            <p className="text-sm text-on-surface-variant">{filter === "preorders" ? "No open pre-orders." : `No ${filter === "all" ? "" : filter + " "}orders.`}</p>
+            <p className="text-sm text-on-surface-variant">{filter === "preorders" ? "No open pre-orders." : filter === "unpaid" ? "No unpaid orders." : filter === "submitted" ? "No proofs waiting." : `No ${filter === "all" ? "" : filter + " "}orders.`}</p>
           </div>
         ) : (
           <>
@@ -424,6 +497,7 @@ export default function AdminOrders() {
                       <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full ${statusStyle(order.status)}`}>
                         {statusLabel(order.status)}
                       </span>
+                      {payBadge(order)}
                       {preorderTags(order)}
                     </span>
                     <span className="text-xs text-on-surface-variant whitespace-nowrap">
@@ -453,7 +527,7 @@ export default function AdminOrders() {
                   </div>
 
                   <div className="flex items-center justify-between border-t border-outline-variant/15 pt-2">
-                    <span className="text-[11px] uppercase tracking-wide text-on-surface-variant">Total</span>
+                    <span className="flex flex-col"><span className="text-[11px] uppercase tracking-wide text-on-surface-variant">Total</span>{dpLine(order)}</span>
                     <span className="font-mono font-bold text-primary">{peso(total)}</span>
                   </div>
 
@@ -492,6 +566,7 @@ export default function AdminOrders() {
                     </p>
                   )}
 
+                  {unverifiedWarn(order)}
                   {!done && <div className="flex flex-wrap items-center gap-2 pt-1">{orderActions(order, done)}</div>}
                 </div>
               );
@@ -526,7 +601,8 @@ export default function AdminOrders() {
                           <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${statusStyle(order.status)}`}>
                             {statusLabel(order.status)}
                           </span>
-                          {preorderTags(order)}
+                          {payBadge(order)}
+                      {preorderTags(order)}
                         </div>
                         {order.customerAddress && (
                           <div className="flex items-start gap-1.5 mt-1">
@@ -569,7 +645,11 @@ export default function AdminOrders() {
                           </ul>
                         )}
                       </td>
-                      <td className="px-3 py-2.5 text-right font-mono font-bold text-primary whitespace-nowrap">{peso(total)}</td>
+                      <td className="px-3 py-2.5 text-right font-mono font-bold text-primary whitespace-nowrap">
+                        {peso(total)}
+                        {order.paymentStatus && <div className="font-sans font-normal mt-0.5">{dpLine(order)}</div>}
+                        {order.paymentStatus && !isDoneStatus(order.status) && order.paymentStatus !== "verified" && <div className="font-sans mt-1">{unverifiedWarn(order)}</div>}
+                      </td>
                       <td className="px-3 py-2.5 whitespace-nowrap">
                         <button
                           onClick={() => toggleFulfillment(order)}
@@ -587,6 +667,11 @@ export default function AdminOrders() {
                             <span className="text-xs text-on-surface-variant">—</span>
                           ) : (
                             <>
+                              {order.paymentProofPath && (
+                                <button onClick={() => setProofFor(order)} className="h-8 px-3 rounded-lg bg-amber-400 text-amber-950 text-xs font-bold hover:opacity-90 active:scale-95 transition-all inline-flex items-center gap-1">
+                                  <Icon name="eye" size={12} /> {order.paymentStatus === "submitted" ? "View proof" : "Proof"}
+                                </button>
+                              )}
                               <button
                                 onClick={() => setCancelModal(order)}
                                 className="h-8 px-2.5 rounded-lg border border-error/30 text-error text-xs font-semibold hover:bg-error-container/30 active:scale-95 transition-all"
@@ -595,11 +680,12 @@ export default function AdminOrders() {
                               </button>
                               {order.status === "pending" && (
                                 <button
-                                  onClick={() => markConfirmed(order)}
+                                  onClick={() => confirmClick(order)}
                                   disabled={updatingId === order.id}
-                                  className="h-8 px-3 rounded-lg border border-blue-400 text-blue-700 text-xs font-bold hover:bg-blue-50 active:scale-95 transition-all disabled:opacity-50"
+                                  className={`h-8 px-3 rounded-lg border text-xs font-bold active:scale-95 transition-all disabled:opacity-50 inline-flex items-center gap-1 ${order.paymentStatus && order.paymentStatus !== "verified" ? "border-red-400 text-red-700 bg-red-50 hover:bg-red-100" : "border-blue-400 text-blue-700 hover:bg-blue-50"}`}
+            title={order.paymentStatus && order.paymentStatus !== "verified" ? "Down payment not verified" : undefined}
                                 >
-                                  {updatingId === order.id ? "…" : "Confirm"}
+                                  {order.paymentStatus && order.paymentStatus !== "verified" && <Icon name="warning" size={12} />}{updatingId === order.id ? "…" : "Confirm"}
                                 </button>
                               )}
                               <button
@@ -622,6 +708,18 @@ export default function AdminOrders() {
           </>
         )}
       </div>
+
+      {proofFor && (
+        <ProofModal
+          order={proofFor}
+          onClose={() => setProofFor(null)}
+          onDone={(path, fields) => {
+            // one proof can cover several orders placed together
+            setOrders((prev) => prev.map((o) => (o.paymentProofPath === path ? { ...o, ...fields } : o)));
+            setProofFor(null);
+          }}
+        />
+      )}
 
       {cancelModal && (
         <div
@@ -656,6 +754,96 @@ export default function AdminOrders() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function ProofModal({ order, onClose, onDone }: {
+  order: AdminOrder;
+  onClose: () => void;
+  onDone: (path: string, fields: Partial<AdminOrder>) => void;
+}) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [loadingImg, setLoadingImg] = useState(true);
+  const [reason, setReason] = useState(order.paymentStatus === "rejected" ? order.paymentNote || "" : "");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const path = order.paymentProofPath!;
+
+  useEffect(() => {
+    let cancelled = false;
+    proofUrl(path).then((u) => { if (!cancelled) { setUrl(u); setLoadingImg(false); } });
+    return () => { cancelled = true; };
+  }, [path]);
+
+  const act = async (verify: boolean) => {
+    if (!verify && !reason.trim()) { setErr("Add a reason so the customer knows what to fix."); return; }
+    setBusy(true);
+    setErr("");
+    const fields = verify
+      ? { payment_status: "verified", payment_verified_at: new Date().toISOString(), payment_note: null }
+      : { payment_status: "rejected", payment_verified_at: null, payment_note: reason.trim() };
+    const { data, error } = await supabase.from("orders").update(fields).eq("payment_proof_path", path).select("id");
+    setBusy(false);
+    if (error) { setErr(error.message); return; }
+    if (!data || data.length === 0) { setErr("No permission to update this order (or it no longer exists)."); return; }
+    onDone(path, verify
+      ? { paymentStatus: "verified", paymentNote: null }
+      : { paymentStatus: "rejected", paymentNote: reason.trim() });
+  };
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4" style={{ backgroundColor: "rgba(29,27,26,0.6)" }} onClick={() => !busy && onClose()}>
+      <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/20 w-full max-w-md shadow-2xl flex flex-col max-h-[94vh]" onClick={(e) => e.stopPropagation()}>
+        <div className="flex justify-between items-start px-5 py-4 border-b border-outline-variant/10">
+          <div className="min-w-0">
+            <h3 className="font-bold text-primary text-lg" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>Payment proof</h3>
+            <p className="text-xs text-on-surface-variant truncate">{order.customerName} · #{order.id}</p>
+          </div>
+          <div className="flex items-center gap-2">{payBadge(order)}
+            <button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-surface-container flex items-center justify-center"><Icon name="close" size={18} /></button>
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto p-5 space-y-3">
+          {loadingImg ? (
+            <div className="h-64 rounded-xl bg-surface-container flex items-center justify-center text-sm text-on-surface-variant">Loading screenshot…</div>
+          ) : url ? (
+            <a href={url} target="_blank" rel="noreferrer" title="Open full size">
+              <img src={url} alt="GCash proof" className="w-full max-h-[55vh] object-contain rounded-xl bg-surface-container" />
+            </a>
+          ) : (
+            <div className="h-40 rounded-xl bg-error-container/40 flex items-center justify-center text-sm text-error">Couldn't load the screenshot.</div>
+          )}
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div className="rounded-lg bg-surface-container p-2">
+              <p className="text-[10px] uppercase text-on-surface-variant">Expected (this order)</p>
+              <b className="font-mono">{peso(dpOf(order))}</b>
+            </div>
+            <div className="rounded-lg bg-surface-container p-2">
+              <p className="text-[10px] uppercase text-on-surface-variant">Ref no.</p>
+              <b className="font-mono break-all">{order.paymentRef || "—"}</b>
+            </div>
+          </div>
+          <p className="text-[11px] text-on-surface-variant">If the customer paid for several orders at once, the amount covers all of them. Check the reference in the GCash app before verifying.</p>
+          <div>
+            <label className="block text-[10px] font-semibold uppercase text-on-surface-variant mb-1">Reject reason (shown to customer)</label>
+            <input
+              className="w-full h-10 px-3 rounded-lg border border-outline-variant bg-surface-bright text-sm focus:outline-none focus:border-primary/60"
+              placeholder="e.g. Amount doesn't match"
+              value={reason}
+              maxLength={300}
+              onChange={(e) => setReason(e.target.value)}
+            />
+          </div>
+          {err && <p className="text-xs text-error bg-error-container/40 rounded-lg px-3 py-2">{err}</p>}
+        </div>
+        <div className="px-5 py-4 border-t border-outline-variant/10 flex gap-3">
+          <button onClick={() => act(false)} disabled={busy} className="flex-1 h-11 rounded-lg border border-error/40 text-error text-sm font-bold disabled:opacity-50">Reject</button>
+          <button onClick={() => act(true)} disabled={busy} className="flex-1 h-11 rounded-lg bg-green-600 text-white text-sm font-bold flex items-center justify-center gap-1 disabled:opacity-50">
+            <Icon name="check" size={14} /> {busy ? "Saving…" : "Verify"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

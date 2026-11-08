@@ -16,7 +16,7 @@ export function validateImageFile(file: File): string | null {
   return null;
 }
 
-async function compressToLimit(file: File): Promise<Blob> {
+export async function compressToLimit(file: File): Promise<Blob> {
   if (file.size <= MAX_IMG_BYTES) return file;
   return new Promise((resolve, reject) => {
     const img = new Image();

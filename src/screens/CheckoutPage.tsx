@@ -6,6 +6,8 @@ import { UserProfile } from "./ProfileSetup.tsx";
 import { supabase } from "../lib/supabase.ts";
 import { peso } from "../lib/money.ts";
 import { groupCart, groupTitle, fmtDate } from "../lib/preorder.ts";
+import { downPayment } from "../lib/payment.ts";
+import PaymentProofForm, { DownPaymentBanner } from "../components/PaymentProofForm.tsx";
 
 export interface GuestInfo {
   name: string;
@@ -39,7 +41,7 @@ interface Props {
   onPlaceOrder: () => void;
 }
 
-export default function CheckoutPage({ cart, guest, onSaveGuest, onUpdateQty, onOrderSaved, onPlaceOrder }: Props) {
+export default function CheckoutPage({ cart, guest, userId, onSaveGuest, onUpdateQty, onOrderSaved, onPlaceOrder }: Props) {
   const navigate = useNavigate();
   const [name, setName] = useState(guest.name);
   const [phone, setPhone] = useState(guest.phone);
@@ -47,8 +49,7 @@ export default function CheckoutPage({ cart, guest, onSaveGuest, onUpdateQty, on
   const [address, setAddress] = useState(guest.address);
   const [fulfillment, setFulfillment] = useState<"pickup" | "delivery">(guest.fulfillment || "pickup");
   const [notes, setNotes] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<"cash" | "gcash">("cash");
-  const [gcashRef, setGcashRef] = useState("");
+  const [proofDone, setProofDone] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [locateStatus, setLocateStatus] = useState<"idle" | "locating" | "success" | "error">("idle");
@@ -87,7 +88,6 @@ export default function CheckoutPage({ cart, guest, onSaveGuest, onUpdateQty, on
     if (!phone.trim()) { setError("Please enter your phone number."); return; }
     if (!social.trim()) { setError("Please enter your Facebook or Instagram."); return; }
     if (fulfillment === "delivery" && !address.trim()) { setError("Please enter a delivery address."); return; }
-    if (paymentMethod === "gcash" && !gcashRef.trim()) { setError("Please enter your GCash reference number."); return; }
     setError("");
     setReviewOpen(true);
   };
@@ -107,8 +107,9 @@ export default function CheckoutPage({ cart, guest, onSaveGuest, onUpdateQty, on
       p_fulfillment_type: fulfillment,
       p_delivery_address: fulfillment === "delivery" ? address.trim() || null : null,
       p_notes: notes.trim() || null,
-      p_payment_method: paymentMethod,
-      p_gcash_reference: paymentMethod === "gcash" ? gcashRef.trim() : null,
+      // Down payment is via GCash after booking; the balance is up to the seller.
+      p_payment_method: "cash",
+      p_gcash_reference: null,
     };
     const profile = { name: name.trim(), email: "", phone: phone.trim(), address: address.trim() };
 
@@ -182,6 +183,20 @@ export default function CheckoutPage({ cart, guest, onSaveGuest, onUpdateQty, on
   const cartGroupsView = groups.map((g) => ({ key: g.key, preorderDate: g.preorderDate, items: g.lines.map((l) => l.item), subtotal: g.subtotal }));
   const groupLabel = (i: number) => (multi ? `Order ${i + 1} · ` : "") + groupTitle(groups[i]);
 
+  const dpTotal = groups.reduce((s, g) => s + downPayment(g.subtotal), 0);
+  const balanceLabel = fulfillment === "delivery" ? "Balance on delivery" : "Balance on pickup";
+  const dpBox = (
+    <div className="rounded-xl bg-[#e6f0ff] border border-[#007dfe]/30 p-3 space-y-1.5">
+      <p className="text-xs font-bold text-[#0057b8] flex items-center gap-1.5"><Icon name="wallet" size={14} /> 50% down payment via GCash</p>
+      <div className="flex justify-between text-sm font-bold text-[#26170c]"><span>Down payment</span><span className="font-mono">{peso(dpTotal)}</span></div>
+      {multi && (
+        <p className="text-xs text-[#26170c]/60 pl-2">{groups.map((g, i) => `Order ${i + 1}: ${peso(downPayment(g.subtotal))}`).join(" · ")}</p>
+      )}
+      <div className="flex justify-between text-sm text-[#26170c]/70"><span>{balanceLabel}</span><span className="font-mono">{peso(total - dpTotal)}</span></div>
+      <p className="text-[11px] text-[#26170c]/55">You can book now and send the down payment right after. The balance can be paid in cash or GCash.</p>
+    </div>
+  );
+
   const cashLabel = fulfillment === "delivery" ? "Cash on Delivery" : "Cash on Pickup";
 
   const inputCls = "w-full h-12 px-4 rounded-xl border border-[#26170c]/15 bg-[#fff8f5] text-sm text-[#26170c] focus:outline-none focus:border-[#26170c]/40";
@@ -199,6 +214,7 @@ export default function CheckoutPage({ cart, guest, onSaveGuest, onUpdateQty, on
       </header>
 
       <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
+        <DownPaymentBanner />
         {/* Your details */}
         <div className="bg-white rounded-2xl border border-[#26170c]/8 p-5 space-y-4">
           <h3 className="font-bold text-[#26170c] text-sm" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>Your Details</h3>
@@ -336,33 +352,10 @@ export default function CheckoutPage({ cart, guest, onSaveGuest, onUpdateQty, on
           />
         </div>
 
-        {/* Payment Method */}
-        <div className="bg-white rounded-2xl border border-[#26170c]/8 p-5 space-y-3">
-          <h3 className="font-bold text-[#26170c] text-sm" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>Payment Method</h3>
-          <div className="flex gap-3">
-            {(["cash", "gcash"] as const).map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setPaymentMethod(m)}
-                className={`flex-1 py-3 rounded-xl border-2 text-sm font-bold transition-all ${paymentMethod === m ? "border-[#26170c] bg-[#26170c] text-white" : "border-[#26170c]/15 text-[#26170c]/60 hover:border-[#26170c]/40"}`}
-              >
-                {m === "cash" ? cashLabel : "GCash"}
-              </button>
-            ))}
-          </div>
-          {paymentMethod === "gcash" && (
-            <div>
-              <label className="block text-xs font-semibold text-[#26170c]/50 uppercase tracking-wider mb-1.5">GCash Reference Number</label>
-              <input
-                type="text"
-                className="w-full h-10 px-3 rounded-lg border border-[#26170c]/15 bg-[#fff8f5] text-sm text-[#26170c] font-mono focus:outline-none focus:border-[#26170c]/40"
-                placeholder="e.g. 1234567890"
-                value={gcashRef}
-                onChange={(e) => setGcashRef(e.target.value)}
-              />
-            </div>
-          )}
+        {/* Down payment */}
+        <div className="bg-white rounded-2xl border border-[#26170c]/8 p-5 space-y-2">
+          <h3 className="font-bold text-[#26170c] text-sm" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>Payment</h3>
+          {dpBox}
         </div>
 
         {/* Summary */}
@@ -403,6 +396,7 @@ export default function CheckoutPage({ cart, guest, onSaveGuest, onUpdateQty, on
                   {groups.length} orders will be placed
                 </p>
               )}
+              <div className="mt-3"><DownPaymentBanner compact /></div>
             </div>
 
             <div className="p-5 space-y-2 max-h-[45vh] overflow-y-auto">
@@ -411,9 +405,9 @@ export default function CheckoutPage({ cart, guest, onSaveGuest, onUpdateQty, on
                 <span>{multi ? "Grand total" : "Total"} ({cart.reduce((s, i) => s + i.qty, 0)} items)</span>
                 <span className="font-mono">{peso(total)}</span>
               </div>
+              {dpBox}
               <div className="flex justify-between text-xs text-[#26170c]/55 pt-1">
                 <span>{fulfillment === "delivery" ? "Delivery" : "Pickup"}</span>
-                <span>{paymentMethod === "gcash" ? `GCash · ${gcashRef.trim()}` : cashLabel}</span>
               </div>
               {fulfillment === "delivery" && address.trim() && (
                 <p className="text-xs text-[#26170c]/55">{address.trim()}</p>
@@ -442,65 +436,59 @@ export default function CheckoutPage({ cart, guest, onSaveGuest, onUpdateQty, on
         </div>
       )}
 
-      {placedOrders.length > 0 && (
-        <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-4" style={{ backgroundColor: "rgba(38,23,12,0.5)" }}>
-          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden" style={{ fontFamily: "'Work Sans', sans-serif" }}>
-            <div className="p-6 text-center border-b border-[#26170c]/8">
-              <div className="w-14 h-14 rounded-full bg-[#d4e8ce] flex items-center justify-center mx-auto mb-3">
-                <Icon name="check_circle" size={28} className="text-[#26170c]" />
-              </div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#26170c]/40">
-                {placedOrders.length > 1 ? `${placedOrders.length} Orders Sent` : "Order Sent"}
-              </p>
-              <h3 className="font-bold text-[#26170c] text-lg mt-0.5" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>
-                {placedOrders.length > 1 ? "Thank you!" : `Order #${placedOrders[0].id}`}
-              </h3>
-              <p className="text-xs text-[#26170c]/55 mt-1">Please wait for the bakery to confirm your order{placedOrders.length > 1 ? "s" : ""}.</p>
-            </div>
-
-            <div className="p-5 space-y-3 max-h-[45vh] overflow-y-auto">
-              {placedOrders.map((o) => (
-                <div key={o.id} className="space-y-1">
-                  {(placedOrders.length > 1 || o.preorderDate) && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs font-bold text-[#26170c] font-mono">#{o.id}</span>
-                      <span className="text-[10px] font-bold uppercase tracking-wide text-[#8a4b14] bg-[#f3e1cf] rounded-md px-2 py-0.5">
-                        {o.preorderDate ? `Pre-order · ${fmtDate(o.preorderDate)}` : "Now"}
-                      </span>
-                    </div>
-                  )}
-                  {o.items.map((item, i) => (
-                    <div key={i} className="flex justify-between text-sm">
-                      <span className="text-[#26170c]/70">
-                        {item.recipe.name} <span className="text-[#26170c]/40 font-mono">x{item.qty}</span>
-                      </span>
-                      <span className="font-mono font-semibold text-[#26170c] shrink-0">{peso((item.recipe.price ?? 0) * item.qty)}</span>
-                    </div>
-                  ))}
-                  <div className="flex justify-between text-xs font-bold text-[#26170c] border-t border-[#26170c]/8 pt-1">
-                    <span>Total</span>
-                    <span className="font-mono">{peso(o.total ?? o.items.reduce((s, i) => s + (i.recipe.price ?? 0) * i.qty, 0))}</span>
-                  </div>
+      {placedOrders.length > 0 && (() => {
+        const ids = placedOrders.map((o) => o.id);
+        const grand = placedOrders.reduce((s, o) => s + (o.total ?? 0), 0);
+        const dp = placedOrders.reduce((s, o) => s + downPayment(o.total ?? 0), 0);
+        return (
+          <div className="fixed inset-0 z-[200] overflow-y-auto bg-[#fff8f5]" style={{ fontFamily: "'Work Sans', sans-serif" }}>
+            <div className="max-w-md mx-auto px-5 py-8 space-y-4">
+              <div className="text-center">
+                <div className="w-14 h-14 rounded-full bg-[#d4e8ce] flex items-center justify-center mx-auto mb-2">
+                  <Icon name="check_circle" size={28} className="text-[#26170c]" />
                 </div>
-              ))}
-              <div className="flex justify-between text-xs text-[#26170c]/55 pt-1">
-                <span>{fulfillment === "delivery" ? "Delivery" : "Pickup"}</span>
-                <span>{paymentMethod === "gcash" ? `GCash · ${gcashRef.trim()}` : cashLabel}</span>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#26170c]/40">
+                  {placedOrders.length > 1 ? `${placedOrders.length} orders booked` : "Order booked"}
+                </p>
+                <h2 className="font-bold text-[#26170c] text-xl" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>
+                  {proofDone ? "Proof sent — thank you!" : "Pay your down payment"}
+                </h2>
+                <div className="mt-1 flex flex-wrap justify-center gap-1.5">
+                  {placedOrders.map((o) => (
+                    <span key={o.id} className="text-[11px] font-mono text-[#26170c]/60">
+                      #{o.id}{o.preorderDate ? ` · ${fmtDate(o.preorderDate)}` : ""}
+                    </span>
+                  ))}
+                </div>
               </div>
-              {error && <p className="text-xs text-red-500 font-semibold">{error}</p>}
-            </div>
 
-            <div className="p-4 border-t border-[#26170c]/8">
-              <button
-                onClick={() => onPlaceOrder()}
-                className="w-full py-3.5 rounded-xl bg-[#26170c] text-white text-sm font-bold hover:opacity-90 active:scale-95 transition-all"
-              >
-                Done
-              </button>
+              {error && <p className="text-xs text-red-600 font-semibold text-center">{error}</p>}
+
+              {proofDone || !userId ? (
+                <div className="bg-white rounded-2xl border border-[#26170c]/8 p-5 text-center space-y-2">
+                  <p className="text-sm text-[#26170c]/70">
+                    {proofDone
+                      ? "We'll check your GCash payment and confirm your order soon."
+                      : "Send your down payment and upload the proof from My Orders."}
+                  </p>
+                  <button onClick={() => onPlaceOrder()} className="w-full py-3.5 rounded-xl bg-[#26170c] text-white text-sm font-bold">
+                    Go to My Orders
+                  </button>
+                </div>
+              ) : (
+                <PaymentProofForm
+                  userId={userId}
+                  orderIds={ids}
+                  amount={dp}
+                  balance={grand - dp}
+                  onSubmitted={() => setProofDone(true)}
+                  onLater={() => onPlaceOrder()}
+                />
+              )}
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
