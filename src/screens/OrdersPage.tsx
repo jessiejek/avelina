@@ -68,6 +68,31 @@ function mapOrder(o: any): OrderView {
   };
 }
 
+// What the customer sees: until the bakery verifies the down payment, an open
+// order never reads "Confirmed" (even if the admin confirmed it early).
+const customerPill = (o: OrderView): { label: string; cls: string } => {
+  const open = o.status === "pending" || o.status === "confirmed";
+  if (open && (o.paymentStatus === "unpaid" || o.paymentStatus === "rejected"))
+    return { label: "Awaiting payment", cls: "bg-red-100 text-red-700" };
+  if (open && o.paymentStatus === "submitted")
+    return { label: "Awaiting confirmation", cls: "bg-amber-100 text-amber-800" };
+  return { label: statusLabel(o.status), cls: statusColor(o.status) };
+};
+
+type Section = { key: "pre" | "open" | "past"; title: string; icon: string; items: OrderView[] };
+const isPast = (o: OrderView) => o.status === "completed" || o.status === "cancelled";
+function buildSections(orders: OrderView[]): Section[] {
+  const pre = orders.filter((o) => !isPast(o) && o.preorderDate)
+    .sort((a, b) => a.preorderDate!.localeCompare(b.preorderDate!));
+  const open = orders.filter((o) => !isPast(o) && !o.preorderDate);
+  const past = orders.filter(isPast);
+  return ([
+    { key: "pre", title: "Pre-orders", icon: "calendar", items: pre },
+    { key: "open", title: "Orders", icon: "shopping_bag", items: open },
+    { key: "past", title: "Past orders", icon: "history", items: past },
+  ] as Section[]).filter((s) => s.items.length > 0);
+}
+
 const lineTotal = (o: OrderView) => o.items.reduce((s, it) => s + it.unitPrice * it.qty, 0);
 
 interface Props {
@@ -79,6 +104,7 @@ export default function OrdersPage({ userId, authLoading }: Props) {
   const navigate = useNavigate();
   const [orders, setOrders] = useState<OrderView[]>([]);
   const [loading, setLoading] = useState(true);
+  const sections = buildSections(orders);
   const [payFor, setPayFor] = useState<OrderView | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -146,20 +172,30 @@ export default function OrdersPage({ userId, authLoading }: Props) {
             </button>
           </div>
         ) : (
-          orders.map((order) => (
+          <div className="space-y-10">
+          {sections.map((sec) => (
+            <section key={sec.key} className={sec.key === "past" ? "pt-8 border-t-2 border-dashed border-[#26170c]/15" : ""}>
+              <div className="flex items-center gap-2 mb-3">
+                <Icon name={sec.icon} size={18} className={sec.key === "pre" ? "text-orange-600" : "text-[#26170c]"} />
+                <h2 className="font-bold text-[#26170c] text-lg" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>{sec.title}</h2>
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${sec.key === "pre" ? "bg-orange-500 text-white" : sec.key === "past" ? "bg-[#26170c]/10 text-[#26170c]/60" : "bg-[#26170c] text-white"}`}>{sec.items.length}</span>
+                <div className="flex-1 h-px bg-[#26170c]/10 ml-1" />
+              </div>
+              <div className={`space-y-4 ${sec.key === "past" ? "opacity-60" : ""}`}>
+          {sec.items.map((order) => (
             <div key={order.id} className="bg-white rounded-2xl border border-[#26170c]/8 p-5 space-y-3">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-bold text-[#26170c] text-sm" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>#{order.id}</p>
                   {order.preorderDate && (
                     <span className="inline-block mt-1 text-[10px] font-bold uppercase tracking-wide text-[#8a4b14] bg-[#f3e1cf] rounded-md px-2 py-0.5">
-                      Pre-order · {fmtDate(order.preorderDate)}
+                      Pre-order · Ready {fmtDate(order.preorderDate)}
                     </span>
                   )}
                   <p className="text-xs text-[#26170c]/40">{new Date(order.placedAt).toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" })}</p>
                 </div>
-                <span className={`text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full ${statusColor(order.status)}`}>
-                  {statusLabel(order.status)}
+                <span className={`text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full ${customerPill(order).cls}`}>
+                  {customerPill(order).label}
                 </span>
               </div>
               <div className="space-y-2 pt-1 border-t border-[#26170c]/8">
@@ -193,7 +229,7 @@ export default function OrdersPage({ userId, authLoading }: Props) {
                   <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 flex items-center gap-2">
                     <Icon name="hourglass" size={16} className="text-amber-700 shrink-0" />
                     <div className="text-xs">
-                      <p className="font-bold text-amber-800">Proof sent – waiting for verification</p>
+                      <p className="font-bold text-amber-800">Uploaded · awaiting confirmation</p>
                       <p className="text-amber-700/80">{order.paymentRef ? `Ref ${order.paymentRef} · ` : ""}{peso(dp)}</p>
                     </div>
                   </div>
@@ -216,7 +252,11 @@ export default function OrdersPage({ userId, authLoading }: Props) {
                 );
               })()}
             </div>
-          ))
+          ))}
+              </div>
+            </section>
+          ))}
+          </div>
         )}
       </div>
 
