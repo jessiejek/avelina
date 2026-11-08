@@ -3,6 +3,7 @@ import Icon from "../components/Icon.tsx";
 import { supabase } from "../lib/supabase.ts";
 import { peso } from "../lib/money.ts";
 import PushToggle from "../components/PushToggle.tsx";
+import { fmtDate, todayManila } from "../lib/preorder.ts";
 
 type OrderStatus = "pending" | "confirmed" | "baking" | "ready" | "completed" | "cancelled";
 
@@ -24,6 +25,7 @@ interface AdminOrder {
   customerPhone: string;
   customerSocial: string;
   customerAddress: string;
+  preorderDate: string | null;
   items: AdminOrderItem[];
 }
 
@@ -54,6 +56,7 @@ function mapOrder(o: any): AdminOrder {
     customerPhone: o.users?.phone || o.customer_phone || "",
     customerSocial: o.customer_social || "",
     customerAddress: o.delivery_address || o.users?.address || "",
+    preorderDate: o.preorder_date ?? null,
     items: (o.order_items || []).map((it: any) => ({
       id: it.id || "",
       name: it.recipes?.name || "—",
@@ -66,12 +69,22 @@ function mapOrder(o: any): AdminOrder {
 
 const SELECT = "*, users(name, phone, address), order_items(id, qty, unit_price, recipes(id, name, img, price))";
 
-type Filter = "all" | "active" | "completed" | "cancelled";
+type Filter = "all" | "active" | "preorders" | "completed" | "cancelled";
+
+const preorderBadge = (order: { preorderDate: string | null }) =>
+  order.preorderDate ? (
+    <span className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full border ${
+      order.preorderDate === todayManila() ? "bg-amber-200 text-amber-900 border-amber-400" : "bg-orange-50 text-orange-800 border-orange-200"
+    }`}>
+      <Icon name="calendar" size={10} /> {order.preorderDate === todayManila() ? "Today" : fmtDate(order.preorderDate)}
+    </span>
+  ) : null;
 
 export default function AdminOrders() {
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>("active");
+  const [preorderDay, setPreorderDay] = useState<string>("all");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState("");
   const [actionError, setActionError] = useState("");
@@ -136,7 +149,7 @@ export default function AdminOrders() {
         setOrders((prev) =>
           prev.map((o) =>
             o.id === row.id
-              ? { ...o, status: row.status as OrderStatus, fulfillmentType: row.fulfillment_type === "delivery" ? "delivery" : "pickup" }
+              ? { ...o, status: row.status as OrderStatus, fulfillmentType: row.fulfillment_type === "delivery" ? "delivery" : "pickup", preorderDate: row.preorder_date ?? o.preorderDate }
               : o
           )
         );
@@ -210,19 +223,29 @@ export default function AdminOrders() {
   const counts = {
     all: orders.length,
     active: orders.filter((o) => !isDoneStatus(o.status)).length,
+    preorders: orders.filter((o) => o.preorderDate && !isDoneStatus(o.status)).length,
     completed: orders.filter((o) => o.status === "completed").length,
     cancelled: orders.filter((o) => o.status === "cancelled").length,
   };
+
+  // Open pre-orders, soonest bake date first.
+  const openPreorders = orders
+    .filter((o) => o.preorderDate && !isDoneStatus(o.status))
+    .sort((a, b) => a.preorderDate!.localeCompare(b.preorderDate!) || a.placedAt.localeCompare(b.placedAt));
+  const preorderDays = Array.from(new Set(openPreorders.map((o) => o.preorderDate!)));
 
   const visible =
     filter === "all"
       ? orders
       : filter === "active"
       ? orders.filter((o) => !isDoneStatus(o.status))
+      : filter === "preorders"
+      ? openPreorders.filter((o) => preorderDay === "all" || o.preorderDate === preorderDay)
       : orders.filter((o) => o.status === filter);
 
   const chips: { id: Filter; label: string }[] = [
     { id: "active", label: "Active" },
+    { id: "preorders", label: "Pre-orders" },
     { id: "completed", label: "Done" },
     { id: "cancelled", label: "Cancelled" },
     { id: "all", label: "All" },
@@ -319,6 +342,23 @@ export default function AdminOrders() {
           ))}
         </div>
 
+        {filter === "preorders" && preorderDays.length > 0 && (
+          <div className="flex gap-2 flex-wrap items-center">
+            <span className="text-[11px] uppercase tracking-wide text-on-surface-variant">Bake date</span>
+            {["all", ...preorderDays].map((d) => (
+              <button
+                key={d}
+                onClick={() => setPreorderDay(d)}
+                className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
+                  preorderDay === d ? "bg-primary text-on-primary border-primary" : "border-outline-variant/40 text-on-surface-variant hover:bg-surface-container"
+                }`}
+              >
+                {d === "all" ? "All upcoming" : `${fmtDate(d)} · ${openPreorders.filter((o) => o.preorderDate === d).length}`}
+              </button>
+            ))}
+          </div>
+        )}
+
         {loadError && (
           <div className="bg-error-container text-on-error-container p-4 rounded-xl flex items-start gap-3 border border-error/20">
             <Icon name="warning" size={20} className="shrink-0 mt-0.5" />
@@ -347,7 +387,7 @@ export default function AdminOrders() {
         ) : visible.length === 0 ? (
           <div className="py-24 text-center rounded-xl border-2 border-dashed border-outline-variant/30">
             <Icon name="assignment" size={40} className="mx-auto mb-3 text-outline/40" />
-            <p className="text-sm text-on-surface-variant">No {filter === "all" ? "" : filter + " "}orders.</p>
+            <p className="text-sm text-on-surface-variant">{filter === "preorders" ? "No open pre-orders." : `No ${filter === "all" ? "" : filter + " "}orders.`}</p>
           </div>
         ) : (
           <>
@@ -362,8 +402,11 @@ export default function AdminOrders() {
                   className={`rounded-xl border border-outline-variant/20 bg-surface-container-lowest p-4 space-y-3 ${done ? "opacity-60" : ""}`}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full ${statusStyle(order.status)}`}>
-                      {statusLabel(order.status)}
+                    <span className="flex items-center gap-1.5">
+                      <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full ${statusStyle(order.status)}`}>
+                        {statusLabel(order.status)}
+                      </span>
+                      {preorderBadge(order)}
                     </span>
                     <span className="text-xs text-on-surface-variant whitespace-nowrap">
                       {new Date(order.placedAt).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
@@ -464,6 +507,7 @@ export default function AdminOrders() {
                           <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${statusStyle(order.status)}`}>
                             {statusLabel(order.status)}
                           </span>
+                          {preorderBadge(order)}
                         </div>
                         {order.customerAddress && (
                           <div className="flex items-start gap-1.5 mt-1">

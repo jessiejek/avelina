@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Icon from "../components/Icon.tsx";
 import { supabase } from "../lib/supabase.ts";
 import { peso } from "../lib/money.ts";
+import { fmtDate } from "../lib/preorder.ts";
 
 type OrderStatus = "pending" | "confirmed" | "baking" | "ready" | "completed" | "cancelled";
 
@@ -17,6 +18,7 @@ interface OrderView {
   id: string;
   placedAt: string;
   status: OrderStatus;
+  preorderDate: string | null;
   items: OrderLine[];
 }
 
@@ -43,7 +45,8 @@ function mapOrder(o: any): OrderView {
     id: o.id,
     placedAt: o.placed_at,
     status: o.status,
-        items: (o.order_items || []).map((item: any) => ({
+    preorderDate: o.preorder_date ?? null,
+    items: (o.order_items || []).map((item: any) => ({
       // The product may have been deleted/hidden since: never dereference blindly.
       name: item.recipes?.name ?? "Item no longer available",
       img: item.recipes?.img ?? "",
@@ -75,7 +78,7 @@ export default function OrdersPage({ userId, authLoading }: Props) {
       // RLS only returns the caller's own orders; filter explicitly anyway.
       const { data } = await supabase
         .from("orders")
-        .select("id, placed_at, status, order_items(qty, unit_price, recipes(name, img, price))")
+        .select("*, order_items(qty, unit_price, recipes(name, img, price))")
         .eq("user_id", userId)
         .order("placed_at", { ascending: false });
       if (cancelled) return;
@@ -128,6 +131,11 @@ export default function OrdersPage({ userId, authLoading }: Props) {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-bold text-[#26170c] text-sm" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>#{order.id}</p>
+                  {order.preorderDate && (
+                    <span className="inline-block mt-1 text-[10px] font-bold uppercase tracking-wide text-[#8a4b14] bg-[#f3e1cf] rounded-md px-2 py-0.5">
+                      Pre-order · {fmtDate(order.preorderDate)}
+                    </span>
+                  )}
                   <p className="text-xs text-[#26170c]/40">{new Date(order.placedAt).toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" })}</p>
                 </div>
                 <span className={`text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full ${statusColor(order.status)}`}>

@@ -6,6 +6,7 @@ import { supabase } from "../lib/supabase.ts";
 import { peso } from "../lib/money.ts";
 import PushToggle from "../components/PushToggle.tsx";
 import { signOut } from "../lib/auth.ts";
+import { usePreorderDates, fmtDate, fmtDateList } from "../lib/preorder.ts";
 
 
 interface FlyingDot {
@@ -16,7 +17,7 @@ interface FlyingDot {
 }
 
 interface Props {
-  onPreOrder: (recipe: Recipe) => void;
+  onPreOrder: (recipe: Recipe, preorderDate?: string | null, qty?: number) => void;
   currentUser: { id: string; name: string; email: string } | null;
   cartCount: number;
 }
@@ -31,6 +32,8 @@ export default function PublicHome({ onPreOrder, currentUser, cartCount }: Props
   const [cartBump, setCartBump] = useState(false);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
+  const [preorderMap] = usePreorderDates();
+  const [sheetFor, setSheetFor] = useState<Recipe | null>(null);
 
   useEffect(() => {
     supabase.from("recipe_categories").select("name").order("created_at").then(({ data }) => {
@@ -214,6 +217,8 @@ export default function PublicHome({ onPreOrder, currentUser, cartCount }: Props
               key={recipe.id}
               recipe={recipe}
               onAddToCart={handleAddToCart}
+              preorderDates={preorderMap[recipe.id] || []}
+              onPreorder={setSheetFor}
             />
           ))}
           {filtered.length === 0 && (
@@ -224,6 +229,20 @@ export default function PublicHome({ onPreOrder, currentUser, cartCount }: Props
           )}
         </div>
       </section>
+
+      {sheetFor && (
+        <PreorderSheet
+          recipe={sheetFor}
+          dates={preorderMap[sheetFor.id] || []}
+          onClose={() => setSheetFor(null)}
+          onAdd={(date, qty) => {
+            onPreOrder(sheetFor, date, qty);
+            setSheetFor(null);
+            setCartBump(true);
+            setTimeout(() => setCartBump(false), 400);
+          }}
+        />
+      )}
 
       {/* Footer */}
       <footer className="border-t border-[#26170c]/10 py-8 text-center text-xs text-[#26170c]/40">
@@ -238,9 +257,12 @@ export default function PublicHome({ onPreOrder, currentUser, cartCount }: Props
 function RecipeCard(props: {
   recipe: Recipe;
   onAddToCart: (recipe: Recipe, el: HTMLButtonElement) => void;
+  preorderDates: string[];
+  onPreorder: (recipe: Recipe) => void;
   key?: React.Key;
 }) {
-  const { recipe, onAddToCart } = props;
+  const { recipe, onAddToCart, preorderDates, onPreorder } = props;
+  const canPreorder = preorderDates.length > 0;
   const btnRef = useRef<HTMLButtonElement>(null);
   const [added, setAdded] = useState(false);
   const soldOut = recipe.is_available === false;
@@ -282,11 +304,18 @@ function RecipeCard(props: {
           </h3>
           {recipe.price ? <span className="shrink-0 font-bold text-[#26170c] text-base font-mono">{peso(recipe.price)}</span> : null}
         </div>
+        {canPreorder && (
+          <p className="-mt-2 mb-3 text-xs font-semibold text-[#8a4b14] flex items-center gap-1">
+            <Icon name="calendar" size={13} /> Available {fmtDateList(preorderDates)}
+          </p>
+        )}
+        <div className="flex gap-2">
+        {(!soldOut || !canPreorder) && (
         <button
           ref={btnRef}
           onClick={handleClick}
           disabled={soldOut}
-          className="w-full h-10 rounded-xl text-sm font-semibold active:scale-95 transition-all flex items-center justify-center gap-2 overflow-hidden disabled:cursor-not-allowed"
+          className="flex-1 h-10 rounded-xl text-sm font-semibold active:scale-95 transition-all flex items-center justify-center gap-2 overflow-hidden disabled:cursor-not-allowed"
           style={{
             backgroundColor: soldOut ? "#cfc7c1" : added ? "#3a7c3a" : "#26170c",
             color: soldOut ? "#26170c" : "#fff8f5",
@@ -294,7 +323,76 @@ function RecipeCard(props: {
           }}
         >
           <Icon name={soldOut ? "lock" : added ? "check" : "shopping_bag"} size={15} />
-          {soldOut ? "Sold Out" : added ? "Added!" : "Add to Cart"}
+          {soldOut ? "Sold Out" : added ? "Added!" : "Add to Bag"}
+        </button>
+        )}
+        {canPreorder && (
+          <button
+            onClick={() => onPreorder(recipe)}
+            className="flex-1 h-10 rounded-xl text-sm font-semibold border-2 border-[#26170c] text-[#26170c] bg-white hover:bg-[#fff8f5] active:scale-95 transition-all flex items-center justify-center gap-2"
+          >
+            <Icon name="calendar" size={15} /> Pre-order
+          </button>
+        )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PreorderSheet({ recipe, dates, onClose, onAdd }: {
+  recipe: Recipe;
+  dates: string[];
+  onClose: () => void;
+  onAdd: (date: string, qty: number) => void;
+}) {
+  const [date, setDate] = useState<string | null>(dates.length === 1 ? dates[0] : null);
+  const [qty, setQty] = useState(1);
+  const price = recipe.price ?? 0;
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center" style={{ backgroundColor: "rgba(38,23,12,0.5)" }} onClick={onClose}>
+      <div className="bg-[#fff8f5] w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl" onClick={(e) => e.stopPropagation()} style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}>
+        <div className="w-10 h-1 rounded-full bg-[#26170c]/20 mx-auto mb-4 sm:hidden" />
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h3 className="font-bold text-[#26170c] text-lg leading-tight" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>{recipe.name}</h3>
+            <p className="text-xs text-[#26170c]/50 mt-0.5">{peso(price)} each</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-[#26170c]/5 flex items-center justify-center text-[#26170c]/60"><Icon name="close" size={18} /></button>
+        </div>
+
+        <p className="mt-5 mb-2 text-xs font-semibold uppercase tracking-wider text-[#26170c]/50">Choose a pre-order date</p>
+        {dates.length === 0 ? (
+          <p className="text-sm text-[#26170c]/60">No upcoming dates right now.</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {dates.map((d) => (
+              <button
+                key={d}
+                onClick={() => setDate(d)}
+                className={`px-3.5 py-2 rounded-xl border-2 text-sm font-semibold transition-all ${date === d ? "bg-[#26170c] border-[#26170c] text-[#fff8f5]" : "border-[#26170c]/15 text-[#26170c] bg-white hover:border-[#26170c]/40"}`}
+              >
+                {fmtDate(d)}
+              </button>
+            ))}
+          </div>
+        )}
+        <p className="text-[11px] text-[#26170c]/45 mt-2">Only dates set by the bakery are shown.</p>
+
+        <p className="mt-5 mb-2 text-xs font-semibold uppercase tracking-wider text-[#26170c]/50">Quantity</p>
+        <div className="flex items-center gap-2 border border-[#26170c]/15 rounded-lg w-fit bg-white">
+          <button onClick={() => setQty((q) => Math.max(1, q - 1))} className="w-10 h-10 flex items-center justify-center text-[#26170c]/60 hover:text-[#26170c]"><Icon name="remove" size={14} /></button>
+          <span className="w-8 text-center text-sm font-bold text-[#26170c] font-mono">{qty}</span>
+          <button onClick={() => setQty((q) => Math.min(100, q + 1))} className="w-10 h-10 flex items-center justify-center text-[#26170c]/60 hover:text-[#26170c]"><Icon name="add" size={14} /></button>
+        </div>
+
+        <button
+          onClick={() => date && onAdd(date, qty)}
+          disabled={!date}
+          className="mt-6 w-full py-4 rounded-xl bg-[#26170c] text-white text-sm font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {date ? `Add pre-order · ${peso(price * qty)}` : "Pick a date"}
         </button>
       </div>
     </div>

@@ -14,6 +14,7 @@ import OrderConfirmed from "./screens/OrderConfirmed.tsx";
 import OrdersPage from "./screens/OrdersPage.tsx";
 import Icon from "./components/Icon.tsx";
 import { Recipe } from "./data/recipes.ts";
+import { todayManila } from "./lib/preorder.ts";
 
 // ── DB → product mapper ───────────────────────────────────────
 
@@ -174,18 +175,31 @@ function rememberOrderId(id: string) {
   } catch {}
 }
 
+// Load the saved bag; drop pre-order lines whose date has passed.
+function loadCart(): { items: CartItem[]; pruned: number } {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEYS.cart);
+    const all: CartItem[] = saved ? JSON.parse(saved) : [];
+    if (!Array.isArray(all)) return { items: [], pruned: 0 };
+    const today = todayManila();
+    const items = all.filter((i) => !i.preorderDate || i.preorderDate >= today);
+    return { items, pruned: all.length - items.length };
+  } catch {
+    return { items: [], pruned: 0 };
+  }
+}
+
 function PublicShell() {
   const navigate = useNavigate();
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [cart, setCart] = useState<CartItem[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.cart);
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [initialCart] = useState(loadCart);
+  const [cart, setCart] = useState<CartItem[]>(initialCart.items);
+  const [cartNotice, setCartNotice] = useState(
+    initialCart.pruned > 0
+      ? `${initialCart.pruned} pre-order item${initialCart.pruned === 1 ? " was" : "s were"} removed from your bag because the date has passed.`
+      : ""
+  );
   const [guest, setGuest] = useState<GuestInfo>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.guest);
@@ -246,13 +260,14 @@ function PublicShell() {
     try { localStorage.setItem(STORAGE_KEYS.guest, JSON.stringify(guest)); } catch {}
   }, [guest]);
 
-  const addToCart = (recipe: Recipe) => {
+  // Same product on different dates = separate lines.
+  const addToCart = (recipe: Recipe, preorderDate: string | null = null, qty = 1) => {
     setCart((prev) => {
-      const existing = prev.findIndex((item) => item.recipe.id === recipe.id);
+      const existing = prev.findIndex((item) => item.recipe.id === recipe.id && (item.preorderDate || null) === preorderDate);
       if (existing >= 0) {
-        return prev.map((item, i) => i === existing ? { ...item, qty: item.qty + 1 } : item);
+        return prev.map((item, i) => i === existing ? { ...item, qty: item.qty + qty } : item);
       }
-      return [...prev, { recipe, qty: 1 }];
+      return [...prev, preorderDate ? { recipe, qty, preorderDate } : { recipe, qty }];
     });
   };
 
@@ -266,12 +281,13 @@ function PublicShell() {
 
   // Called the moment the order is saved: remember it and empty the cart right
   // away, so a refresh / closed tab can't lose the order or re-submit it.
-  const handleOrderSaved = (order: Order) => {
-    rememberOrderId(order.id);
-    setLastOrder(order);
+  // One order per bag group; `remaining` = lines whose group failed (if any).
+  const handleOrderSaved = (orders: Order[], remaining: CartItem[]) => {
+    orders.forEach((o) => rememberOrderId(o.id));
+    setLastOrder(orders[0] ?? null);
     setJustPlaced(true);
-    setCart([]);
-    try { localStorage.removeItem(STORAGE_KEYS.cart); } catch {}
+    setCart(remaining);
+    if (remaining.length === 0) { try { localStorage.removeItem(STORAGE_KEYS.cart); } catch {} }
   };
 
   // Called when the customer taps Done on the success modal.
@@ -292,6 +308,8 @@ function PublicShell() {
           onUpdateQty={updateQty}
           onRemove={(i) => setCart((prev) => prev.filter((_, idx) => idx !== i))}
           onCheckout={() => navigate(session ? "/checkout" : "/login")}
+          notice={cartNotice}
+          onDismissNotice={() => setCartNotice("")}
         />
       } />
       <Route path="/checkout" element={

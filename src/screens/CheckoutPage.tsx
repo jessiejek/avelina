@@ -5,6 +5,7 @@ import { CartItem } from "./CartPage.tsx";
 import { UserProfile } from "./ProfileSetup.tsx";
 import { supabase } from "../lib/supabase.ts";
 import { peso } from "../lib/money.ts";
+import { groupCart, groupTitle, fmtDate } from "../lib/preorder.ts";
 
 export interface GuestInfo {
   name: string;
@@ -22,6 +23,8 @@ export interface Order {
   status: "pending" | "confirmed" | "baking" | "ready" | "completed" | "cancelled";
   /** Server-computed total (prices come from the database, not the cart). */
   total?: number;
+  /** YYYY-MM-DD for pre-orders, null for "available now". */
+  preorderDate?: string | null;
 }
 
 interface Props {
@@ -31,9 +34,9 @@ interface Props {
   onSaveGuest: (g: GuestInfo) => void;
   onUpdateQty: (index: number, qty: number) => void;
   /** Fired as soon as the order is saved (remember it + clear the cart). */
-  onOrderSaved: (order: Order) => void;
+  onOrderSaved: (orders: Order[], remaining: CartItem[]) => void;
   /** Fired when the customer taps Done on the success modal. */
-  onPlaceOrder: (order: Order) => void;
+  onPlaceOrder: () => void;
 }
 
 export default function CheckoutPage({ cart, guest, onSaveGuest, onUpdateQty, onOrderSaved, onPlaceOrder }: Props) {
@@ -50,7 +53,7 @@ export default function CheckoutPage({ cart, guest, onSaveGuest, onUpdateQty, on
   const [error, setError] = useState("");
   const [locateStatus, setLocateStatus] = useState<"idle" | "locating" | "success" | "error">("idle");
   const [reviewOpen, setReviewOpen] = useState(false);
-  const [placedOrder, setPlacedOrder] = useState<Order | null>(null);
+  const [placedOrders, setPlacedOrders] = useState<Order[]>([]);
 
   const locateMe = () => {
     if (!navigator.geolocation) { setLocateStatus("error"); return; }
@@ -75,6 +78,8 @@ export default function CheckoutPage({ cart, guest, onSaveGuest, onUpdateQty, on
   };
 
   const total = cart.reduce((s, i) => s + (i.recipe.price ?? 0) * i.qty, 0);
+  const groups = groupCart(cart);
+  const multi = groups.length > 1;
 
   const openReview = () => {
     if (cart.length === 0) return;
@@ -87,17 +92,15 @@ export default function CheckoutPage({ cart, guest, onSaveGuest, onUpdateQty, on
     setReviewOpen(true);
   };
 
+  // One place_order call per bag group ("Available now" + each pre-order date).
+  // Each call is its own transaction on the server; prices from the cart are ignored.
   const confirmOrder = async () => {
     if (loading) return;
     setLoading(true);
     setError("");
     onSaveGuest({ name: name.trim(), phone: phone.trim(), social: social.trim(), address: address.trim(), fulfillment });
 
-    // Everything (profile upsert, price lookup, availability/qty checks, id
-    // generation, order + items insert) happens in ONE transaction on the
-    // server. Prices sent from the cart are ignored.
-    const { data, error: rpcErr } = await supabase.rpc("place_order", {
-      p_items: cart.map((item) => ({ recipe_id: item.recipe.id, qty: item.qty })),
+    const base = {
       p_customer_name: name.trim(),
       p_customer_phone: phone.trim(),
       p_customer_social: social.trim() || null,
@@ -106,31 +109,78 @@ export default function CheckoutPage({ cart, guest, onSaveGuest, onUpdateQty, on
       p_notes: notes.trim() || null,
       p_payment_method: paymentMethod,
       p_gcash_reference: paymentMethod === "gcash" ? gcashRef.trim() : null,
-    });
+    };
+    const profile = { name: name.trim(), email: "", phone: phone.trim(), address: address.trim() };
 
-    const result = data as { id?: string; total?: number | string } | null;
-    if (rpcErr || !result?.id) {
-      console.error("place_order failed:", rpcErr);
-      setError(`Could not place order: ${rpcErr?.message || "please try again."}`);
-      setLoading(false);
-      return;
+    const placed: Order[] = [];
+    const placedKeys = new Set<string>();
+    let failMsg = "";
+    for (const g of groups) {
+      const args: Record<string, unknown> = {
+        ...base,
+        p_items: g.lines.map(({ item }) => ({ recipe_id: item.recipe.id, qty: item.qty })),
+      };
+      // Only sent for pre-orders, so "now" orders still work before the migration is run.
+      if (g.preorderDate) args.p_preorder_date = g.preorderDate;
+
+      const { data, error: rpcErr } = await supabase.rpc("place_order", args);
+      const result = data as { id?: string; total?: number | string } | null;
+      if (rpcErr || !result?.id) {
+        console.error("place_order failed:", rpcErr);
+        failMsg = `${groupTitle(g)}: ${rpcErr?.message || "please try again."}`;
+        break;
+      }
+      placed.push({
+        id: result.id,
+        items: g.lines.map(({ item }) => item),
+        profile,
+        placedAt: new Date().toISOString(),
+        status: "pending",
+        total: Number(result.total ?? g.subtotal),
+        preorderDate: g.preorderDate,
+      });
+      placedKeys.add(g.key);
     }
 
-    const order: Order = {
-      id: result.id,
-      items: cart,
-      profile: { name: name.trim(), email: "", phone: phone.trim(), address: address.trim() },
-      placedAt: new Date().toISOString(),
-      status: "pending",
-      total: Number(result.total ?? total),
-    };
-
     setLoading(false);
+    if (placed.length === 0) {
+      setError(`Could not place order — ${failMsg}`);
+      return;
+    }
+    const remaining = cart.filter((it) => !placedKeys.has(it.preorderDate || "now"));
+    if (failMsg) setError(`Some orders were placed, but one failed — ${failMsg}. Those items are still in your bag.`);
     setReviewOpen(false);
-    setPlacedOrder(order);
-    // Persist immediately (order id saved, cart cleared) — not only on "Done".
-    onOrderSaved(order);
+    setPlacedOrders(placed);
+    // Persist immediately (order ids saved, placed lines removed) — not only on "Done".
+    onOrderSaved(placed, remaining);
   };
+
+  const renderGroups = (list: { key: string; preorderDate: string | null; items: CartItem[]; subtotal: number }[], label: (i: number) => string) => (
+    <>
+      {list.map((g, gi) => (
+        <div key={g.key} className={multi || g.preorderDate ? "space-y-1 pb-2" : "space-y-1"}>
+          {(multi || g.preorderDate) && (
+            <p className="text-[11px] font-bold uppercase tracking-wider text-[#8a4b14]">{label(gi)}</p>
+          )}
+          {g.items.map((item, i) => (
+            <div key={i} className="flex justify-between text-sm">
+              <span className="text-[#26170c]/70">
+                {item.recipe.name} <span className="text-[#26170c]/40 font-mono">x{item.qty}</span>
+              </span>
+              <span className="font-mono font-semibold text-[#26170c] shrink-0">{peso((item.recipe.price ?? 0) * item.qty)}</span>
+            </div>
+          ))}
+          {multi && (
+            <div className="flex justify-between text-xs text-[#26170c]/55">
+              <span>Subtotal</span><span className="font-mono">{peso(g.subtotal)}</span>
+            </div>
+          )}
+        </div>
+      ))}
+    </>
+  );
+  const cartGroupsView = groups.map((g) => ({ key: g.key, preorderDate: g.preorderDate, items: g.lines.map((l) => l.item), subtotal: g.subtotal }));
+  const groupLabel = (i: number) => (multi ? `Order ${i + 1} · ` : "") + groupTitle(groups[i]);
 
   const cashLabel = fulfillment === "delivery" ? "Cash on Delivery" : "Cash on Pickup";
 
@@ -253,6 +303,9 @@ export default function CheckoutPage({ cart, guest, onSaveGuest, onUpdateQty, on
                 <div className="flex-1">
                   <h4 className="font-bold text-[#26170c] text-sm" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>{item.recipe.name}</h4>
                   <p className="text-xs text-[#26170c]/50">{item.recipe.category}</p>
+                  {item.preorderDate && (
+                    <p className="text-[11px] font-semibold text-[#8a4b14] mt-0.5">Pre-order · {fmtDate(item.preorderDate)}</p>
+                  )}
                 </div>
               </div>
               <div>
@@ -315,18 +368,12 @@ export default function CheckoutPage({ cart, guest, onSaveGuest, onUpdateQty, on
         {/* Summary */}
         <div className="bg-white rounded-2xl border border-[#26170c]/8 p-5 space-y-2">
           <h3 className="font-bold text-[#26170c] text-sm mb-3" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>Summary</h3>
-          {cart.map((item, i) => (
-            <div key={i} className="flex justify-between text-sm">
-              <span className="text-[#26170c]/70">{item.recipe.name} <span className="text-[#26170c]/40 font-mono">x{item.qty}</span></span>
-              <div className="text-right">
-                <span className="font-mono font-semibold text-[#26170c]">{peso((item.recipe.price ?? 0) * item.qty)}</span>
-              </div>
-            </div>
-          ))}
+          {renderGroups(cartGroupsView, groupLabel)}
           <div className="border-t border-[#26170c]/10 pt-2 flex justify-between font-bold text-[#26170c]">
             <span>Total ({cart.reduce((s, i) => s + i.qty, 0)} items)</span>
             <span className="font-mono">{peso(total)}</span>
           </div>
+          {multi && <p className="text-xs text-[#26170c]/50">{groups.length} orders will be placed — one for each date.</p>}
         </div>
 
         {error && <p className="text-xs text-red-500 font-semibold">{error}</p>}
@@ -351,19 +398,17 @@ export default function CheckoutPage({ cart, guest, onSaveGuest, onUpdateQty, on
               <h3 className="font-bold text-[#26170c] text-lg mt-0.5" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>
                 Confirm before sending
               </h3>
+              {multi && (
+                <p className="mt-2 text-xs font-bold text-[#fff8f5] bg-[#26170c] rounded-lg px-3 py-2 text-center">
+                  {groups.length} orders will be placed
+                </p>
+              )}
             </div>
 
             <div className="p-5 space-y-2 max-h-[45vh] overflow-y-auto">
-              {cart.map((item, i) => (
-                <div key={i} className="flex justify-between text-sm">
-                  <span className="text-[#26170c]/70">
-                    {item.recipe.name} <span className="text-[#26170c]/40 font-mono">x{item.qty}</span>
-                  </span>
-                  <span className="font-mono font-semibold text-[#26170c] shrink-0">{peso((item.recipe.price ?? 0) * item.qty)}</span>
-                </div>
-              ))}
+              {renderGroups(cartGroupsView, groupLabel)}
               <div className="border-t border-[#26170c]/10 pt-2 flex justify-between font-bold text-[#26170c]">
-                <span>Total ({cart.reduce((s, i) => s + i.qty, 0)} items)</span>
+                <span>{multi ? "Grand total" : "Total"} ({cart.reduce((s, i) => s + i.qty, 0)} items)</span>
                 <span className="font-mono">{peso(total)}</span>
               </div>
               <div className="flex justify-between text-xs text-[#26170c]/55 pt-1">
@@ -390,49 +435,64 @@ export default function CheckoutPage({ cart, guest, onSaveGuest, onUpdateQty, on
                 disabled={loading}
                 className="flex-1 py-3.5 rounded-xl bg-[#26170c] text-white text-sm font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-40"
               >
-                {loading ? "Sending…" : "Confirm Order"}
+                {loading ? "Sending…" : multi ? `Place ${groups.length} orders` : "Confirm Order"}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {placedOrder && (
+      {placedOrders.length > 0 && (
         <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-4" style={{ backgroundColor: "rgba(38,23,12,0.5)" }}>
           <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden" style={{ fontFamily: "'Work Sans', sans-serif" }}>
             <div className="p-6 text-center border-b border-[#26170c]/8">
               <div className="w-14 h-14 rounded-full bg-[#d4e8ce] flex items-center justify-center mx-auto mb-3">
                 <Icon name="check_circle" size={28} className="text-[#26170c]" />
               </div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#26170c]/40">Order Sent</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#26170c]/40">
+                {placedOrders.length > 1 ? `${placedOrders.length} Orders Sent` : "Order Sent"}
+              </p>
               <h3 className="font-bold text-[#26170c] text-lg mt-0.5" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>
-                Order #{placedOrder.id}
+                {placedOrders.length > 1 ? "Thank you!" : `Order #${placedOrders[0].id}`}
               </h3>
-              <p className="text-xs text-[#26170c]/55 mt-1">Please wait for the bakery to confirm your order.</p>
+              <p className="text-xs text-[#26170c]/55 mt-1">Please wait for the bakery to confirm your order{placedOrders.length > 1 ? "s" : ""}.</p>
             </div>
 
-            <div className="p-5 space-y-2 max-h-[45vh] overflow-y-auto">
-              {placedOrder.items.map((item, i) => (
-                <div key={i} className="flex justify-between text-sm">
-                  <span className="text-[#26170c]/70">
-                    {item.recipe.name} <span className="text-[#26170c]/40 font-mono">x{item.qty}</span>
-                  </span>
-                  <span className="font-mono font-semibold text-[#26170c] shrink-0">{peso((item.recipe.price ?? 0) * item.qty)}</span>
+            <div className="p-5 space-y-3 max-h-[45vh] overflow-y-auto">
+              {placedOrders.map((o) => (
+                <div key={o.id} className="space-y-1">
+                  {(placedOrders.length > 1 || o.preorderDate) && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-bold text-[#26170c] font-mono">#{o.id}</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wide text-[#8a4b14] bg-[#f3e1cf] rounded-md px-2 py-0.5">
+                        {o.preorderDate ? `Pre-order · ${fmtDate(o.preorderDate)}` : "Now"}
+                      </span>
+                    </div>
+                  )}
+                  {o.items.map((item, i) => (
+                    <div key={i} className="flex justify-between text-sm">
+                      <span className="text-[#26170c]/70">
+                        {item.recipe.name} <span className="text-[#26170c]/40 font-mono">x{item.qty}</span>
+                      </span>
+                      <span className="font-mono font-semibold text-[#26170c] shrink-0">{peso((item.recipe.price ?? 0) * item.qty)}</span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between text-xs font-bold text-[#26170c] border-t border-[#26170c]/8 pt-1">
+                    <span>Total</span>
+                    <span className="font-mono">{peso(o.total ?? o.items.reduce((s, i) => s + (i.recipe.price ?? 0) * i.qty, 0))}</span>
+                  </div>
                 </div>
               ))}
-              <div className="border-t border-[#26170c]/10 pt-2 flex justify-between font-bold text-[#26170c]">
-                <span>Total ({placedOrder.items.reduce((s, i) => s + i.qty, 0)} items)</span>
-                <span className="font-mono">{peso(placedOrder.total ?? placedOrder.items.reduce((s, i) => s + (i.recipe.price ?? 0) * i.qty, 0))}</span>
-              </div>
               <div className="flex justify-between text-xs text-[#26170c]/55 pt-1">
                 <span>{fulfillment === "delivery" ? "Delivery" : "Pickup"}</span>
                 <span>{paymentMethod === "gcash" ? `GCash · ${gcashRef.trim()}` : cashLabel}</span>
               </div>
+              {error && <p className="text-xs text-red-500 font-semibold">{error}</p>}
             </div>
 
             <div className="p-4 border-t border-[#26170c]/8">
               <button
-                onClick={() => onPlaceOrder(placedOrder)}
+                onClick={() => onPlaceOrder()}
                 className="w-full py-3.5 rounded-xl bg-[#26170c] text-white text-sm font-bold hover:opacity-90 active:scale-95 transition-all"
               >
                 Done

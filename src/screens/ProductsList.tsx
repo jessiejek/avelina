@@ -3,6 +3,7 @@ import Icon from "../components/Icon.tsx";
 import { Recipe } from "../data/recipes.ts";
 import { supabase, uploadImage, validateImageFile } from "../lib/supabase.ts";
 import { peso } from "../lib/money.ts";
+import { MAX_PREORDER_DATES, fmtDate, todayManila, usePreorderDates } from "../lib/preorder.ts";
 
 const PLACEHOLDER_IMG =
   "https://lh3.googleusercontent.com/aida-public/AB6AXuCZEA9Bb0E92ttiNPKygaTFeC4dzXBznNOXNamZP3o7bVGUwv6Hzf4GvcLSLSKZaHSEF3WxskKkxdKPSd_UpV32ZH-EcJT0uepYb2E7k70ffBDdz1mpaIjvaXKtezW-QbHZYtSSphohNe2_MDahWfWGmhNIjR2Ax8tQrOW0W190tn8Xz7E_Y9ub1lA0KNjOJPeiilJF4d6ef2YjqGkwBr9QIYmpcyzX5E1ShDsdKblhprVsIrizOMrkIEP0sEWCHaO8zlS_AEyfbhtm";
@@ -192,6 +193,144 @@ function ProductModal({
   );
 }
 
+const pad = (n: number) => String(n).padStart(2, "0");
+const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
+
+function PreorderModal({ product, existing, onClose, onSaved }: {
+  product: Recipe;
+  existing: string[];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const today = todayManila();
+  const [selected, setSelected] = useState<string[]>(() => existing.filter((d) => d >= today).sort());
+  const [ty, tm] = today.split("-").map(Number);
+  const [view, setView] = useState({ y: ty, m: tm - 1 });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const first = new Date(view.y, view.m, 1).getDay();
+  const days = new Date(view.y, view.m + 1, 0).getDate();
+  const cells: (string | null)[] = [
+    ...Array(first).fill(null),
+    ...Array.from({ length: days }, (_, i) => `${view.y}-${pad(view.m + 1)}-${pad(i + 1)}`),
+  ];
+  const atLimit = selected.length >= MAX_PREORDER_DATES;
+  const canGoBack = view.y > ty || (view.y === ty && view.m > tm - 1);
+  const shift = (d: number) => setView((v) => {
+    const m = v.m + d;
+    return { y: v.y + Math.floor(m / 12), m: ((m % 12) + 12) % 12 };
+  });
+
+  const toggle = (d: string) => {
+    setError("");
+    setSelected((prev) => {
+      if (prev.includes(d)) return prev.filter((x) => x !== d);
+      if (prev.length >= MAX_PREORDER_DATES) { setError(`Up to ${MAX_PREORDER_DATES} dates per product.`); return prev; }
+      return [...prev, d].sort();
+    });
+  };
+
+  const save = async () => {
+    setSaving(true);
+    setError("");
+    // Delete first (incl. past dates) so the 5-per-product trigger never trips.
+    const toDelete = existing.filter((d) => !selected.includes(d));
+    const toInsert = selected.filter((d) => !existing.includes(d));
+    if (toDelete.length) {
+      const { error: e } = await supabase.from("recipe_preorder_dates").delete().eq("recipe_id", product.id).in("date", toDelete);
+      if (e) { setError(e.message); setSaving(false); return; }
+    }
+    if (toInsert.length) {
+      const { error: e } = await supabase.from("recipe_preorder_dates").insert(toInsert.map((date) => ({ recipe_id: product.id, date })));
+      if (e) { setError(e.message); setSaving(false); return; }
+    }
+    setSaving(false);
+    onSaved();
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ backgroundColor: "rgba(29,27,26,0.6)" }} onClick={onClose}>
+      <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/20 w-full max-w-sm shadow-2xl flex flex-col max-h-[92vh]" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-start justify-between px-6 py-4 border-b border-outline-variant/10">
+          <div>
+            <h3 className="font-bold text-primary" style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 18 }}>Pre-order dates</h3>
+            <p className="text-xs text-on-surface-variant mt-0.5">{product.name} · up to {MAX_PREORDER_DATES} dates</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-surface-container flex items-center justify-center text-on-surface-variant">
+            <Icon name="close" size={18} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <button onClick={() => shift(-1)} disabled={!canGoBack} className="w-8 h-8 rounded-full hover:bg-surface-container flex items-center justify-center disabled:opacity-30">
+                <Icon name="chevron_left" size={16} />
+              </button>
+              <span className="text-sm font-bold text-primary">
+                {new Date(view.y, view.m, 1).toLocaleDateString("en-PH", { month: "long", year: "numeric" })}
+              </span>
+              <button onClick={() => shift(1)} className="w-8 h-8 rounded-full hover:bg-surface-container flex items-center justify-center">
+                <Icon name="chevron_right" size={16} />
+              </button>
+            </div>
+            <div className="grid grid-cols-7 gap-1 text-center">
+              {WEEKDAYS.map((w, i) => <div key={i} className="text-[10px] font-semibold text-on-surface-variant py-1">{w}</div>)}
+              {cells.map((d, i) => {
+                if (!d) return <div key={i} />;
+                const past = d < today;
+                const on = selected.includes(d);
+                const disabled = past || (atLimit && !on);
+                return (
+                  <button
+                    key={i}
+                    disabled={disabled}
+                    onClick={() => toggle(d)}
+                    className={`h-9 rounded-lg text-xs font-semibold transition-all ${
+                      on ? "bg-primary text-on-primary"
+                      : past ? "text-on-surface-variant/30 line-through cursor-not-allowed"
+                      : disabled ? "text-on-surface-variant/40 cursor-not-allowed"
+                      : "text-primary hover:bg-surface-container"
+                    } ${d === today && !on ? "ring-1 ring-primary/50" : ""}`}
+                  >
+                    {Number(d.slice(8))}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-2">Selected ({selected.length}/{MAX_PREORDER_DATES})</p>
+            {selected.length === 0 ? (
+              <p className="text-xs text-on-surface-variant">No dates — this product can't be pre-ordered.</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {selected.map((d) => (
+                  <button key={d} onClick={() => toggle(d)} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-primary text-on-primary text-xs font-semibold">
+                    {fmtDate(d)} <Icon name="close" size={12} />
+                  </button>
+                ))}
+              </div>
+            )}
+            <p className="text-[11px] text-on-surface-variant mt-2">Past dates are disabled. Customers only see upcoming dates.</p>
+          </div>
+
+          {error && <p className="text-xs text-error bg-error-container/40 rounded-lg px-3 py-2">{error}</p>}
+        </div>
+
+        <div className="px-6 py-4 border-t border-outline-variant/10 flex justify-end gap-3">
+          <button onClick={onClose} className="px-5 h-10 rounded-lg border border-outline text-primary text-sm font-semibold hover:bg-surface-container transition-colors">Cancel</button>
+          <button onClick={save} disabled={saving} className="px-5 h-10 rounded-lg bg-primary text-on-primary text-sm font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50">
+            {saving ? "Saving…" : "Save dates"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ProductsList({ products, loading, onChanged }: Props) {
   const [categories, setCategories] = useState<string[]>([]);
   const [search, setSearch] = useState("");
@@ -202,6 +341,10 @@ export default function ProductsList({ products, loading, onChanged }: Props) {
   const [deleteError, setDeleteError] = useState("");
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [saleFilter, setSaleFilter] = useState<"all" | "selling" | "not">("all");
+  // All dates (incl. past) so the modal can clean old ones up on save.
+  const [preorderMap, reloadPreorders] = usePreorderDates(false);
+  const [preorderTarget, setPreorderTarget] = useState<Recipe | null>(null);
+  const today = todayManila();
 
   useEffect(() => {
     supabase.from("recipe_categories").select("name").order("created_at").then(({ data }) => {
@@ -325,6 +468,21 @@ export default function ProductsList({ products, loading, onChanged }: Props) {
                       <h3 className="font-semibold text-primary text-sm leading-tight" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>{p.name}</h3>
                       <span className="shrink-0 font-bold text-primary text-sm font-mono">{peso(p.price ?? 0)}</span>
                     </div>
+                    {(() => {
+                      const upcoming = (preorderMap[p.id] || []).filter((d) => d >= today);
+                      return (
+                        <button
+                          onClick={() => setPreorderTarget(p)}
+                          className={`w-full mb-2 flex items-center justify-center gap-1.5 h-8 rounded-lg text-xs font-bold border transition-colors ${
+                            upcoming.length ? "bg-orange-50 text-orange-800 border-orange-200" : "border-dashed border-outline text-on-surface-variant hover:bg-surface-container"
+                          }`}
+                          title={upcoming.map((d) => fmtDate(d)).join(", ")}
+                        >
+                          <Icon name="calendar" size={12} />
+                          {upcoming.length ? `Pre-order · ${upcoming.length} date${upcoming.length === 1 ? "" : "s"}` : "Add Preorder"}
+                        </button>
+                      );
+                    })()}
                     <div className="flex items-center gap-2 pt-3 border-t border-outline-variant/10">
                       <button
                         onClick={() => toggleActive(p)}
@@ -384,6 +542,15 @@ export default function ProductsList({ products, loading, onChanged }: Props) {
           categories={categories}
           onDone={() => { setEditTarget(null); onChanged(); }}
           onClose={() => setEditTarget(null)}
+        />
+      )}
+
+      {preorderTarget && (
+        <PreorderModal
+          product={preorderTarget}
+          existing={preorderMap[preorderTarget.id] || []}
+          onClose={() => setPreorderTarget(null)}
+          onSaved={() => { setPreorderTarget(null); reloadPreorders(); }}
         />
       )}
 
