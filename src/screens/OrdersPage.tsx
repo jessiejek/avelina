@@ -82,12 +82,10 @@ const customerPill = (o: OrderView): { label: string; cls: string } => {
 type Section = { key: "pre" | "open" | "past"; title: string; icon: string; items: OrderView[] };
 const isPast = (o: OrderView) => o.status === "completed" || o.status === "cancelled";
 function buildSections(orders: OrderView[]): Section[] {
-  const pre = orders.filter((o) => !isPast(o) && o.preorderDate)
-    .sort((a, b) => a.preorderDate!.localeCompare(b.preorderDate!));
-  const open = orders.filter((o) => !isPast(o) && !o.preorderDate);
-  const past = orders.filter(isPast);
+  const newest = (x: OrderView, y: OrderView) => (y.placedAt || "").localeCompare(x.placedAt || "");
+  const open = orders.filter((o) => !isPast(o)).sort(newest);
+  const past = orders.filter(isPast).sort(newest);
   return ([
-    { key: "pre", title: "Pre-orders", icon: "calendar", items: pre },
     { key: "open", title: "Orders", icon: "shopping_bag", items: open },
     { key: "past", title: "Past orders", icon: "history", items: past },
   ] as Section[]).filter((s) => s.items.length > 0);
