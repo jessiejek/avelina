@@ -73,11 +73,29 @@ type Filter = "all" | "active" | "preorders" | "completed" | "cancelled";
 
 const preorderBadge = (order: { preorderDate: string | null }) =>
   order.preorderDate ? (
-    <span className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full border ${
-      order.preorderDate === todayManila() ? "bg-amber-200 text-amber-900 border-amber-400" : "bg-orange-50 text-orange-800 border-orange-200"
-    }`}>
-      <Icon name="calendar" size={10} /> {order.preorderDate === todayManila() ? "Today" : fmtDate(order.preorderDate)}
+    <span className={`inline-flex items-center gap-1 text-[11px] font-extrabold uppercase tracking-wide px-2.5 py-1 rounded-full shadow-sm whitespace-nowrap bg-orange-500 text-white`}>
+      <Icon name="calendar" size={12} strokeWidth={2.5} /> Pre-order · {fmtDate(order.preorderDate)}
     </span>
+  ) : null;
+
+const preorderTags = (order: { preorderDate: string | null }) =>
+  order.preorderDate ? (
+    <>
+      {preorderBadge(order)}
+      {order.preorderDate === todayManila() && (
+        <span className="inline-flex items-center text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-full border-2 border-orange-500 text-orange-700 bg-white whitespace-nowrap">
+          For today
+        </span>
+      )}
+    </>
+  ) : null;
+
+const bakeFor = (order: { preorderDate: string | null }) =>
+  order.preorderDate ? (
+    <div className="mb-1.5 inline-flex items-center gap-1.5 text-sm font-bold text-orange-800 bg-orange-100 border border-orange-300 rounded-lg px-2.5 py-1">
+      <Icon name="calendar" size={14} strokeWidth={2.5} />
+      Bake for {fmtDate(order.preorderDate)}
+    </div>
   ) : null;
 
 export default function AdminOrders() {
@@ -399,14 +417,14 @@ export default function AdminOrders() {
               return (
                 <div
                   key={order.id}
-                  className={`rounded-xl border border-outline-variant/20 bg-surface-container-lowest p-4 space-y-3 ${done ? "opacity-60" : ""}`}
+                  className={`rounded-xl border p-4 space-y-3 ${order.preorderDate ? "border-orange-300 border-l-[6px] border-l-orange-500 bg-orange-50" : "border-outline-variant/20 bg-surface-container-lowest"} ${done ? "opacity-60" : ""}`}
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="flex items-center gap-1.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="flex flex-wrap items-center gap-1.5">
                       <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full ${statusStyle(order.status)}`}>
                         {statusLabel(order.status)}
                       </span>
-                      {preorderBadge(order)}
+                      {preorderTags(order)}
                     </span>
                     <span className="text-xs text-on-surface-variant whitespace-nowrap">
                       {new Date(order.placedAt).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
@@ -419,6 +437,7 @@ export default function AdminOrders() {
                   </div>
 
                   <div className="text-sm">
+                    {bakeFor(order)}
                     {order.items.length === 0 ? (
                       <span className="text-error">no items</span>
                     ) : (
@@ -499,7 +518,7 @@ export default function AdminOrders() {
                   return (
                     <tr
                       key={order.id}
-                      className={`border-t border-outline-variant/15 hover:bg-surface-container/40 transition-colors [&>td]:align-top ${done ? "opacity-60" : ""}`}
+                      className={`border-t border-outline-variant/15 transition-colors [&>td]:align-top ${order.preorderDate ? "bg-orange-50 hover:bg-orange-100/70 [&>td:first-child]:border-l-[6px] [&>td:first-child]:border-l-orange-500" : "hover:bg-surface-container/40"} ${done ? "opacity-60" : ""}`}
                     >
                       <td className="px-3 py-3 min-w-[240px] max-w-[320px]">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -507,7 +526,7 @@ export default function AdminOrders() {
                           <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${statusStyle(order.status)}`}>
                             {statusLabel(order.status)}
                           </span>
-                          {preorderBadge(order)}
+                          {preorderTags(order)}
                         </div>
                         {order.customerAddress && (
                           <div className="flex items-start gap-1.5 mt-1">
@@ -539,6 +558,7 @@ export default function AdminOrders() {
                         </div>
                       </td>
                       <td className="px-3 py-3 text-on-surface-variant min-w-[280px]">
+                        {bakeFor(order)}
                         {order.items.length === 0 ? (
                           <span className="text-error">no items</span>
                         ) : (
